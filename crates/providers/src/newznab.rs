@@ -6,16 +6,15 @@ use readingroom_core::{
     traits::{Indexer, SearchCriteria},
 };
 
+/// Newznab indexer (usenet). Same XML format as Torznab but for NZB files.
 pub struct NewznabIndexer {
     name: String,
-    url: String,
 }
 
 impl NewznabIndexer {
     pub fn new(config: &IndexerConfig) -> Result<Self> {
         Ok(Self {
             name: config.name.clone(),
-            url: config.url.trim_end_matches('/').to_string(),
         })
     }
 }

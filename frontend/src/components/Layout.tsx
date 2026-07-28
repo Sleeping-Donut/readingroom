@@ -1,7 +1,7 @@
-import type { Component } from "solid-js";
+import type { Component, ParentProps } from "solid-js";
 import { A } from "@solidjs/router";
 
-export const Layout: Component = (props) => {
+export const Layout: Component<ParentProps> = (props) => {
   return (
     <div class="min-h-screen bg-gray-950 text-gray-100">
       <nav class="border-b border-gray-800 px-6 py-3 flex items-center gap-6">

@@ -6,10 +6,11 @@ edition = "2021"
 [dependencies]
 readingroom-core = { path = "../core" }
 
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 reqwest.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
 thiserror.workspace = true
-feed-rs.workspace = true
+chrono.workspace = true
+quick-xml = "0.41"
