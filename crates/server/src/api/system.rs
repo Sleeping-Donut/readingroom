@@ -1,8 +1,12 @@
-use axum::{Router, extract::State, routing::get};
-use serde_json::json;
+use std::sync::Arc;
 
-async fn status(State(state): State<crate::AppState>) -> impl axum::response::IntoResponse {
-    axum::response::Json(json!({
+use axum::{Router, extract::State, routing::get};
+use serde_json::{Value, json};
+
+use crate::AppState;
+
+async fn status(State(state): State<Arc<AppState>>) -> Json<Value> {
+    Json(json!({
         "version": env!("CARGO_PKG_VERSION"),
         "name": "readingroom",
         "startup_path": state.config.server.data_dir,
@@ -10,6 +14,6 @@ async fn status(State(state): State<crate::AppState>) -> impl axum::response::In
     }))
 }
 
-pub fn router() -> Router<crate::AppState> {
+pub fn router() -> Router<Arc<AppState>> {
     Router::new().route("/status", get(status))
 }
