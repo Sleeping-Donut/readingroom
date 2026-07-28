@@ -68,7 +68,7 @@ pub struct MetadataConfig {
     pub hardcover: MetadataSourceConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MetadataSourceConfig {
     #[serde(default)]
     pub enabled: bool,

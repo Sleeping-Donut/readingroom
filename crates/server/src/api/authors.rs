@@ -17,7 +17,7 @@ pub struct SearchParams {
 }
 
 pub fn router() -> Router<Arc<AppState>> {
-    Router::new()
+    Router::<Arc<AppState>>::new()
         .route("/", get(list_authors))
         .route("/:id", get(get_author))
         .route("/search", get(search_authors))

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::{Router, response::IntoResponse, routing::get};
+use axum::{Router, response::IntoResponse};
 use serde_json::json;
 
 use crate::AppState;
@@ -11,7 +11,7 @@ mod search;
 mod system;
 
 pub fn router() -> Router<Arc<AppState>> {
-    Router::new()
+    Router::<Arc<AppState>>::new()
         .nest("/authors", authors::router())
         .nest("/books", books::router())
         .nest("/search", search::router())

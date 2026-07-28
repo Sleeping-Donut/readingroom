@@ -28,5 +28,5 @@ async fn search_all(
 }
 
 pub fn router() -> Router<Arc<AppState>> {
-    Router::new().route("/", get(search_all))
+    Router::<Arc<AppState>>::new().route("/", get(search_all))
 }

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::Datelike;
 use readingroom_core::{
     error::{AppError, Result},
     models::*,
@@ -242,12 +243,13 @@ impl MetadataSource for OpenLibrarySource {
                     serde_json::Value::Object(o) => o.get("value").and_then(|v| v.as_str().map(String::from)),
                     _ => None,
                 });
+                let title_w = e.title;
                 Book {
                     id: 0,
                     foreign_id: ol_id_from_key(&e.key),
                     author_id: 0,
-                    title: e.title,
-                    clean_title: e.title.to_lowercase(),
+                    title: title_w.clone(),
+                    clean_title: title_w.to_lowercase(),
                     description,
                     isbn: None,
                     isbn13: None,
@@ -287,12 +289,13 @@ impl MetadataSource for OpenLibrarySource {
                     chrono::NaiveDate::from_ymd_opt(y, 1, 1)
                         .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap())
                 });
+                let title = d.title;
                 Book {
                     id: 0,
                     foreign_id: ol_id_from_key(&d.key),
                     author_id: 0,
-                    title: d.title,
-                    clean_title: d.title.to_lowercase(),
+                    title: title.clone(),
+                    clean_title: title.to_lowercase(),
                     description: None,
                     isbn: d.isbn.as_ref().and_then(|i| i.first().cloned()),
                     isbn13: d.isbn.as_ref().and_then(|i| i.iter().find(|x| x.len() == 13).cloned()),
@@ -331,12 +334,13 @@ impl MetadataSource for OpenLibrarySource {
             _ => None,
         });
 
+        let title = entry.title;
         Ok(Book {
             id: 0,
             foreign_id: ol_id_from_key(&entry.key),
             author_id: 0,
-            title: entry.title,
-            clean_title: entry.title.to_lowercase(),
+            title: title.clone(),
+            clean_title: title.to_lowercase(),
             description,
             isbn: None,
             isbn13: None,

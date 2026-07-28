@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Not found: {0}")]
@@ -10,6 +8,9 @@ pub enum AppError {
 
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
+
+    #[error("Migration error: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
 
     #[error("HTTP client error: {0}")]
     Http(#[from] reqwest::Error),

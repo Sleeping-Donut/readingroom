@@ -17,7 +17,7 @@ pub fn load() -> Result<Config> {
     let path = config_path();
 
     if !path.exists() {
-        tracing::warn!(%path, "Config not found, using defaults");
+        tracing::warn!(path = %path.display(), "Config not found, using defaults");
         let config = Config::default();
         // Ensure data dir exists
         std::fs::create_dir_all(&config.server.data_dir)?;
@@ -25,7 +25,7 @@ pub fn load() -> Result<Config> {
     }
 
     let contents = std::fs::read_to_string(&path)
-        .map_err(|e| AppError::Config(format!("Failed to read {path}: {e}")))?;
+        .map_err(|e| AppError::Config(format!("Failed to read {}: {e}", path.display())))?;
 
     let config: Config = toml::from_str(&contents)
         .map_err(|e| AppError::Config(format!("Failed to parse config: {e}")))?;

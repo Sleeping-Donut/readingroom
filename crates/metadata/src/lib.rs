@@ -2,7 +2,7 @@ pub mod openlibrary;
 pub mod google_books;
 pub mod goodreads;
 
-use readingroom_core::error::{AppError, Result};
+use readingroom_core::error::Result;
 use readingroom_core::traits::MetadataSource;
 use readingroom_core::config::MetadataConfig;
 

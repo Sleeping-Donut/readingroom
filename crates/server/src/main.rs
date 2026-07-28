@@ -1,6 +1,8 @@
-use axum::{Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
+use axum::{Router, http::StatusCode, response::IntoResponse, routing::get};
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
+
+use readingroom_core::traits::MetadataSource;
 
 mod api;
 mod config;
