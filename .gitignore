@@ -1,0 +1,42 @@
+# Reference repos (LazyLibrarian, Readarr sources)
+references/
+
+# Rust
+target/
+Cargo.lock
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# SQLite
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Nix
+result
+result-*
+.flake/
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+
+# SQLx offline cache (regenerated per dev machine)
+.sqlx/
