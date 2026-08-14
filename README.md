@@ -80,17 +80,17 @@ Add the flake as an input and import the module:
 <details>
 <summary><b>Docker</b></summary>
 
-Builds the combined package with a NixOS base and runs it from a scratch layer (no distro overhead):
+Builds the combined package with a NixOS base and runs it from a scratch layer (no distro overhead). Docker builds straight from the repo — no clone needed:
 
 ```bash
-docker build -t readingroom .
+docker build -t readingroom https://github.com/Sleeping-Donut/readingroom
 docker run -d \
   -p 5299:5299 \
   -v readingroom-data:/data \
   readingroom
 ```
 
-The image builds the combined package with Nix from the local checkout, and runs it from a scratch layer (only the runtime closure is copied, so there's no distro or Nix overhead). Mount a volume at `/data` for the database and config.
+The image builds the combined package with Nix and runs it from a scratch layer (only the runtime closure is copied, so there's no distro or Nix overhead). Mount a volume at `/data` for the database and config.
 </details>
 
 ## Basic Usage
