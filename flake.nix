@@ -106,6 +106,13 @@
         };
       }
     ) // {
-      nixosModules.default = import ./nix/nixos-module.nix;
+      # Inject the flake's combined package into the module so the service
+      # works out of the box (package defaults to it) instead of requiring
+      # the user to supply a package that doesn't exist in nixpkgs.
+      nixosModules.default =
+        { pkgs, ... }@args:
+        import ./nix/nixos-module.nix ({
+          readingroom = self.packages.${pkgs.system}.default;
+        } // args);
     };
 }

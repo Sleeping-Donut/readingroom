@@ -42,7 +42,7 @@ The backend auto-detects the frontend assets via the `FRONTEND_DIST` env var (se
 <details>
 <summary><b>NixOS</b></summary>
 
-Add the flake as an input and import the module:
+Add the flake as an input and import the module (the service defaults to the flake's combined package):
 
 ```nix
 {
@@ -63,7 +63,6 @@ Add the flake as an input and import the module:
           {
             services.readingroom = {
               enable = true;
-              package = readingroom.packages.${system}.default;
               port = 5299;
               dataDir = "/var/lib/readingroom";
               auth.enable = true;

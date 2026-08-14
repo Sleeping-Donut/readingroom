@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, readingroom, ... }:
 
 let
   cfg = config.services.readingroom;
@@ -9,9 +9,8 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = null;
-      example = "pkgs.readingroom";
-      description = "ReadingRoom package to use";
+      default = readingroom;
+      description = "ReadingRoom package to use (defaults to the flake's combined package).";
     };
 
     host = lib.mkOption {
@@ -136,6 +135,10 @@ in
         READINGROOM_PORT = toString cfg.port;
       } // lib.optionalAttrs (cfg.frontendDir != null) {
         FRONTEND_DIST = cfg.frontendDir;
+      } // lib.optionalAttrs (cfg.frontendDir == null) {
+        # The combined package ships its web assets here; the server binary
+        # needs FRONTEND_DIST to find them.
+        FRONTEND_DIST = "${cfg.package}/share/readingroom";
       } // lib.optionalAttrs (cfg.auth.jwtSecret != null) {
         READINGROOM_JWT_SECRET = cfg.auth.jwtSecret;
       };
