@@ -6,7 +6,9 @@ Built with Rust (Axum + SQLite) and SolidJS 2.0.
 
 > [!WARNING]
 > This is for my own personal use and is **SLOP**
+>
 > Use your own discretion if you want
+>
 > ¯\(ツ)/¯
 
 ## Install
