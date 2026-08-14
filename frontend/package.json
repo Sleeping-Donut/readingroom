@@ -1,28 +1,40 @@
 {
   "name": "readingroom-frontend",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "check": "tsc --noEmit"
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview",
+    "check": "vp check",
+    "test": "vp test run",
+    "test:watch": "vp test"
   },
   "dependencies": {
-    "solid-js": "^1.9.0",
-    "@solidjs/router": "^0.14.0",
-    "@tanstack/solid-query": "^5.0.0"
+    "@solidjs/meta": "1.0.0-next.2",
+    "@solidjs/router": "2.0.0-next.16",
+    "@solidjs/web": "2.0.0-rc.0",
+    "solid-js": "2.0.0-rc.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
-    "vite": "^5.4.0",
-    "vite-plugin-solid": "^2.10.0",
-    "tailwindcss": "^3.4.0",
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0"
+    "@solidjs/testing-library": "^0.8.10",
+    "@solidjs/vite-plugin": "3.0.0-next.28",
+    "@types/node": "^26.2.0",
+    "autoprefixer": "^10.5.4",
+    "filesystem-routing": "^0.2.1",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.6",
+    "vite-plus": "catalog:"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.17.0",
+      "onFail": "warn"
+    }
   }
 }

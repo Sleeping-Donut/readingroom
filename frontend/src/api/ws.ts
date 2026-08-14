@@ -1,0 +1,73 @@
+type WsCallback = (event: string, data: unknown) => void;
+
+let ws: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+const listeners = new Map<string, Set<WsCallback>>();
+
+function wsUrl(): string {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/ws`;
+}
+
+function connect() {
+  // Single-flight: never open a second socket while one exists or a reconnect is pending.
+  if (ws || reconnectTimer) return;
+
+  const socket = new WebSocket(wsUrl());
+  ws = socket;
+
+  socket.onmessage = (event) => {
+    try {
+      const parsed = JSON.parse(event.data);
+      const { event: eventType, data } = parsed;
+      const cbs = listeners.get(eventType);
+      if (cbs) cbs.forEach((cb) => cb(eventType, data));
+      const allCbs = listeners.get("*");
+      if (allCbs) allCbs.forEach((cb) => cb(eventType, data));
+    } catch (e) {
+      console.error("WS parse error", e);
+    }
+  };
+
+  socket.onclose = () => {
+    if (ws === socket) ws = null;
+    // Stop reconnecting if nobody is listening anymore.
+    if (listeners.size === 0) return;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, 5000);
+  };
+
+  socket.onerror = () => socket.close();
+}
+
+export function subscribe(event: string, callback: WsCallback): () => void {
+  if (!ws && !reconnectTimer) connect();
+  let set = listeners.get(event);
+  if (!set) {
+    set = new Set();
+    listeners.set(event, set);
+  }
+  set.add(callback);
+
+  return () => {
+    set.delete(callback);
+    if (set.size === 0) listeners.delete(event);
+    // If nothing is listening, drop the socket and cancel any pending reconnect.
+    if (listeners.size === 0) {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+    }
+  };
+}
+
+export function subscribeAll(callback: WsCallback): () => void {
+  return subscribe("*", callback);
+}

@@ -1,0 +1,190 @@
+import { query, revalidate } from "@solidjs/router";
+import { Title } from "@solidjs/meta";
+import {
+  action,
+  createOptimistic,
+  createOptimisticStore,
+  Errored,
+  For,
+  Loading,
+  Show,
+  onSettled,
+} from "solid-js";
+import { api } from "../api/client";
+import { subscribeAll } from "../api/ws";
+
+interface QueueEntry {
+  id: number;
+  book_id: number | null;
+  title: string;
+  download_client: string;
+  download_id: string;
+  size: number | null;
+  status: string;
+  progress: number;
+  added_at: string;
+  error?: boolean;
+}
+
+const getQueue = query(
+  async () => api.get<{ queue: QueueEntry[]; total: number }>("/queue"),
+  "queue",
+);
+
+export default function Queue() {
+  // Failed removals, keyed by queue id. Lives under the optimistic layer so
+  // optimistic reverts don't erase the error marker; cleared on retry.
+  const erroredRemovals: Record<number, QueueEntry> = {};
+
+  const [queue, setQueue] = createOptimisticStore<{ queue: QueueEntry[]; total: number }>(
+    async () => {
+      const data = await getQueue();
+      return {
+        ...data,
+        queue: data.queue.map((e) => (erroredRemovals[e.id] ? { ...e, error: true } : e)),
+      };
+    },
+    { queue: [], total: 0 },
+  );
+
+  // The projection above reads getQueue(), so revalidate(getQueue.key) re-runs
+  // it (query retriggers its live consumers; the projected store is one).
+  // WS push is the primary update source; keep a slow poll as a fallback in case WS drops.
+  onSettled(() => {
+    const pollId = setInterval(() => revalidate(getQueue.key), 30000);
+    const unsub = subscribeAll(() => revalidate(getQueue.key));
+    return () => {
+      clearInterval(pollId);
+      unsub();
+    };
+  });
+
+  const remove = action(function* (entry: QueueEntry) {
+    // Optimistic: drop the row immediately.
+    setQueue((s) => {
+      s.queue = s.queue.filter((e) => e.id !== entry.id);
+    });
+    try {
+      yield api.delete(`/queue/${entry.id}`);
+      delete erroredRemovals[entry.id];
+    } catch {
+      // Keep the row, marked errored, so the user can retry just this removal.
+      erroredRemovals[entry.id] = entry;
+    }
+    revalidate(getQueue.key);
+  });
+
+  const [retryingId, setRetryingId] = createOptimistic<number | null>(null);
+
+  const retryRemove = action(function* (entry: QueueEntry) {
+    setRetryingId(entry.id);
+    try {
+      yield api.delete(`/queue/${entry.id}`);
+      delete erroredRemovals[entry.id];
+    } catch {
+      /* leave errored */
+    }
+    revalidate(getQueue.key);
+  });
+
+  const statusColor = (status: string) => {
+    switch (status) {
+      case "downloading":
+        return "text-blue-400";
+      case "completed":
+        return "text-green-400";
+      case "failed":
+        return "text-red-400";
+      case "queued":
+        return "text-yellow-400";
+      case "seeding":
+        return "text-purple-400";
+      default:
+        return "text-gray-400";
+    }
+  };
+
+  return (
+    <div>
+      <Title>Queue · ReadingRoom</Title>
+      <h2 class="text-2xl font-bold mb-6">Download Queue</h2>
+
+      <Errored
+        fallback={(err, reset) => (
+          <p class="text-sm text-red-400 mt-2">
+            Failed to load: {String(err())}{" "}
+            <button onClick={reset} class="text-indigo-400 underline ml-1">
+              Retry
+            </button>
+          </p>
+        )}
+      >
+        <Loading fallback={<p class="text-gray-500">Loading...</p>}>
+          <Show
+            when={queue.queue.length > 0}
+            fallback={
+              <div class="text-center py-12 text-gray-500">
+                <p class="text-lg">No active downloads.</p>
+                <p class="text-sm mt-2">Search for books and start a download to see it here.</p>
+              </div>
+            }
+          >
+            <div class="space-y-3">
+              <For each={queue.queue}>
+                {(entry) => (
+                  <div
+                    class={[
+                      "flex items-center gap-4 p-4 bg-gray-900 rounded-lg border transition-colors",
+                      { "border-red-800": !!entry.error, "border-gray-800": !entry.error },
+                    ]}
+                  >
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium truncate">{entry.title}</p>
+                      <p class="text-xs text-gray-400 mt-1">
+                        {entry.download_client} &middot; {entry.status}
+                        {entry.size ? ` \u00b7 ${(entry.size / 1_000_000).toFixed(1)} MB` : ""}
+                      </p>
+                      <Show when={entry.status === "downloading" && entry.progress > 0}>
+                        <div class="mt-2 w-full bg-gray-800 rounded-full h-1.5">
+                          <div
+                            class="bg-indigo-500 h-1.5 rounded-full transition-all"
+                            style={{ width: `${Math.round(entry.progress * 100)}%` }}
+                          />
+                        </div>
+                      </Show>
+                      <Show when={entry.error}>
+                        <p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
+                      </Show>
+                    </div>
+                    <span class={["text-xs font-medium", { [statusColor(entry.status)]: true }]}>
+                      {entry.status}
+                    </span>
+                    <Show
+                      when={entry.error}
+                      fallback={
+                        <button
+                          onClick={() => void remove(entry)}
+                          class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+                        >
+                          Remove
+                        </button>
+                      }
+                    >
+                      <button
+                        onClick={() => void retryRemove(entry)}
+                        disabled={retryingId() === entry.id}
+                        class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+                      >
+                        {retryingId() === entry.id ? "Retrying..." : "Retry"}
+                      </button>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </Loading>
+      </Errored>
+    </div>
+  );
+}

@@ -1,14 +1,45 @@
 const BASE = "/api/v1";
 
+let onUnauthorized: (() => void) | null = null;
+export function setOnUnauthorized(cb: (() => void) | null) {
+  onUnauthorized = cb;
+}
+
+function getToken(): string | null {
+  try {
+    return localStorage.getItem("readingroom_token");
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (init?.headers) {
+    new Headers(init.headers).forEach((v, k) => headers.set(k, v));
+  }
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers,
     ...init,
   });
+  if (res.status === 401) {
+    localStorage.removeItem("readingroom_token");
+    localStorage.removeItem("readingroom_user");
+    if (onUnauthorized) {
+      onUnauthorized();
+    } else if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.message ?? `HTTP ${res.status}`);
+    throw new Error(body.error ?? body.message ?? `HTTP ${res.status}`);
   }
+  if (res.status === 204 || res.headers.get("content-length") === "0") return undefined as T;
   return res.json();
 }
 

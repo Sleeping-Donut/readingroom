@@ -1,10 +1,197 @@
-import type { Component } from "solid-js";
+import {
+  action,
+  affects,
+  createMemo,
+  createOptimistic,
+  createSignal,
+  Errored,
+  For,
+  Loading,
+  refresh,
+  Show,
+} from "solid-js";
+import { Title } from "@solidjs/meta";
+import { api } from "../api/client";
+import { paths } from "../router";
+import type { Book } from "../types";
 
-export const Books: Component = () => {
+export default function Books() {
+  const [searchQuery, setSearchQuery] = createSignal("");
+  const [showSearch, setShowSearch] = createSignal(false);
+  const [addingId, setAddingId] = createOptimistic<string | null>(null);
+  const [actionError, setActionError] = createSignal<string | null>(null);
+
+  const books = createMemo(async () => api.get<{ books: Book[]; total: number }>("/books"));
+
+  const searchResults = createMemo(async () => {
+    const q = searchQuery().trim();
+    if (!q) return null;
+    return api.get<{ books: Book[]; total: number }>(`/books/search?q=${encodeURIComponent(q)}`);
+  });
+
+  const addBook = action(async function* (book: {
+    foreign_id: string;
+    author_id: number;
+    title: string;
+  }) {
+    setAddingId(book.foreign_id);
+    setActionError(null);
+    try {
+      await api.post("/books", book);
+      yield;
+      affects(books);
+      refresh(books);
+      setSearchQuery("");
+      setShowSearch(false);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    }
+  });
+
   return (
     <div>
-      <h2 class="text-2xl font-bold mb-4">Books</h2>
-      <p class="text-gray-400">Book list coming soon.</p>
+      <Title>Books · ReadingRoom</Title>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Books</h2>
+        <button
+          onClick={() => setShowSearch(!showSearch())}
+          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors"
+        >
+          {showSearch() ? "Cancel" : "Add Book"}
+        </button>
+      </div>
+
+      <Show when={showSearch()}>
+        <div class="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
+          <input
+            type="text"
+            placeholder="Search for a book by title..."
+            value={searchQuery()}
+            onInput={(e) => setSearchQuery(e.currentTarget.value)}
+            class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            autofocus
+          />
+
+          <Errored
+            fallback={(err, reset) => (
+              <p class="text-sm text-red-400 mt-2">
+                Search failed: {String(err())}{" "}
+                <button
+                  onClick={reset}
+                  class="text-indigo-400 hover:text-indigo-300 underline ml-1"
+                >
+                  Retry
+                </button>
+              </p>
+            )}
+          >
+            <Loading fallback={<p class="text-gray-500 text-sm">Searching...</p>}>
+              <Show when={searchResults()} fallback={null}>
+                {(r) => (
+                  <>
+                    <Show when={r().books.length > 0}>
+                      <div class="mt-4 space-y-2">
+                        <For each={r().books}>
+                          {(book) => (
+                            <div class="flex items-center gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
+                              <Show when={book.image_url}>
+                                {(img) => (
+                                  <img
+                                    src={img()}
+                                    alt={book.title}
+                                    class="w-10 h-14 object-cover rounded"
+                                  />
+                                )}
+                              </Show>
+                              <div class="flex-1 min-w-0">
+                                <p class="font-medium truncate">{book.title}</p>
+                                <p class="text-xs text-gray-400 truncate">
+                                  {book.publish_date && `${book.publish_date}`}
+                                  {book.genres.length > 0 &&
+                                    ` · ${book.genres.slice(0, 3).join(", ")}`}
+                                  {book.language && ` · ${book.language}`}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() =>
+                                  void addBook({
+                                    foreign_id: book.foreign_id,
+                                    author_id: book.author_id,
+                                    title: book.title,
+                                  })
+                                }
+                                disabled={addingId() === book.foreign_id}
+                                class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+                              >
+                                {addingId() === book.foreign_id ? "Adding..." : "Add"}
+                              </button>
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                    <Show when={r().books.length === 0}>
+                      <p class="mt-4 text-gray-500 text-sm">No books found.</p>
+                    </Show>
+                  </>
+                )}
+              </Show>
+            </Loading>
+          </Errored>
+
+          <Show when={actionError()}>
+            <p class="text-sm text-red-400 mt-2">{actionError()}</p>
+          </Show>
+        </div>
+      </Show>
+
+      <Errored
+        fallback={(err, reset) => (
+          <p class="text-sm text-red-400 mt-2">
+            Failed to load books: {String(err())}{" "}
+            <button onClick={reset} class="text-indigo-400 hover:text-indigo-300 underline ml-1">
+              Retry
+            </button>
+          </p>
+        )}
+      >
+        <Loading fallback={<p class="text-gray-500">Loading...</p>}>
+          <Show
+            when={books().books.length > 0}
+            fallback={
+              <div class="text-center py-12 text-gray-500">
+                <p class="text-lg">No books tracked yet.</p>
+                <p class="text-sm mt-2">Click "Add Book" to search and start tracking.</p>
+              </div>
+            }
+          >
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <For each={books().books}>
+                {(book) => (
+                  <a
+                    href={String(paths.books(book.id))}
+                    class="block p-4 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
+                  >
+                    <Show when={book.image_url}>
+                      {(img) => (
+                        <img
+                          src={img()}
+                          alt={book.title}
+                          class="w-full h-48 object-cover rounded mb-3"
+                        />
+                      )}
+                    </Show>
+                    <p class="font-medium truncate">{book.title}</p>
+                    <p class="text-xs text-gray-400 mt-1">
+                      {book.genres.length > 0 ? book.genres.slice(0, 2).join(", ") : "No genres"}
+                    </p>
+                  </a>
+                )}
+              </For>
+            </div>
+          </Show>
+        </Loading>
+      </Errored>
     </div>
   );
-};
+}

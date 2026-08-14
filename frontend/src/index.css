@@ -4,7 +4,17 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Fira Sans", "Droid Sans", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans",
+    "Droid Sans", sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Active nav links: the router claims anchors and sets these attributes.
+   `[data-active]` = exact match or descendant; `[aria-current="page"]` = exact match. */
+a[data-active] {
+  color: rgb(165 180 252); /* indigo-300 */
+}
+a[data-active]:hover {
+  color: rgb(199 210 254); /* indigo-200 */
 }
