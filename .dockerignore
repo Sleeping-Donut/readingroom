@@ -1,0 +1,25 @@
+# Build artifacts
+target/
+dist/
+result
+result-*
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Large reference clones (kept out of the repo build)
+references/
+
+# Local dev data
+localdump/
+
+# Nix
+.flake/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store

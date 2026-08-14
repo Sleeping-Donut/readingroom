@@ -90,7 +90,7 @@ docker run -d \
   readingroom
 ```
 
-The image builds from the GitHub flake, so it reflects the latest pushed commit. Mount a volume at `/data` for the database and config.
+The image builds the combined package with Nix from the local checkout, and runs it from a scratch layer (only the runtime closure is copied, so there's no distro or Nix overhead). Mount a volume at `/data` for the database and config.
 </details>
 
 ## Basic Usage

@@ -1,24 +1,34 @@
 # ── Stage 1: build with Nix ──────────────────────────────────────────────────
-# A NixOS base builds the combined backend + frontend from the GitHub flake,
-# so the Docker image always matches the published repo without a source copy.
-FROM nixos/nix:2.24.15 AS build
+# A NixOS base builds the combined backend + frontend from the local checkout.
+# filter-syscalls false is required because Docker's seccomp profile blocks
+# syscalls Nix's build sandbox relies on.
+FROM nixos/nix:2.24.15 AS builder
 
-RUN nix build \
-      github:Sleeping-Donut/readingroom \
-      --extra-experimental-features "nix-command flakes" \
-      --out-link /result
+COPY . /tmp/build
+WORKDIR /tmp/build
+
+RUN nix \
+    --extra-experimental-features "nix-command flakes" \
+    --option filter-syscalls false \
+    build
+
+# Assemble just the runtime closure (the store paths the build output needs),
+# not the whole Nix store.
+RUN mkdir /tmp/nix-store-closure
+RUN cp -R $(nix-store -qR result/) /tmp/nix-store-closure
 
 # ── Stage 2: scratch runtime ─────────────────────────────────────────────────
-# The Nix-built binary is dynamically linked, so copy the whole runtime closure
-# from the Nix store into a scratch layer to make it executable.
+# The closure is self-contained, so Nix isn't needed at runtime.
 FROM scratch
 
-COPY --from=build /nix/store /nix/store
-COPY --from=build /result /result
+WORKDIR /app
 
-ENV FRONTEND_DIST=/result/share/readingroom
+COPY --from=builder /tmp/nix-store-closure /nix/store
+COPY --from=builder /tmp/build/result /app
+
+ENV FRONTEND_DIST=/app/share/readingroom
 EXPOSE 5299
 VOLUME ["/data"]
 
-ENTRYPOINT ["/result/bin/readingroom-server"]
+ENTRYPOINT ["/app/bin/readingroom-server"]
 CMD ["--data-dir", "/data", "--host", "0.0.0.0"]
