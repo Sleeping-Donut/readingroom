@@ -2,75 +2,78 @@
 
 A self-hosted ebook and audiobook management server. Track authors and books, search indexers for downloads, send to download clients, and auto-import into your library.
 
-Built with Rust (Axum + SQLite) and SolidJS (Vite+).
+Built with Rust (Axum + SQLite) and SolidJS 2.0.
 
-## Quick Start
+> [!WARNING]
+> This is for my own personal use and is **SLOP**
+> Use your own discretion if you want
+> ¯\(ツ)/¯
 
-### Prerequisites
+## Install
 
-- [Nix](https://nixos.org/download.html) with flakes enabled
+<details>
+<summary><b>Nix</b></summary>
 
-### Quick Start (Development)
+Run the combined package (backend + built frontend) directly from the flake:
 
 ```bash
-# Enter the development shell (all tools are provided by Nix)
-nix develop
-
-# Run database migrations (first run creates data dir + default config)
-cargo run -- --data-dir ./localdump/datadir
-
-# Terminal 1: Backend server
-nix develop -c cargo run -- --data-dir ./localdump/datadir
-
-# Terminal 2: Frontend dev server
-cd frontend && nix develop -c vp dev
+nix run github:Sleeping-Donut/readingroom -- --data-dir /var/lib/readingroom
 ```
 
-### Install via Nix
-
-Three packages are provided:
+Or build the individual packages:
 
 | Package | Contents |
 |---------|----------|
 | `readingroom` (default) | Backend binary + built frontend, combined |
 | `readingroom-server` | Rust backend binary only |
-| `readingroom-web` | Built frontend static files |
+| `readingroom-web` | Built frontend static assets |
 
 ```bash
-# Build the combined package (backend + frontend)
-nix build
-
-# Run it
-./result/bin/readingroom-server --data-dir /var/lib/readingroom
-
-# Or run directly from the flake
-nix run .# -- --data-dir /var/lib/readingroom
-
-# Build individual pieces
-nix build .#server
-nix build .#web
+nix build github:Sleeping-Donut/readingroom#server
+nix build github:Sleeping-Donut/readingroom#web
+nix build github:Sleeping-Donut/readingroom
 ```
 
-The backend auto-detects the frontend assets via the `FRONTEND_DIST` env var (set by the combined package) or relative `frontend/dist` paths.
+The backend auto-detects the frontend assets via the `FRONTEND_DIST` env var (set by the combined package).
+</details>
 
-### NixOS Module
+<details>
+<summary><b>NixOS</b></summary>
+
+Add the flake as an input and import the module:
 
 ```nix
 {
-  imports = [ readingroom.nixosModules.default ];
-
-  services.readingroom = {
-    enable = true;
-    package = pkgs.readingroom-server;  # or your flake's package
-    port = 5299;
-    dataDir = "/var/lib/readingroom";
-    auth.enable = true;
-    openFirewall = true;
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    readingroom.url = "github:Sleeping-Donut/readingroom";
   };
+
+  outputs = { self, nixpkgs, readingroom, ... }:
+    let
+      system = "x86_64-linux";
+    in
+    {
+      nixosConfigurations.myHost = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [
+          readingroom.nixosModules.default
+          {
+            services.readingroom = {
+              enable = true;
+              package = readingroom.packages.${system}.default;
+              port = 5299;
+              dataDir = "/var/lib/readingroom";
+              auth.enable = true;
+              openFirewall = true;
+            };
+          }
+        ];
+      };
+    };
 }
 ```
-
-The backend serves the API at `http://127.0.0.1:5299`. The frontend dev server runs at `http://127.0.0.1:5173` with API requests proxied to the backend.
+</details>
 
 ## Basic Usage
 
@@ -147,66 +150,70 @@ author_folder_format = "{book_title}"
 
 ## Architecture
 
-```
-┌──────────────────────┐     HTTP/WebSocket     ┌──────────────────────┐
-│   SolidJS Frontend    │ ◄──────────────────────► │   Rust Backend (Axum) │
-│   (Vite+ / Rolldown)  │                         │   (SQLite + sqlx)    │
-└──────────────────────┘                         └──────────────────────┘
-                                                           │
-                                              ┌────────────┼────────────┐
-                                              │            │            │
-                                         Indexers    Metadata     Download
-                                         Torznab     OpenLibrary  Clients
-                                         Newznab     Google Books Transm.
-                                         RSS         Audible      qBittorr.
-                                                                   Deluge
+```mermaid
+flowchart LR
+    subgraph FE[SolidJS Frontend]
+        UI[Web UI]
+    end
+
+    subgraph BE[Rust Backend · Axum]
+        REST[REST API]
+        WS[WebSocket]
+        SVC[Search / Download / Import / Scheduler]
+    end
+
+    subgraph EXT[Providers & Data]
+        DB[(SQLite)]
+        IDX[Indexers · Torznab / Newznab / RSS]
+        MD[Metadata · OpenLibrary / Google / Audible]
+        DC[Download Clients · Transmission / qBittorrent / Deluge]
+    end
+
+    UI <-->|HTTP/JSON| REST
+    UI <-->|WebSocket| WS
+    REST --> SVC
+    WS --> SVC
+    SVC --> DB
+    SVC --> IDX
+    SVC --> MD
+    SVC --> DC
 ```
 
 ## Development
 
-### Project Structure
+### Nix
 
-```
-├── crates/
-│   ├── server/            # Axum HTTP server, API routes, middleware
-│   ├── core/              # Domain models, traits, error types
-│   ├── db/                # SQLite schema + migrations
-│   ├── providers/         # Indexer implementations
-│   ├── metadata/          # Metadata source implementations
-│   └── downloaders/       # Download client implementations
-├── frontend/              # SolidJS SPA
-└── flake.nix              # Nix devShell
-```
-
-### Key Commands
+From a checkout, enter the dev shell — all tools (Rust, Node, pnpm, Vite+ CLI, sqlx-cli) are provided by Nix:
 
 ```bash
-# Build backend
-nix develop -c cargo build
-
-# Run tests
-nix develop -c cargo nextest run
-
-# Frontend typecheck + lint
-cd frontend && nix develop -c vp check
-
-# Frontend tests
-cd frontend && nix develop -c vp test
-
-# Production frontend build
-cd frontend && nix develop -c vp build
+nix develop
 ```
 
-### Tech Stack
+Run the pieces:
 
-| Component | Choice |
-|-----------|--------|
-| Backend framework | Axum (Rust) |
-| Database | SQLite + sqlx |
-| Frontend | SolidJS + Vite+ |
-| Styling | Tailwind CSS |
-| State / data | TanStack Query |
-| Metadata | OpenLibrary, Google Books, Audible |
-| Indexers | Torznab, Newznab, RSS |
-| Downloaders | Transmission, qBittorrent, Deluge |
-| Scheduler | tokio-cron-scheduler |
+```bash
+# Terminal 1: backend (http://127.0.0.1:5299)
+cargo run -- --data-dir ./localdump/datadir
+
+# Terminal 2: frontend dev server (http://127.0.0.1:5173, proxies /api to the backend)
+cd frontend && vp dev
+```
+
+### Arch / from source
+
+Install the build dependencies (as declared in `flake.nix` / `nix/package.nix`):
+
+- **Rust toolchain** — `rust` (or `rustup`)
+- **Node.js** — `nodejs`
+- **pnpm** — `pnpm`
+- **Vite+ CLI (`vp`)** — install via the official installer `curl -fsSL https://vite.plus | bash` (no package in the official repos)
+- **sqlx-cli** (for `sqlx migrate run`) — `sqlx-cli-bin` from the AUR
+
+Optional dev helpers: `cargo-watch`, `cargo-audit`, `cargo-edit`, `cargo-expand`, `cargo-insta`, `just`, `typos`, and `cargo-nextest` (AUR) for tests. `docker` is only needed if you want to test against containerized download clients.
+
+Then build both the server and web:
+
+```bash
+cargo build
+cd frontend && vp install && vp build
+```
