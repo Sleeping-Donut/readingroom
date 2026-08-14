@@ -43,3 +43,6 @@ result-*
 
 # SQLx offline cache (regenerated per dev machine)
 .sqlx/
+
+# Local release build output (just release)
+dist/
