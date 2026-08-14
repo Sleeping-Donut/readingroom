@@ -24,6 +24,10 @@ let
 
     buildPhase = ''
       runHook preBuild
+      # vp manages its own Node runtime by default and would try to download
+      # one, but the build sandbox has no network. Switch to system-first so
+      # it uses the nodejs provided by nativeBuildInputs.
+      vp env off
       vp build 2>&1
       runHook postBuild
     '';
