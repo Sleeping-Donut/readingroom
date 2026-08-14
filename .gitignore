@@ -1,13 +1,16 @@
 # Reference repos (LazyLibrarian, Readarr sources)
 references/
 
+# Local dev data (not committed)
+localdump/
+
 # Rust
 target/
-Cargo.lock
 
 # Frontend
 node_modules/
 frontend/dist/
+package-lock.json
 
 # SQLite
 *.db

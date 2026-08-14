@@ -14,7 +14,7 @@ members = [
 tokio = { version = "1", features = ["full"] }
 
 # HTTP
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tower-http = { version = "0.5", features = ["cors", "fs", "trace", "auth"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
@@ -34,8 +34,12 @@ argon2 = "0.5"
 feed-rs = "2"
 chrono = { version = "0.4", features = ["serde"] }
 
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
 # Utilities
 tracing = "0.1"
+tower = "0.5"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "2"
@@ -43,3 +47,6 @@ async-trait = "0.1"
 tokio-cron-scheduler = "0.11"
 strsim = "0.11"
 glob = "0.3"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+moka = { version = "0.12", default-features = false, features = ["future"] }
+fs2 = "0.4"

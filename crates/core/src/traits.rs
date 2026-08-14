@@ -53,6 +53,7 @@ pub trait Indexer: Send + Sync {
 pub struct DownloadId(pub String);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum DownloadStatus {
     Queued,
     Downloading,
@@ -96,6 +97,9 @@ pub trait DownloadClient: Send + Sync {
     async fn list_active(&self) -> Result<Vec<DownloadItem>>;
     /// Get client configuration/capabilities
     async fn get_config(&self) -> Result<ClientConfig>;
+
+    /// Get the local directory path for a specific download
+    async fn get_download_path(&self, id: &DownloadId) -> Result<String>;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +107,7 @@ pub trait DownloadClient: Send + Sync {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum NotificationEvent {
     Grab { release: Release },
     Import { book: Book, file: BookFile },

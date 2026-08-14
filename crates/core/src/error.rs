@@ -1,4 +1,5 @@
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum AppError {
     #[error("Not found: {0}")]
     NotFound(String),
@@ -26,6 +27,9 @@ pub enum AppError {
 
     #[error("Config error: {0}")]
     Config(String),
+
+    #[error("Notification error: {0}")]
+    Notification(String),
 
     #[error("{0}")]
     Other(String),

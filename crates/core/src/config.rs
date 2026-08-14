@@ -41,6 +41,10 @@ pub struct ServerConfig {
     pub data_dir: PathBuf,
     #[serde(default = "default_log_level")]
     pub log_level: String,
+    #[serde(default)]
+    pub library_root: Option<PathBuf>,
+    #[serde(default)]
+    pub audiobook_root: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,7 +165,7 @@ fn default_host() -> String {
     "127.0.0.1".into()
 }
 fn default_port() -> u16 {
-    8787
+    5299
 }
 fn default_data_dir() -> PathBuf {
     let base = std::env::var("XDG_DATA_HOME")
@@ -176,7 +180,7 @@ fn default_log_level() -> String {
     "info".into()
 }
 fn default_db_url() -> String {
-    "sqlite:readingroom.db".into()
+    "sqlite:///readingroom.db".into()
 }
 fn default_enabled() -> bool {
     false
@@ -195,6 +199,8 @@ impl Default for ServerConfig {
             port: default_port(),
             data_dir: default_data_dir(),
             log_level: default_log_level(),
+            library_root: None,
+            audiobook_root: None,
         }
     }
 }
