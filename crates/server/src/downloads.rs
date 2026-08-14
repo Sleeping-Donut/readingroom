@@ -45,8 +45,8 @@ impl DownloadManager {
         }
     }
 
-    pub fn set_broadcaster(&self, broadcaster: Option<WsBroadcaster>) {
-        *self.broadcaster.blocking_lock() = broadcaster;
+    pub async fn set_broadcaster(&self, broadcaster: Option<WsBroadcaster>) {
+        *self.broadcaster.lock().await = broadcaster;
     }
 
     /// Acquire both locks in the correct order (broadcaster → notification).

@@ -170,7 +170,7 @@ async fn main() -> readingroom_core::error::Result<()> {
     tracing::info!("WebSocket broadcaster initialized");
 
     // Wire broadcaster into DownloadManager for real-time events
-    download_manager.set_broadcaster(Some(broadcaster.clone()));
+    download_manager.set_broadcaster(Some(broadcaster.clone())).await;
 
     let state = Arc::new(AppState {
         config: config.clone(),
