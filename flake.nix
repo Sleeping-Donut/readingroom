@@ -8,6 +8,11 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nix-vite-plus = {
+      url = "github:ryoppippi/nix-vite-plus";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    crane.url = "github:ipetkov/crane";
   };
 
   outputs =
@@ -16,6 +21,8 @@
       nixpkgs,
       flake-utils,
       rust-overlay,
+      nix-vite-plus,
+      crane,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -24,6 +31,9 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
+
+        craneLib = crane.mkLib pkgs;
+        vp = nix-vite-plus.packages.${system}.vp;
 
         # Rust toolchain: stable + extra components
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
@@ -46,7 +56,7 @@
           # Database
           sqlx-cli
           # Frontend
-          nodejs_22
+          nodejs
           pnpm
           # General
           just
@@ -55,14 +65,22 @@
           docker-client
         ];
       in
+      let
+        pkg = pkgs.callPackage ./nix/package.nix {
+          inherit vp craneLib;
+          pnpm = pkgs.pnpm;
+          nodejs = pkgs.nodejs;
+        };
+      in
       {
-        # Packages (add these once Cargo.lock is generated):
-        #   packages.default = pkgs.callPackage ./nix/package.nix { };
-        #   packages.frontend = ...;
-        packages = { };
+        packages = {
+          default = pkg.combined;
+          server = pkg.server;
+          web = pkg.frontend;
+        };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = devTools;
+          buildInputs = devTools ++ [ vp ];
 
           shellHook = ''
             echo "ReadingRoom devShell"
@@ -71,19 +89,23 @@
             echo "  Rust    $(rustc --version)"
             echo "  Node    $(node --version)"
             echo "  pnpm    $(pnpm --version)"
+            echo "  Vite+   $(vp --version)"
             echo "  SQLite  $(sqlite3 --version)"
             echo ""
             echo "Quick start:"
             echo "  cargo generate-lockfile         # generate Cargo.lock"
             echo "  cargo build                     # build backend"
             echo "  cargo nextest run               # run tests"
-            echo "  cd frontend && pnpm install     # install JS deps"
-            echo "  cd frontend && pnpm dev         # start frontend dev server"
+            echo "  cd frontend && vp install       # install JS deps"
+            echo "  cd frontend && vp dev           # start frontend dev server"
+            echo "  cd frontend && vp check         # format + lint + typecheck"
             echo ""
 
             export SQLX_OFFLINE=true
           '';
         };
       }
-    );
+    ) // {
+      nixosModules.default = import ./nix/nixos-module.nix;
+    };
 }
