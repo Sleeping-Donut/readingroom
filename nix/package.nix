@@ -93,7 +93,15 @@ let
     postBuild = ''
       mkdir -p $out/bin
       ln -sf ${server}/bin/readingroom-server $out/bin/readingroom-server
-      ln -sf ${server}/bin/readingroom-server $out/bin/readingroom
+
+      # Wrapper so `nix run .#` serves the bundled frontend: point the server
+      # at this package's web assets, which live under share/readingroom.
+      cat > $out/bin/readingroom << EOF
+      #!${stdenv.shell}
+      export FRONTEND_DIST="$out/share/readingroom"
+      exec "$out/bin/readingroom-server" "\$@"
+      EOF
+      chmod +x $out/bin/readingroom
 
       mkdir -p $out/share/readingroom
       cp -r ${frontend}/* $out/share/readingroom/
