@@ -9,7 +9,7 @@ Built with Rust (Axum + SQLite) and SolidJS 2.0.
 >
 > Use your own discretion if you want
 >
-> ¯\(ツ)/¯
+> `¯\(ツ)/¯`
 
 ## Install
 
