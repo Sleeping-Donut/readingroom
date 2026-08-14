@@ -37,13 +37,6 @@ in
       description = "Root directory for imported books";
     };
 
-    frontendDir = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
-      default = null;
-      example = "/var/lib/readingroom/frontend";
-      description = "Path to pre-built frontend dist directory. If null, the backend runs in API-only mode.";
-    };
-
     auth = {
       enable = lib.mkEnableOption "JWT authentication" // {
         default = false;
@@ -133,9 +126,6 @@ in
       environment = {
         READINGROOM_HOST = cfg.host;
         READINGROOM_PORT = toString cfg.port;
-      } // lib.optionalAttrs (cfg.frontendDir != null) {
-        FRONTEND_DIST = cfg.frontendDir;
-      } // lib.optionalAttrs (cfg.frontendDir == null) {
         # The combined package ships its web assets here; the server binary
         # needs FRONTEND_DIST to find them.
         FRONTEND_DIST = "${cfg.package}/share/readingroom";

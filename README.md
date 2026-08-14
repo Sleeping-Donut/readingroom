@@ -20,23 +20,12 @@ Run the combined package (backend + built frontend) directly from the flake:
 
 ```bash
 nix run github:Sleeping-Donut/readingroom -- --data-dir /var/lib/readingroom
-```
 
-Or build the individual packages:
-
-| Package | Contents |
-|---------|----------|
-| `readingroom` (default) | Backend binary + built frontend, combined |
-| `readingroom-server` | Rust backend binary only |
-| `readingroom-web` | Built frontend static assets |
-
-```bash
-nix build github:Sleeping-Donut/readingroom#server
-nix build github:Sleeping-Donut/readingroom#web
+# Or build it
 nix build github:Sleeping-Donut/readingroom
 ```
 
-The backend auto-detects the frontend assets via the `FRONTEND_DIST` env var (set by the combined package).
+The package bundles the frontend; the included `readingroom` wrapper points the server at its own web assets via `FRONTEND_DIST`.
 </details>
 
 <details>

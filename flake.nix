@@ -65,18 +65,11 @@
           docker-client
         ];
       in
-      let
-        pkg = pkgs.callPackage ./nix/package.nix {
+      {
+        packages.default = pkgs.callPackage ./nix/package.nix {
           inherit vp craneLib;
           pnpm = pkgs.pnpm;
           nodejs = pkgs.nodejs;
-        };
-      in
-      {
-        packages = {
-          default = pkg.combined;
-          server = pkg.server;
-          web = pkg.frontend;
         };
 
         devShells.default = pkgs.mkShell {

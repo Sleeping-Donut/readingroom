@@ -36,15 +36,9 @@ let
       runHook preInstall
       mkdir -p $out
       # Start mode (client-only) emits the static SPA under dist/client.
-      # Copy its contents to $out so FRONTEND_DIST=$out serves index.html directly.
       cp -r dist/client/* $out/
       runHook postInstall
     '';
-
-    meta = with lib; {
-      description = "ReadingRoom web UI (static files)";
-      license = licenses.mit;
-    };
   });
 
   # ── Backend: Rust binary (crane) ───────────────────────────────────────────
@@ -71,21 +65,14 @@ let
   # Build Cargo dependencies separately for fast caching.
   cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-  # Build the final Rust binary, with the frontend dist path made available.
   server = craneLib.buildPackage (commonArgs // {
     inherit cargoArtifacts;
-
-    # Make the built frontend assets discoverable by the binary at runtime.
-    FRONTEND_DIST = "${frontend}";
-
-    meta = with lib; {
-      description = "ReadingRoom backend server";
-      license = licenses.mit;
-      mainProgram = "readingroom-server";
-    };
+    meta.mainProgram = "readingroom-server";
   });
 
   # ── Combined: backend + frontend ───────────────────────────────────────────
+  # The single deliverable: the server binary plus the built web assets, with
+  # a wrapper that points the server at its own frontend.
   combined = symlinkJoin {
     name = "readingroom";
     paths = [ server frontend ];
@@ -94,8 +81,6 @@ let
       mkdir -p $out/bin
       ln -sf ${server}/bin/readingroom-server $out/bin/readingroom-server
 
-      # Wrapper so `nix run .#` serves the bundled frontend: point the server
-      # at this package's web assets, which live under share/readingroom.
       cat > $out/bin/readingroom << EOF
       #!${stdenv.shell}
       export FRONTEND_DIST="$out/share/readingroom"
@@ -115,7 +100,4 @@ let
     };
   };
 in
-{
-  inherit frontend server combined;
-  default = combined;
-}
+combined
