@@ -13,24 +13,23 @@ fn config_path() -> PathBuf {
     config_dir.join("readingroom").join("config.toml")
 }
 
-pub fn load() -> Result<Config> {
+pub fn load(data_dir_override: Option<PathBuf>) -> Result<Config> {
     let path = config_path();
-
-    if !path.exists() {
+    let mut config = if path.exists() {
+        let contents = std::fs::read_to_string(&path)
+            .map_err(|e| AppError::Config(format!("Failed to read {}: {e}", path.display())))?;
+        toml::from_str(&contents)
+            .map_err(|e| AppError::Config(format!("Failed to parse config: {e}")))?
+    } else {
         tracing::warn!(path = %path.display(), "Config not found, using defaults");
-        let config = Config::default();
-        // Ensure data dir exists
-        std::fs::create_dir_all(&config.server.data_dir)?;
-        return Ok(config);
+        Config::default()
+    };
+
+    // CLI flag overrides config file and defaults
+    if let Some(dir) = data_dir_override {
+        config.server.data_dir = dir;
     }
 
-    let contents = std::fs::read_to_string(&path)
-        .map_err(|e| AppError::Config(format!("Failed to read {}: {e}", path.display())))?;
-
-    let config: Config = toml::from_str(&contents)
-        .map_err(|e| AppError::Config(format!("Failed to parse config: {e}")))?;
-
     std::fs::create_dir_all(&config.server.data_dir)?;
-
     Ok(config)
 }
