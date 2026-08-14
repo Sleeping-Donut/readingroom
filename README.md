@@ -77,6 +77,22 @@ Add the flake as an input and import the module:
 ```
 </details>
 
+<details>
+<summary><b>Docker</b></summary>
+
+Builds the combined package with a NixOS base and runs it from a scratch layer (no distro overhead):
+
+```bash
+docker build -t readingroom .
+docker run -d \
+  -p 5299:5299 \
+  -v readingroom-data:/data \
+  readingroom
+```
+
+The image builds from the GitHub flake, so it reflects the latest pushed commit. Mount a volume at `/data` for the database and config.
+</details>
+
 ## Basic Usage
 
 ### 1. Configure an Indexer
@@ -199,6 +215,13 @@ cargo run -- --data-dir ./localdump/datadir
 
 # Terminal 2: frontend dev server (http://127.0.0.1:5173, proxies /api to the backend)
 cd frontend && vp dev
+```
+
+Build the whole thing (backend + frontend assembled into `dist/`) with one command:
+
+```bash
+just release          # assemble into dist/ (readingroom-server + web/)
+just run-release      # run the assembled result
 ```
 
 ### Arch / from source
