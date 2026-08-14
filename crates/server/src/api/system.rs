@@ -548,6 +548,7 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::<Arc<AppState>>::new()
         .route("/status", get(status))
         .route("/stats", get(stats))
+        .route("/health", get(health_check))
         .route("/backup", post(backup))
         .route("/restore", post(restore))
         .route("/bulk-import", post(bulk_import))
