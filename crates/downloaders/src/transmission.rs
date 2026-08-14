@@ -6,7 +6,7 @@ use readingroom_core::{
     models::{DownloadType, Release},
     traits::{ClientConfig, DownloadClient, DownloadId, DownloadItem, DownloadStatus},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub struct TransmissionClient {
@@ -20,8 +20,60 @@ pub struct TransmissionClient {
 struct RpcRequest {
     method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    arguments: Option<serde_json::Value>,
+    arguments: Option<Value>,
     tag: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct RpcResponse {
+    result: String,
+    arguments: Option<Value>,
+}
+
+#[derive(Deserialize)]
+struct TorrentGetResponse {
+    torrents: Vec<TorrentInfo>,
+}
+
+#[derive(Deserialize)]
+struct TorrentInfo {
+    #[serde(alias = "hashString")]
+    hash_string: String,
+    name: String,
+    status: i64,
+    #[serde(default)]
+    total_size: i64,
+    #[serde(default)]
+    downloaded_ever: i64,
+    #[serde(default)]
+    percent_done: f64,
+    #[serde(default)]
+    added_date: i64,
+    #[serde(default)]
+    error_string: String,
+    #[serde(default)]
+    download_dir: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct TorrentAddedResponse {
+    #[serde(default)]
+    torrent_added: Option<TorrentAddedInfo>,
+    #[serde(default)]
+    torrent_duplicate: Option<TorrentAddedInfo>,
+}
+
+#[derive(Deserialize)]
+struct TorrentAddedInfo {
+    #[serde(alias = "hashString")]
+    hash_string: String,
+}
+
+#[derive(Deserialize)]
+struct SessionGetResponse {
+    version: Option<String>,
+    #[serde(alias = "download-dir")]
+    download_dir: Option<String>,
 }
 
 impl TransmissionClient {
@@ -55,18 +107,8 @@ impl TransmissionClient {
         })
     }
 
-    async fn rpc_call(&self, method: &str, args: Option<Value>) -> Result<Value> {
-        self.rpc_call_with_session(method, &args, None).await
-    }
-
-    async fn rpc_call_with_session(
-        &self,
-        method: &str,
-        args: &Option<Value>,
-        session_id: Option<&str>,
-    ) -> Result<Value> {
-        let mut current_sid = session_id.map(|s| s.to_owned());
-        // Transmission may return 409 once, requiring a retry with the session header
+    async fn rpc_call_raw(&self, method: &str, args: Option<Value>) -> Result<RpcResponse> {
+        let mut current_sid: Option<String> = None;
         for _ in 0..2 {
             let body = RpcRequest {
                 method: method.into(),
@@ -79,7 +121,7 @@ impl TransmissionClient {
             if let Some(auth) = &self.auth_header {
                 req = req.header("Authorization", auth);
             }
-            if let Some(sid) = &current_sid {
+            if let Some(ref sid) = current_sid {
                 req = req.header("X-Transmission-Session-Id", sid);
             }
 
@@ -104,19 +146,18 @@ impl TransmissionClient {
                 )));
             }
 
-            let json: Value = resp.json().await.map_err(|e| {
+            let rpc: RpcResponse = resp.json().await.map_err(|e| {
                 AppError::Provider(format!("Transmission bad JSON response: {e}"))
             })?;
 
-            if json.get("result").and_then(|r| r.as_str()) != Some("success") {
-                let msg = json
-                    .get("result")
-                    .and_then(|r| r.as_str())
-                    .unwrap_or("unknown error");
-                return Err(AppError::Provider(format!("Transmission RPC error: {msg}")));
+            if rpc.result != "success" {
+                return Err(AppError::Provider(format!(
+                    "Transmission RPC error: {}",
+                    rpc.result
+                )));
             }
 
-            return Ok(json);
+            return Ok(rpc);
         }
 
         Err(AppError::Provider(
@@ -126,13 +167,13 @@ impl TransmissionClient {
 
     fn map_torrent_status(code: i64) -> DownloadStatus {
         match code {
-            0 => DownloadStatus::Queued,       // TR_STATUS_STOPPED
-            1 => DownloadStatus::Queued,        // TR_STATUS_CHECK_WAIT
-            2 => DownloadStatus::Downloading,   // TR_STATUS_CHECK
-            3 => DownloadStatus::Queued,        // TR_STATUS_DOWNLOAD_WAIT
-            4 => DownloadStatus::Downloading,   // TR_STATUS_DOWNLOAD
-            5 => DownloadStatus::Queued,        // TR_STATUS_SEED_WAIT
-            6 => DownloadStatus::Seeding,       // TR_STATUS_SEED
+            0 => DownloadStatus::Queued,
+            1 => DownloadStatus::Queued,
+            2 => DownloadStatus::Downloading,
+            3 => DownloadStatus::Queued,
+            4 => DownloadStatus::Downloading,
+            5 => DownloadStatus::Queued,
+            6 => DownloadStatus::Seeding,
             _ => DownloadStatus::Downloading,
         }
     }
@@ -159,16 +200,26 @@ impl DownloadClient for TransmissionClient {
             "paused": false,
         });
 
-        let resp = self.rpc_call("torrent-add", Some(args)).await?;
+        let resp = self.rpc_call_raw("torrent-add", Some(args)).await?;
+        let args_val = resp
+            .arguments
+            .ok_or_else(|| AppError::Provider("Transmission: no arguments".into()))?;
 
-        let hash = resp
-            .pointer("/arguments/torrent-added/hashString")
-            .or_else(|| resp.pointer("/arguments/torrent-duplicate/hashString"))
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| AppError::Provider("Transmission did not return torrent hash".into()))?;
+        let add: TorrentAddedResponse =
+            serde_json::from_value(args_val)
+                .map_err(|e| {
+                    AppError::Provider(format!("Transmission: bad add response: {e}"))
+                })?;
 
-        tracing::info!(client = %self.name, hash = %hash, "Torrent added via Transmission");
-        Ok(DownloadId(hash.to_string()))
+        let hash = add
+            .torrent_added
+            .or(add.torrent_duplicate)
+            .ok_or_else(|| {
+                AppError::Provider("Transmission did not return torrent hash".into())
+            })?;
+
+        tracing::info!(client = %self.name, hash = %hash.hash_string, "Torrent added via Transmission");
+        Ok(DownloadId(hash.hash_string))
     }
 
     async fn remove_download(&self, id: &DownloadId) -> Result<()> {
@@ -177,7 +228,7 @@ impl DownloadClient for TransmissionClient {
             "delete-local-data": false,
         });
 
-        self.rpc_call("torrent-remove", Some(args)).await?;
+        self.rpc_call_raw("torrent-remove", Some(args)).await?;
         tracing::info!(client = %self.name, id = %id.0, "Torrent removed");
         Ok(())
     }
@@ -188,22 +239,21 @@ impl DownloadClient for TransmissionClient {
             "fields": ["status", "percentDone", "errorString"],
         });
 
-        let resp = self.rpc_call("torrent-get", Some(args)).await?;
-        let torrents = resp
-            .pointer("/arguments/torrents")
-            .and_then(|v| v.as_array())
-            .ok_or_else(|| AppError::Provider("Transmission: missing torrents in response".into()))?;
+        let resp = self.rpc_call_raw("torrent-get", Some(args)).await?;
+        let args_val = resp
+            .arguments
+            .ok_or_else(|| AppError::Provider("Transmission: no arguments".into()))?;
 
-        match torrents.first() {
+        let get: TorrentGetResponse = serde_json::from_value(args_val).map_err(|e| {
+            AppError::Provider(format!("Transmission: bad get response: {e}"))
+        })?;
+
+        match get.torrents.first() {
             Some(t) => {
-                let status = t.get("status").and_then(|s| s.as_i64()).unwrap_or(0);
-                let err = t
-                    .get("errorString")
-                    .and_then(|s| s.as_str())
-                    .filter(|s| !s.is_empty());
-                match err {
-                    Some(msg) => Ok(DownloadStatus::Failed(msg.to_string())),
-                    None => Ok(Self::map_torrent_status(status)),
+                if !t.error_string.is_empty() {
+                    Ok(DownloadStatus::Failed(t.error_string.clone()))
+                } else {
+                    Ok(Self::map_torrent_status(t.status))
                 }
             }
             None => Ok(DownloadStatus::Removed),
@@ -219,67 +269,75 @@ impl DownloadClient for TransmissionClient {
             ],
         });
 
-        let resp = self.rpc_call("torrent-get", Some(args)).await?;
-        let torrents = resp
-            .pointer("/arguments/torrents")
-            .and_then(|v| v.as_array())
-            .ok_or_else(|| AppError::Provider("Transmission: missing torrents".into()))?;
+        let resp = self.rpc_call_raw("torrent-get", Some(args)).await?;
+        let args_val = resp
+            .arguments
+            .ok_or_else(|| AppError::Provider("Transmission: no arguments".into()))?;
 
-        let items = torrents
-            .iter()
-            .filter(|t| {
-                let status = t.get("status").and_then(|s| s.as_i64()).unwrap_or(0);
-                // Only active/paused/checking torrents, not stopped/completed
-                status != 0
-            })
-            .map(|t| {
-                let hash = t
-                    .get("hashString")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let name = t
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
-                let status_code = t.get("status").and_then(|s| s.as_i64()).unwrap_or(0);
-                let total = t.get("totalSize").and_then(|v| v.as_i64()).unwrap_or(0);
-                let downloaded = t.get("downloadedEver").and_then(|v| v.as_i64()).unwrap_or(0);
-                let pct = t.get("percentDone").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let get: TorrentGetResponse = serde_json::from_value(args_val).map_err(|e| {
+            AppError::Provider(format!("Transmission: bad get response: {e}"))
+        })?;
 
-                DownloadItem {
-                    id: DownloadId(hash),
-                    name,
-                    status: Self::map_torrent_status(status_code),
-                    size: total,
-                    downloaded_bytes: downloaded,
-                    progress: pct * 100.0,
-                    added_at: chrono::DateTime::from_timestamp(
-                        t.get("addedDate").and_then(|v| v.as_i64()).unwrap_or(0),
-                        0,
-                    )
+        let items = get
+            .torrents
+            .into_iter()
+            .filter(|t| t.status != 0)
+            .map(|t| DownloadItem {
+                id: DownloadId(t.hash_string),
+                name: t.name,
+                status: Self::map_torrent_status(t.status),
+                size: t.total_size,
+                downloaded_bytes: t.downloaded_ever,
+                progress: t.percent_done * 100.0,
+                added_at: chrono::DateTime::from_timestamp(t.added_date, 0)
                     .unwrap_or_default(),
-                    estimated_completion: None,
-                }
+                estimated_completion: None,
             })
             .collect();
 
         Ok(items)
     }
 
+    async fn get_download_path(&self, id: &DownloadId) -> Result<String> {
+        let args = serde_json::json!({
+            "ids": [id.0],
+            "fields": ["name", "downloadDir"],
+        });
+
+        let resp = self.rpc_call_raw("torrent-get", Some(args)).await?;
+        let args_val = resp
+            .arguments
+            .ok_or_else(|| AppError::Provider("Transmission: no arguments".into()))?;
+
+        let get: TorrentGetResponse = serde_json::from_value(args_val).map_err(|e| {
+            AppError::Provider(format!("Transmission: bad get response: {e}"))
+        })?;
+
+        match get.torrents.first() {
+            Some(t) => {
+                let dir = t.download_dir.as_deref().unwrap_or("");
+                if dir.is_empty() || t.hash_string.is_empty() {
+                    return Err(AppError::NotFound("Download not found".into()));
+                }
+                Ok(format!("{}/{}", dir, t.name))
+            }
+            None => Err(AppError::NotFound("Download not found".into())),
+        }
+    }
+
     async fn get_config(&self) -> Result<ClientConfig> {
-        let resp = self.rpc_call("session-get", None).await?;
+        let resp = self.rpc_call_raw("session-get", None).await?;
+        let args_val = resp
+            .arguments
+            .ok_or_else(|| AppError::Provider("Transmission: no arguments".into()))?;
+
+        let session: SessionGetResponse = serde_json::from_value(args_val).map_err(|e| {
+            AppError::Provider(format!("Transmission: bad session response: {e}"))
+        })?;
 
         Ok(ClientConfig {
-            version: resp
-                .pointer("/arguments/version")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            default_save_path: resp
-                .pointer("/arguments/download-dir")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            version: session.version,
+            default_save_path: session.download_dir,
             free_space: None,
         })
     }

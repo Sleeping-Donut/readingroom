@@ -14,3 +14,4 @@ async-trait.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
 quick-xml = "0.41"
+feed-rs.workspace = true
