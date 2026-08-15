@@ -324,7 +324,18 @@ impl MetadataSource for OpenLibrarySource {
     }
 
     async fn get_book(&self, foreign_id: &str) -> Result<Book> {
-        let url = format!("{BASE}/works/{foreign_id}.json");
+        // Normalize the key: search results use "works/OL123W"/"books/OL456M"
+        // while the DB may hold bare "OL123W"/"OL456M" keys.
+        let (kind, key) = if let Some(k) = foreign_id.strip_prefix("works/") {
+            ("works", k)
+        } else if let Some(k) = foreign_id.strip_prefix("books/") {
+            ("books", k)
+        } else if foreign_id.ends_with('W') {
+            ("works", foreign_id)
+        } else {
+            ("books", foreign_id)
+        };
+        let url = format!("{BASE}/{kind}/{key}.json");
         let resp = self.client.get(&url).send().await?;
         if !resp.status().is_success() {
             return Err(AppError::NotFound(format!("Book {foreign_id} not found")));
