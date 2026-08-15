@@ -2,7 +2,6 @@ import {
   action,
   createEffect,
   createMemo,
-  createOptimistic,
   createOptimisticStore,
   createSignal,
   createStore,
@@ -11,22 +10,14 @@ import {
   Loading,
   Match,
   refresh,
-  resolve,
   Show,
   Switch,
 } from "solid-js";
 import { useBeforeLeave } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
-import { api } from "../api/client";
+import * as settingsApi from "../api/settings";
 import { user, authEnabled, changePassword } from "../api/auth";
-import type { Indexer, DownloadClient, Notification } from "../types";
-
-interface TestResult {
-  status: "idle" | "testing" | "success" | "error";
-  message?: string;
-  version?: string;
-  default_save_path?: string;
-}
+import type { Indexer, DownloadClient, Notification, TestResult } from "../types";
 
 function StatusDot(props: { status: string }) {
   return (
@@ -129,17 +120,6 @@ function parseClientSettings(settings: string): ClientSettings {
   }
 }
 
-function buildClientSettings(s: ClientSettings): string {
-  return JSON.stringify({
-    host: s.host.trim(),
-    port: s.port || 0,
-    ...(s.username.trim() ? { username: s.username.trim() } : {}),
-    ...(s.password ? { password: s.password } : {}),
-    ...(s.url_base.trim() ? { url_base: s.url_base.trim() } : {}),
-    ...(s.category.trim() ? { category: s.category.trim() } : {}),
-  });
-}
-
 function IndexersTab() {
   const [showAdd, setShowAdd] = createSignal(false);
   const [editingId, setEditingId] = createSignal<number | null>(null);
@@ -151,9 +131,9 @@ function IndexersTab() {
   });
   const [indexerTestResults, setIndexerTestResults] = createStore<Record<number, TestResult>>({});
   const [autoTested, setAutoTested] = createSignal(false);
-  const [isTestingAll, setIsTestingAll] = createOptimistic(false);
-  const [adding, setAdding] = createOptimistic(false);
-  const [savingId, setSavingId] = createOptimistic<number | null>(null);
+  const [isTestingAll, setIsTestingAll] = createSignal(false);
+  const [adding, setAdding] = createSignal(false);
+  const [savingId, setSavingId] = createSignal<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [newName, setNewName] = createSignal("");
   const [newImpl, setNewImpl] = createSignal("torznab");
@@ -168,7 +148,7 @@ function IndexersTab() {
     indexers: (Indexer & { error?: boolean })[];
   }>(
     async () => {
-      const data = await api.get<{ indexers: Indexer[] }>("/settings/indexers");
+      const data = await settingsApi.listIndexers();
       return {
         indexers: data.indexers.map((i) => (erroredIndexers[i.id] ? { ...i, error: true } : i)),
       };
@@ -181,7 +161,7 @@ function IndexersTab() {
       s.indexers = s.indexers.filter((i) => i.id !== indexer.id);
     });
     try {
-      yield api.delete(`/settings/indexers/${indexer.id}`);
+      yield settingsApi.removeIndexer(indexer.id);
       delete erroredIndexers[indexer.id];
     } catch {
       erroredIndexers[indexer.id] = indexer;
@@ -189,15 +169,17 @@ function IndexersTab() {
     refresh(indexers);
   });
 
-  const [retryingId, setRetryingId] = createOptimistic<number | null>(null);
+  const [retryingId, setRetryingId] = createSignal<number | null>(null);
 
   const retryRemoveIndexer = action(function* (indexer: Indexer) {
     setRetryingId(indexer.id);
     try {
-      yield api.delete(`/settings/indexers/${indexer.id}`);
+      yield settingsApi.removeIndexer(indexer.id);
       delete erroredIndexers[indexer.id];
     } catch {
       /* leave errored */
+    } finally {
+      setRetryingId(null);
     }
     refresh(indexers);
   });
@@ -205,15 +187,12 @@ function IndexersTab() {
   const addIndexer = action(async function* () {
     setAdding(true);
     setActionError(null);
-    const settings = JSON.stringify({
-      url: newUrl().trim(),
-      ...(newApiKey().trim() ? { api_key: newApiKey().trim() } : {}),
-    });
     try {
-      await api.post("/settings/indexers", {
+      await settingsApi.addIndexer({
         name: newName(),
         implementation: newImpl(),
-        settings,
+        url: newUrl(),
+        api_key: newApiKey(),
         enable_rss: newEnableRss(),
         enable_search: newEnableSearch(),
       });
@@ -227,34 +206,32 @@ function IndexersTab() {
       setNewEnableSearch(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setAdding(false);
     }
   });
 
   const updateIndexer = action(async function* (id: number, form: EditForm) {
     setSavingId(id);
     try {
-      const settings = JSON.stringify({
-        url: form.url.trim(),
-        ...(form.api_key.trim() ? { api_key: form.api_key.trim() } : {}),
-      });
-      await api.put(`/settings/indexers/${id}`, { ...form, settings });
+      await settingsApi.updateIndexer(id, form);
       yield;
       refresh(indexers);
       setEditingId(null);
       setEditForm(null);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSavingId(null);
     }
   });
 
-  const testIndexer = action(async function* (id: number) {
+  const testIndexer = async (id: number) => {
     setIndexerTestResults((r) => {
       r[id] = { status: "testing" };
     });
     try {
-      const data = yield api.post<{ success: boolean; message?: string }>(
-        `/settings/indexers/${id}/test`,
-      );
+      const data = await settingsApi.testIndexer(id);
       setIndexerTestResults((r) => {
         r[id] = { status: data.success ? "success" : "error", message: data.message };
       });
@@ -263,7 +240,7 @@ function IndexersTab() {
         r[id] = { status: "error", message: err instanceof Error ? err.message : "Test failed" };
       });
     }
-  });
+  };
 
   createEffect(
     () => indexers.indexers,
@@ -276,20 +253,23 @@ function IndexersTab() {
     },
   );
 
-  const testAllIndexers = action(async function* () {
+  const testAllIndexers = async () => {
     setIsTestingAll(true);
-    yield;
-    const list = await resolve(() => indexers.indexers);
-    if (list.length === 0) return;
-    for (const idx of list) {
-      try {
-        await testIndexer(idx.id);
-      } catch {
-        /* handled inside */
+    try {
+      const list = indexers.indexers;
+      if (list.length === 0) return;
+      for (const idx of list) {
+        try {
+          await testIndexer(idx.id);
+        } catch {
+          /* handled inside */
+        }
+        await new Promise((r) => setTimeout(r, 200));
       }
-      await new Promise((r) => setTimeout(r, 200));
+    } finally {
+      setIsTestingAll(false);
     }
-  });
+  };
 
   return (
     <div>
@@ -687,9 +667,9 @@ function DownloadClientsTab() {
   });
   const [clientTestResults, setClientTestResults] = createStore<Record<number, TestResult>>({});
   const [autoTested, setAutoTested] = createSignal(false);
-  const [isTestingAll, setIsTestingAll] = createOptimistic(false);
-  const [adding, setAdding] = createOptimistic(false);
-  const [savingClientId, setSavingClientId] = createOptimistic<number | null>(null);
+  const [isTestingAll, setIsTestingAll] = createSignal(false);
+  const [adding, setAdding] = createSignal(false);
+  const [savingClientId, setSavingClientId] = createSignal<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [newName, setNewName] = createSignal("");
   const [newImpl, setNewImpl] = createSignal("transmission");
@@ -706,9 +686,7 @@ function DownloadClientsTab() {
     download_clients: (DownloadClient & { error?: boolean })[];
   }>(
     async () => {
-      const data = await api.get<{ download_clients: DownloadClient[] }>(
-        "/settings/downloadclients",
-      );
+      const data = await settingsApi.listDownloadClients();
       return {
         download_clients: data.download_clients.map((c) =>
           erroredClients[c.id] ? { ...c, error: true } : c,
@@ -723,7 +701,7 @@ function DownloadClientsTab() {
       s.download_clients = s.download_clients.filter((c) => c.id !== client.id);
     });
     try {
-      yield api.delete(`/settings/downloadclients/${client.id}`);
+      yield settingsApi.removeDownloadClient(client.id);
       delete erroredClients[client.id];
     } catch {
       erroredClients[client.id] = client;
@@ -731,15 +709,17 @@ function DownloadClientsTab() {
     refresh(clients);
   });
 
-  const [retryingClientId, setRetryingClientId] = createOptimistic<number | null>(null);
+  const [retryingClientId, setRetryingClientId] = createSignal<number | null>(null);
 
   const retryRemoveClient = action(function* (client: DownloadClient) {
     setRetryingClientId(client.id);
     try {
-      yield api.delete(`/settings/downloadclients/${client.id}`);
+      yield settingsApi.removeDownloadClient(client.id);
       delete erroredClients[client.id];
     } catch {
       /* leave errored */
+    } finally {
+      setRetryingClientId(null);
     }
     refresh(clients);
   });
@@ -747,19 +727,16 @@ function DownloadClientsTab() {
   const addClient = action(async function* () {
     setAdding(true);
     setActionError(null);
-    const settings = buildClientSettings({
-      host: newHost(),
-      port: newPort(),
-      username: newUsername(),
-      password: newPassword(),
-      url_base: newUrlBase(),
-      category: newCategory(),
-    });
     try {
-      await api.post("/settings/downloadclients", {
+      await settingsApi.addDownloadClient({
         name: newName(),
         implementation: newImpl(),
-        settings,
+        host: newHost(),
+        port: newPort(),
+        username: newUsername(),
+        password: newPassword(),
+        url_base: newUrlBase(),
+        category: newCategory(),
       });
       yield;
       refresh(clients);
@@ -774,38 +751,32 @@ function DownloadClientsTab() {
       setNewCategory("");
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setAdding(false);
     }
   });
 
   const updateClient = action(async function* (id: number, form: ClientEditForm) {
     setSavingClientId(id);
     try {
-      await api.put(`/settings/downloadclients/${id}`, {
-        name: form.name,
-        implementation: form.implementation,
-        settings: buildClientSettings(form),
-        priority: form.priority,
-      });
+      await settingsApi.updateDownloadClient(id, form);
       yield;
       refresh(clients);
       setEditingClientId(null);
       setClientEditForm(null);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSavingClientId(null);
     }
   });
 
-  const testClient = action(async function* (id: number) {
+  const testClient = async (id: number) => {
     setClientTestResults((r) => {
       r[id] = { status: "testing" };
     });
     try {
-      const data = yield api.post<{
-        success: boolean;
-        message?: string;
-        version?: string;
-        default_save_path?: string;
-      }>(`/settings/downloadclients/${id}/test`);
+      const data = await settingsApi.testDownloadClient(id);
       setClientTestResults((r) => {
         r[id] = {
           status: data.success ? "success" : "error",
@@ -819,7 +790,7 @@ function DownloadClientsTab() {
         r[id] = { status: "error", message: err instanceof Error ? err.message : "Test failed" };
       });
     }
-  });
+  };
 
   createEffect(
     () => clients.download_clients,
@@ -832,20 +803,23 @@ function DownloadClientsTab() {
     },
   );
 
-  const testAllClients = action(async function* () {
+  const testAllClients = async () => {
     setIsTestingAll(true);
-    yield;
-    const list = await resolve(() => clients.download_clients);
-    if (list.length === 0) return;
-    for (const cl of list) {
-      try {
-        await testClient(cl.id);
-      } catch {
-        /* handled inside */
+    try {
+      const list = clients.download_clients;
+      if (list.length === 0) return;
+      for (const cl of list) {
+        try {
+          await testClient(cl.id);
+        } catch {
+          /* handled inside */
+        }
+        await new Promise((r) => setTimeout(r, 200));
       }
-      await new Promise((r) => setTimeout(r, 200));
+    } finally {
+      setIsTestingAll(false);
     }
-  });
+  };
 
   return (
     <div>
@@ -1246,8 +1220,8 @@ function DownloadClientsTab() {
 
 function NotificationsTab() {
   const [showAdd, setShowAdd] = createSignal(false);
-  const [adding, setAdding] = createOptimistic(false);
-  const [testingId, setTestingId] = createOptimistic<number | null>(null);
+  const [adding, setAdding] = createSignal(false);
+  const [testingId, setTestingId] = createSignal<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [newName, setNewName] = createSignal("");
   const [newImpl, setNewImpl] = createSignal("apprise");
@@ -1263,7 +1237,7 @@ function NotificationsTab() {
     notifications: (Notification & { error?: boolean })[];
   }>(
     async () => {
-      const data = await api.get<{ notifications: Notification[] }>("/notifications");
+      const data = await settingsApi.listNotifications();
       return {
         notifications: data.notifications.map((n) =>
           erroredNotifications[n.id] ? { ...n, error: true } : n,
@@ -1278,7 +1252,7 @@ function NotificationsTab() {
       s.notifications = s.notifications.filter((n) => n.id !== notif.id);
     });
     try {
-      yield api.delete(`/notifications/${notif.id}`);
+      yield settingsApi.removeNotification(notif.id);
       delete erroredNotifications[notif.id];
     } catch {
       erroredNotifications[notif.id] = notif;
@@ -1286,15 +1260,17 @@ function NotificationsTab() {
     refresh(notifications);
   });
 
-  const [retryingNotificationId, setRetryingNotificationId] = createOptimistic<number | null>(null);
+  const [retryingNotificationId, setRetryingNotificationId] = createSignal<number | null>(null);
 
   const retryRemoveNotification = action(function* (notif: Notification) {
     setRetryingNotificationId(notif.id);
     try {
-      yield api.delete(`/notifications/${notif.id}`);
+      yield settingsApi.removeNotification(notif.id);
       delete erroredNotifications[notif.id];
     } catch {
       /* leave errored */
+    } finally {
+      setRetryingNotificationId(null);
     }
     refresh(notifications);
   });
@@ -1302,10 +1278,10 @@ function NotificationsTab() {
   const addNotification = action(async function* () {
     setAdding(true);
     try {
-      await api.post("/notifications", {
+      await settingsApi.addNotification({
         name: newName(),
         implementation: newImpl(),
-        settings: JSON.stringify({ webhook_url: newWebhookUrl() }),
+        webhook_url: newWebhookUrl(),
         on_grab: newOnGrab(),
         on_import: newOnImport(),
         on_upgrade: newOnUpgrade(),
@@ -1316,18 +1292,21 @@ function NotificationsTab() {
       setShowAdd(false);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setAdding(false);
     }
   });
 
-  const testNotification = action(async function* (id: number) {
+  const testNotification = async (id: number) => {
     setTestingId(id);
     try {
-      await api.post(`/notifications/${id}/test`);
-      yield;
+      await settingsApi.testNotification(id);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setTestingId(null);
     }
-  });
+  };
 
   return (
     <div>
@@ -1584,7 +1563,7 @@ function AccountTab() {
     return null;
   });
 
-  const submit = action(async function* () {
+  const submit = async () => {
     setError(null);
     setSuccess(false);
     if (passwordError()) {
@@ -1594,15 +1573,16 @@ function AccountTab() {
     setSubmitting(true);
     try {
       await changePassword(currentPassword(), newPassword());
-      yield;
       setSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSubmitting(false);
     }
-  });
+  };
 
   return (
     <div>

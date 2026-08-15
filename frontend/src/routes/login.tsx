@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { action, createOptimistic, createSignal, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { login, register } from "../api/auth";
 import { paths } from "../router";
@@ -10,9 +10,9 @@ export default function Login() {
   const [password, setPassword] = createSignal("");
   const [error, setError] = createSignal("");
   const [isRegister, setIsRegister] = createSignal(false);
-  const [loading, setLoading] = createOptimistic(false);
+  const [loading, setLoading] = createSignal(false);
 
-  const submit = action(async function* (e: Event) {
+  const submit = async (e: Event) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -22,12 +22,13 @@ export default function Login() {
       } else {
         await login(username(), password());
       }
-      yield;
       navigate(paths(), { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
     }
-  });
+  };
 
   return (
     <div class="min-h-screen bg-gray-950 flex items-center justify-center">

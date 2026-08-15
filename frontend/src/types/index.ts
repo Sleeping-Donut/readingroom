@@ -124,3 +124,87 @@ export interface Notification {
   on_health_issue: boolean;
   created_at: string;
 }
+
+export interface User {
+  id: number;
+  username: string;
+  role: string;
+}
+
+export interface SystemStats {
+  total_authors: number;
+  total_books: number;
+  wanted_books: number;
+  active_queue: number;
+  total_files: number;
+  total_size: number;
+  recent_history: {
+    id: number;
+    event_type: string;
+    source_title: string | null;
+    date: string;
+  }[];
+}
+
+export interface HistoryResponse {
+  history: HistoryItem[];
+}
+
+export interface MonthGroup {
+  year: number;
+  month: number;
+  books: Book[];
+}
+
+export interface CalendarResponse {
+  months: MonthGroup[];
+}
+
+export interface WantedResponse {
+  books: Book[];
+  total: number;
+}
+
+export interface QueueEntry {
+  id: number;
+  book_id: number | null;
+  title: string;
+  download_client: string;
+  download_id: string;
+  size: number | null;
+  status: string;
+  progress: number;
+  added_at: string;
+  error?: boolean;
+}
+
+export interface QueueResponse {
+  queue: QueueEntry[];
+  total: number;
+}
+
+export interface IndexersResponse {
+  indexers: Indexer[];
+}
+
+export interface DownloadClientsResponse {
+  download_clients: DownloadClient[];
+}
+
+export interface NotificationsResponse {
+  notifications: Notification[];
+}
+
+export interface TestResponse {
+  success: boolean;
+  message?: string;
+  version?: string;
+  default_save_path?: string;
+}
+
+export interface TestResult {
+  status: "idle" | "testing" | "success" | "error";
+  message?: string;
+  version?: string;
+  default_save_path?: string;
+}

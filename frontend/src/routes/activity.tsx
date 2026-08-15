@@ -1,10 +1,16 @@
 import { createMemo, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
-import { api } from "../api/client";
-import type { HistoryItem } from "../types";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { getHistory } from "../api/history";
+
+export const route = defineFileRoute("/activity", {
+  preload: () => {
+    void getHistory();
+  },
+});
 
 export default function Activity() {
-  const history = createMemo(async () => api.get<{ history: HistoryItem[] }>("/history"));
+  const history = createMemo(() => getHistory());
 
   return (
     <div>

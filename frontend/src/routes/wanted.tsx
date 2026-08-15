@@ -1,51 +1,47 @@
 import { Title } from "@solidjs/meta";
-import {
-  action,
-  affects,
-  createMemo,
-  createOptimistic,
-  createSignal,
-  Errored,
-  For,
-  Loading,
-  refresh,
-  Show,
-} from "solid-js";
-import { api } from "../api/client";
+import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import { revalidate } from "@solidjs/router";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { getWanted, searchWantedAll, searchWantedBook } from "../api/wanted";
 import { paths } from "../router";
-import type { Book } from "../types";
+
+export const route = defineFileRoute("/wanted", {
+  preload: () => {
+    void getWanted();
+  },
+});
 
 export default function Wanted() {
-  const wanted = createMemo(async () => api.get<{ books: Book[]; total: number }>("/wanted"));
-  const [searchingAll, setSearchingAll] = createOptimistic(false);
-  const [searchingBookId, setSearchingBookId] = createOptimistic<number | null>(null);
+  const wanted = createMemo(() => getWanted());
+  const [searchingAll, setSearchingAll] = createSignal(false);
+  const [searchingBookId, setSearchingBookId] = createSignal<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
 
-  const searchAll = action(async function* () {
+  const searchAll = async () => {
     setSearchingAll(true);
     setActionError(null);
     try {
-      await api.post("/wanted/search");
-      yield;
-      affects(wanted);
-      refresh(wanted);
+      await searchWantedAll();
+      revalidate(getWanted.key);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSearchingAll(false);
     }
-  });
+  };
 
-  const searchBook = action(async function* (id: number) {
+  const searchBook = async (id: number) => {
     setSearchingBookId(id);
     setActionError(null);
     try {
-      await api.post(`/wanted/search/${id}`);
-      yield;
-      affects(wanted);
-      refresh(wanted);
+      await searchWantedBook(id);
+      revalidate(getWanted.key);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSearchingBookId(null);
     }
-  });
+  };
 
   return (
     <div>
@@ -97,7 +93,7 @@ export default function Wanted() {
                             Wanted
                           </span>
                           <a
-                            href={String(paths.books(book.id))}
+                            href={paths.books(book.id)}
                             class="block hover:border-indigo-600 transition-colors"
                           >
                             <Show when={book.image_url}>

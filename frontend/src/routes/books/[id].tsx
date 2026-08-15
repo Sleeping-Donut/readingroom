@@ -1,9 +1,13 @@
 import { createMemo, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { useParams } from "@solidjs/router";
-import { api } from "../../api/client";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { getBook } from "../../api/books";
 import { paths } from "../../router";
-import type { Book } from "../../types";
+
+export const route = defineFileRoute("/books/:id", {
+  preload: ({ params }) => getBook(params.id),
+});
 
 function InfoRow(props: { label: string; value?: string | number }) {
   return (
@@ -17,9 +21,9 @@ function InfoRow(props: { label: string; value?: string | number }) {
 }
 
 export default function BookDetail() {
-  const params = useParams();
+  const params = useParams(paths.books);
 
-  const book = createMemo(async () => api.get<Book>(`/books/${params.id}`));
+  const book = createMemo(() => getBook(params.id));
 
   return (
     <div>
@@ -59,7 +63,7 @@ export default function BookDetail() {
               <h2 class="text-3xl font-bold mb-1">{book().title}</h2>
               <Show when={book().author_name}>
                 <a
-                  href={String(paths.authors(book().author_id))}
+                  href={paths.authors(book().author_id)}
                   class="text-lg text-indigo-400 hover:text-indigo-300"
                 >
                   {book().author_name}

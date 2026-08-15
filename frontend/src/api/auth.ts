@@ -1,11 +1,6 @@
 import { createSignal } from "solid-js";
 import { api, setOnUnauthorized } from "./client";
-
-interface User {
-  id: number;
-  username: string;
-  role: string;
-}
+import type { SystemStatus, User } from "../types";
 
 interface LoginResponse {
   token: string;
@@ -16,13 +11,6 @@ interface RegisterResponse {
   id: number;
   username: string;
   success: boolean;
-}
-
-interface SystemStatus {
-  version: string;
-  name: string;
-  startup_path: string;
-  auth_enabled: boolean;
 }
 
 const [user, setUser] = createSignal<User | null>(null);

@@ -1,42 +1,32 @@
-import { query, revalidate } from "@solidjs/router";
+import { revalidate } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
 import {
   action,
-  createOptimistic,
   createOptimisticStore,
+  createSignal,
   Errored,
   For,
   Loading,
   Show,
   onSettled,
 } from "solid-js";
-import { api } from "../api/client";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { getQueue, removeQueueEntry } from "../api/queue";
 import { subscribeAll } from "../api/ws";
+import type { QueueEntry, QueueResponse } from "../types";
 
-interface QueueEntry {
-  id: number;
-  book_id: number | null;
-  title: string;
-  download_client: string;
-  download_id: string;
-  size: number | null;
-  status: string;
-  progress: number;
-  added_at: string;
-  error?: boolean;
-}
-
-const getQueue = query(
-  async () => api.get<{ queue: QueueEntry[]; total: number }>("/queue"),
-  "queue",
-);
+export const route = defineFileRoute("/queue", {
+  preload: () => {
+    void getQueue();
+  },
+});
 
 export default function Queue() {
   // Failed removals, keyed by queue id. Lives under the optimistic layer so
   // optimistic reverts don't erase the error marker; cleared on retry.
   const erroredRemovals: Record<number, QueueEntry> = {};
 
-  const [queue, setQueue] = createOptimisticStore<{ queue: QueueEntry[]; total: number }>(
+  const [queue, setQueue] = createOptimisticStore<QueueResponse>(
     async () => {
       const data = await getQueue();
       return {
@@ -65,7 +55,7 @@ export default function Queue() {
       s.queue = s.queue.filter((e) => e.id !== entry.id);
     });
     try {
-      yield api.delete(`/queue/${entry.id}`);
+      yield removeQueueEntry(entry.id);
       delete erroredRemovals[entry.id];
     } catch {
       // Keep the row, marked errored, so the user can retry just this removal.
@@ -74,15 +64,17 @@ export default function Queue() {
     revalidate(getQueue.key);
   });
 
-  const [retryingId, setRetryingId] = createOptimistic<number | null>(null);
+  const [retryingId, setRetryingId] = createSignal<number | null>(null);
 
   const retryRemove = action(function* (entry: QueueEntry) {
     setRetryingId(entry.id);
     try {
-      yield api.delete(`/queue/${entry.id}`);
+      yield removeQueueEntry(entry.id);
       delete erroredRemovals[entry.id];
     } catch {
       /* leave errored */
+    } finally {
+      setRetryingId(null);
     }
     revalidate(getQueue.key);
   });

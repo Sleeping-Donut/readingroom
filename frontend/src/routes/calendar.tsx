@@ -1,18 +1,14 @@
 import { createMemo, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
-import { api } from "../api/client";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { getCalendar } from "../api/calendar";
 import { paths } from "../router";
-import type { Book } from "../types";
 
-interface MonthGroup {
-  year: number;
-  month: number;
-  books: Book[];
-}
-
-interface CalendarResponse {
-  months: MonthGroup[];
-}
+export const route = defineFileRoute("/calendar", {
+  preload: () => {
+    void getCalendar();
+  },
+});
 
 const monthNames = [
   "January",
@@ -30,7 +26,7 @@ const monthNames = [
 ];
 
 export default function Calendar() {
-  const calendar = createMemo(async () => api.get<CalendarResponse>("/calendar"));
+  const calendar = createMemo(() => getCalendar());
 
   return (
     <div>
@@ -68,7 +64,7 @@ export default function Calendar() {
                       <For each={monthGroup.books}>
                         {(book) => (
                           <a
-                            href={String(paths.books(book.id))}
+                            href={paths.books(book.id)}
                             class="block p-4 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
                           >
                             <Show when={book.image_url}>

@@ -29,11 +29,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 401) {
     localStorage.removeItem("readingroom_token");
     localStorage.removeItem("readingroom_user");
-    if (onUnauthorized) {
-      onUnauthorized();
-    } else if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
+    onUnauthorized?.();
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

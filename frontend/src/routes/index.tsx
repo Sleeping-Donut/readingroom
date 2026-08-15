@@ -1,18 +1,15 @@
 import { createMemo, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
-import { api } from "../api/client";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { getSystemStatus, getSystemStats } from "../api/system";
 import { paths } from "../router";
-import type { SystemStatus } from "../types";
 
-interface SystemStats {
-  total_authors: number;
-  total_books: number;
-  wanted_books: number;
-  active_queue: number;
-  total_files: number;
-  total_size: number;
-  recent_history: { id: number; event_type: string; source_title: string | null; date: string }[];
-}
+export const route = defineFileRoute("/", {
+  preload: () => {
+    void getSystemStatus();
+    void getSystemStats();
+  },
+});
 
 function formatSize(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -22,8 +19,8 @@ function formatSize(bytes: number): string {
 }
 
 export default function Dashboard() {
-  const status = createMemo(async () => api.get<SystemStatus>("/system/status"));
-  const stats = createMemo(async () => api.get<SystemStats>("/system/stats"));
+  const status = createMemo(() => getSystemStatus());
+  const stats = createMemo(() => getSystemStats());
 
   return (
     <div>
