@@ -44,14 +44,9 @@ struct UserRow {
     role: String,
 }
 
-/// Get JWT secret from config, or generate a default for dev
+/// Get JWT secret from env (READINGROOM_JWT_SECRET), or a dev default
 fn get_jwt_secret(state: &AppState) -> String {
-    state
-        .config
-        .auth
-        .jwt_secret
-        .clone()
-        .unwrap_or_else(|| "dev-secret-change-in-production".to_string())
+    state.jwt_secret.clone()
 }
 
 async fn login(
@@ -214,7 +209,7 @@ pub async fn current_user(
     headers: &HeaderMap,
     state: &AppState,
 ) -> Option<Claims> {
-    if !state.config.auth.enabled {
+    if !state.auth_enabled {
         return Some(Claims {
             sub: 0,
             username: "anonymous".into(),

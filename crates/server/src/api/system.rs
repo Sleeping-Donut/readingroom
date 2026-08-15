@@ -32,7 +32,7 @@ async fn status(State(state): State<Arc<AppState>>) -> Json<Value> {
         "version": env!("CARGO_PKG_VERSION"),
         "name": "readingroom",
         "startup_path": state.config.server.data_dir,
-        "auth_enabled": state.config.auth.enabled,
+        "auth_enabled": state.auth_enabled,
     }))
 }
 

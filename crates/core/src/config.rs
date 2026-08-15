@@ -10,9 +10,6 @@ pub struct Config {
     pub database: DatabaseConfig,
 
     #[serde(default)]
-    pub auth: AuthConfig,
-
-    #[serde(default)]
     pub metadata: MetadataConfig,
 
     #[serde(default)]
@@ -51,13 +48,6 @@ pub struct ServerConfig {
 pub struct DatabaseConfig {
     #[serde(default = "default_db_url")]
     pub url: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthConfig {
-    #[serde(default = "default_enabled")]
-    pub enabled: bool,
-    pub jwt_secret: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,9 +172,6 @@ fn default_log_level() -> String {
 fn default_db_url() -> String {
     "sqlite:///readingroom.db".into()
 }
-fn default_enabled() -> bool {
-    false
-}
 fn default_true() -> bool {
     true
 }
@@ -208,14 +195,6 @@ impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
             url: default_db_url(),
-        }
-    }
-}
-impl Default for AuthConfig {
-    fn default() -> Self {
-        Self {
-            enabled: default_enabled(),
-            jwt_secret: None,
         }
     }
 }
@@ -270,7 +249,6 @@ impl Default for Config {
         Self {
             server: ServerConfig::default(),
             database: DatabaseConfig::default(),
-            auth: AuthConfig::default(),
             metadata: MetadataConfig::default(),
             indexers: vec![],
             download_clients: vec![],

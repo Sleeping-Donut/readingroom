@@ -117,14 +117,22 @@ host = "127.0.0.1"
 port = 5299
 library_root = "/path/to/books"     # Where imported files go
 
-[auth]
-enabled = true                       # Enable JWT auth
-
 [library]
 rename_files = true
 book_file_format = "{book_title}.{ext}"
 author_folder_format = "{book_title}"
 ```
+
+### Authentication
+
+Authentication is deliberately kept out of `config.toml` (credentials don't belong in a config file). Username + salted/hashed passwords (argon2) are stored in the SQLite `users` table. Auth is configured via environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `READINGROOM_AUTH_ENABLED` | Set to `1`/`true` to enable username+password auth |
+| `READINGROOM_JWT_SECRET` | Secret used to sign session tokens (set a strong random value in production) |
+
+With auth disabled, the API is open (anonymous). With auth enabled, an `admin`/`admin` user is bootstrapped on first start — **change that password immediately**.
 
 ### Rename Pattern Placeholders
 

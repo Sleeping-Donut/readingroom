@@ -37,17 +37,6 @@ in
       description = "Root directory for imported books";
     };
 
-    auth = {
-      enable = lib.mkEnableOption "JWT authentication" // {
-        default = false;
-      };
-      jwtSecret = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "JWT secret key (auto-generated if not set)";
-      };
-    };
-
     openFirewall = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -129,8 +118,6 @@ in
         # The combined package ships its web assets here; the server binary
         # needs FRONTEND_DIST to find them.
         FRONTEND_DIST = "${cfg.package}/share/readingroom";
-      } // lib.optionalAttrs (cfg.auth.jwtSecret != null) {
-        READINGROOM_JWT_SECRET = cfg.auth.jwtSecret;
       };
     };
   };

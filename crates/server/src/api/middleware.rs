@@ -15,7 +15,7 @@ pub async fn require_auth(
     mut req: Request,
     next: Next,
 ) -> Response {
-    if !state.config.auth.enabled {
+    if !state.auth_enabled {
         return next.run(req).await;
     }
 

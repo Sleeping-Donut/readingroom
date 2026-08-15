@@ -49,6 +49,8 @@ pub struct AppState {
     pub notification_manager: Arc<tokio::sync::Mutex<crate::notifications::NotificationManager>>,
     pub broadcaster: ws::WsBroadcaster,
     pub import_list_manager: Arc<crate::import_list::ImportListManager>,
+    pub auth_enabled: bool,
+    pub jwt_secret: String,
 }
 
 #[tokio::main]
@@ -76,8 +78,15 @@ async fn main() -> readingroom_core::error::Result<()> {
     let db = readingroom_db::connect(&db_path).await?;
     tracing::info!("Database connected");
 
+    // Auth is env-driven (credentials live in the users table, not config).
+    let auth_enabled = std::env::var("READINGROOM_AUTH_ENABLED")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    let jwt_secret = std::env::var("READINGROOM_JWT_SECRET")
+        .unwrap_or_else(|_| "dev-secret-change-in-production".to_string());
+
     // Create default admin user if auth is enabled and no users exist
-    if config.auth.enabled {
+    if auth_enabled {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
             .fetch_one(&db)
             .await?;
@@ -181,6 +190,8 @@ async fn main() -> readingroom_core::error::Result<()> {
         notification_manager: notification_manager.clone(),
         broadcaster: broadcaster.clone(),
         import_list_manager: import_list_manager.clone(),
+        auth_enabled,
+        jwt_secret,
     });
 
     // Start background scheduler
