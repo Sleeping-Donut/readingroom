@@ -1,4 +1,14 @@
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import {
+  action,
+  createMemo,
+  createSignal,
+  Errored,
+  For,
+  Loading,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -111,8 +121,8 @@ export default function Books() {
             <Loading fallback={<p class="text-gray-500 text-sm">Searching...</p>}>
               <Show when={searchResults()} fallback={null}>
                 {(r) => (
-                  <>
-                    <Show when={r().books.length > 0}>
+                  <Switch>
+                    <Match when={r().books.length > 0}>
                       <div class="mt-4 space-y-2">
                         <For each={r().books}>
                           {(book) => (
@@ -152,11 +162,11 @@ export default function Books() {
                           )}
                         </For>
                       </div>
-                    </Show>
-                    <Show when={r().books.length === 0}>
+                    </Match>
+                    <Match when={r().books.length === 0}>
                       <p class="mt-4 text-gray-500 text-sm">No books found.</p>
-                    </Show>
-                  </>
+                    </Match>
+                  </Switch>
                 )}
               </Show>
             </Loading>

@@ -249,9 +249,7 @@ export default function DownloadClientsTab() {
                   disabled={isTestingAll()}
                   class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-sm transition-colors"
                 >
-                  <Show when={isTestingAll()} fallback="Test All">
-                    Testing All...
-                  </Show>
+                  {isTestingAll() ? "Testing All..." : "Test All"}
                 </button>
               </Show>
               <button
@@ -452,12 +450,9 @@ export default function DownloadClientsTab() {
                           disabled={clientTestResults[client.id]?.status === "testing"}
                           class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
                         >
-                          <Show
-                            when={clientTestResults[client.id]?.status === "testing"}
-                            fallback="Test"
-                          >
-                            Testing...
-                          </Show>
+                          {clientTestResults[client.id]?.status === "testing"
+                            ? "Testing..."
+                            : "Test"}
                         </button>
                         <Show
                           when={client.error}

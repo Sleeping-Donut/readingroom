@@ -206,64 +206,58 @@ export default function AuthorDetail() {
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
           <Title>{author().name} · ReadingRoom</Title>
-          <Show when={author()}>
-            {(a) => (
-              <div class="flex gap-8 mb-6">
-                <Show when={a().image_url}>
-                  {(img) => (
-                    <img
-                      src={img()}
-                      alt={a().name}
-                      class="w-48 h-72 object-cover rounded-lg shadow-lg"
-                    />
-                  )}
-                </Show>
-                <div class="flex-1">
-                  <div class="flex items-start justify-between">
-                    <div>
-                      <h2 class="text-3xl font-bold mb-2">{a().name}</h2>
-                      <div class="flex gap-4 text-sm text-gray-400 mb-4">
-                        <Show when={a().birth_date}>
-                          <span>Born: {a().birth_date}</span>
-                        </Show>
-                        <Show when={a().death_date}>
-                          <span>Died: {a().death_date}</span>
-                        </Show>
-                        <span>ID: {a().id}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => void indexerSearch()}
-                      disabled={searching()}
-                      class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      {searching() ? "Searching..." : "Search Indexers"}
-                    </button>
+          <div class="flex gap-8 mb-6">
+            <Show when={author().image_url}>
+              {(img) => (
+                <img
+                  src={img()}
+                  alt={author().name}
+                  class="w-48 h-72 object-cover rounded-lg shadow-lg"
+                />
+              )}
+            </Show>
+            <div class="flex-1">
+              <div class="flex items-start justify-between">
+                <div>
+                  <h2 class="text-3xl font-bold mb-2">{author().name}</h2>
+                  <div class="flex gap-4 text-sm text-gray-400 mb-4">
+                    <Show when={author().birth_date}>
+                      <span>Born: {author().birth_date}</span>
+                    </Show>
+                    <Show when={author().death_date}>
+                      <span>Died: {author().death_date}</span>
+                    </Show>
+                    <span>ID: {author().id}</span>
                   </div>
-
-                  <Show when={a().biography}>
-                    <p class="text-gray-300 leading-relaxed">{a().biography}</p>
-                  </Show>
-                  <Show when={a().genres.length > 0}>
-                    <div class="mt-4 flex gap-2 flex-wrap">
-                      <For each={a().genres}>
-                        {(g) => (
-                          <span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">
-                            {g}
-                          </span>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                  <Show when={a().aliases.length > 0}>
-                    <p class="mt-4 text-sm text-gray-400">
-                      Also known as: {a().aliases.join(", ")}
-                    </p>
-                  </Show>
                 </div>
+                <button
+                  onClick={() => void indexerSearch()}
+                  disabled={searching()}
+                  class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                >
+                  {searching() ? "Searching..." : "Search Indexers"}
+                </button>
               </div>
-            )}
-          </Show>
+
+              <Show when={author().biography}>
+                <p class="text-gray-300 leading-relaxed">{author().biography}</p>
+              </Show>
+              <Show when={author().genres.length > 0}>
+                <div class="mt-4 flex gap-2 flex-wrap">
+                  <For each={author().genres}>
+                    {(g) => (
+                      <span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">{g}</span>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <Show when={author().aliases.length > 0}>
+                <p class="mt-4 text-sm text-gray-400">
+                  Also known as: {author().aliases.join(", ")}
+                </p>
+              </Show>
+            </div>
+          </div>
         </Loading>
       </Errored>
 
@@ -307,87 +301,83 @@ export default function AuthorDetail() {
         )}
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <Show when={metadataBooks()}>
-            {(mb) => (
-              <Show when={mb().books.length > 0}>
-                <div class="flex items-center justify-between gap-4 mb-4">
-                  <h3 class="text-xl font-bold">Books by {author()?.name} (from metadata)</h3>
-                  <div class="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={filter()}
-                      onInput={(e) => setFilter(e.currentTarget.value)}
-                      placeholder="Filter by title..."
-                      class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-                    />
-                    <ViewToggle view={view()} onChange={(v) => setView(v)} />
-                  </div>
-                </div>
-                <Show
-                  when={filteredBooks().length > 0}
-                  fallback={<p class="text-sm text-gray-500">No books match your filter.</p>}
-                >
-                  <Show
-                    when={view() === "grid"}
-                    fallback={
-                      <div class="space-y-2">
-                        <For each={filteredBooks()}>
-                          {(book) => (
-                            <BookRow
-                              href={bookHref(book)}
-                              coverSrc={book.image_url}
-                              title={book.title}
-                              subtitle={book.publish_date ?? ""}
-                              coverEmojiClass="text-xl"
-                              footer={
-                                <BookAction
-                                  tracked={trackedByForeignId()[book.foreign_id]}
-                                  adding={addingId() === book.foreign_id}
-                                  onAdd={() =>
-                                    void addBook({
-                                      foreign_id: book.foreign_id,
-                                      author_id: book.author_id,
-                                      title: book.title,
-                                    })
-                                  }
-                                />
+          <Show when={(metadataBooks()?.books.length ?? 0) > 0}>
+            <div class="flex items-center justify-between gap-4 mb-4">
+              <h3 class="text-xl font-bold">Books by {author()?.name} (from metadata)</h3>
+              <div class="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={filter()}
+                  onInput={(e) => setFilter(e.currentTarget.value)}
+                  placeholder="Filter by title..."
+                  class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                />
+                <ViewToggle view={view()} onChange={(v) => setView(v)} />
+              </div>
+            </div>
+            <Show
+              when={filteredBooks().length > 0}
+              fallback={<p class="text-sm text-gray-500">No books match your filter.</p>}
+            >
+              <Show
+                when={view() === "grid"}
+                fallback={
+                  <div class="space-y-2">
+                    <For each={filteredBooks()}>
+                      {(book) => (
+                        <BookRow
+                          href={bookHref(book)}
+                          coverSrc={book.image_url}
+                          title={book.title}
+                          subtitle={book.publish_date ?? ""}
+                          coverEmojiClass="text-xl"
+                          footer={
+                            <BookAction
+                              tracked={trackedByForeignId()[book.foreign_id]}
+                              adding={addingId() === book.foreign_id}
+                              onAdd={() =>
+                                void addBook({
+                                  foreign_id: book.foreign_id,
+                                  author_id: book.author_id,
+                                  title: book.title,
+                                })
                               }
                             />
-                          )}
-                        </For>
-                      </div>
-                    }
-                  >
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      <For each={filteredBooks()}>
-                        {(book) => (
-                          <BookCard
-                            href={bookHref(book)}
-                            coverSrc={book.image_url}
-                            title={book.title}
-                            subtitle={book.publish_date ?? ""}
-                            footer={
-                              <BookAction
-                                tracked={trackedByForeignId()[book.foreign_id]}
-                                adding={addingId() === book.foreign_id}
-                                onAdd={() =>
-                                  void addBook({
-                                    foreign_id: book.foreign_id,
-                                    author_id: book.author_id,
-                                    title: book.title,
-                                  })
-                                }
-                                block
-                              />
+                          }
+                        />
+                      )}
+                    </For>
+                  </div>
+                }
+              >
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <For each={filteredBooks()}>
+                    {(book) => (
+                      <BookCard
+                        href={bookHref(book)}
+                        coverSrc={book.image_url}
+                        title={book.title}
+                        subtitle={book.publish_date ?? ""}
+                        footer={
+                          <BookAction
+                            tracked={trackedByForeignId()[book.foreign_id]}
+                            adding={addingId() === book.foreign_id}
+                            onAdd={() =>
+                              void addBook({
+                                foreign_id: book.foreign_id,
+                                author_id: book.author_id,
+                                title: book.title,
+                              })
                             }
+                            block
                           />
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                </Show>
+                        }
+                      />
+                    )}
+                  </For>
+                </div>
               </Show>
-            )}
+            </Show>
           </Show>
         </Loading>
       </Errored>

@@ -72,61 +72,57 @@ export default function Wanted() {
         )}
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <Show when={wanted()} fallback={null}>
-            {(w) => (
-              <>
-                <span class="text-sm text-gray-400 block mb-6">{w().total} missing</span>
-                <Show
-                  when={w().books.length > 0}
-                  fallback={
-                    <div class="text-center py-12 text-gray-500">
-                      <p class="text-lg">All monitored books have files.</p>
-                      <p class="text-sm mt-2">No missing books to search for.</p>
+          <>
+            <span class="text-sm text-gray-400 block mb-6">{wanted().total} missing</span>
+            <Show
+              when={wanted().books.length > 0}
+              fallback={
+                <div class="text-center py-12 text-gray-500">
+                  <p class="text-lg">All monitored books have files.</p>
+                  <p class="text-sm mt-2">No missing books to search for.</p>
+                </div>
+              }
+            >
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <For each={wanted().books}>
+                  {(book) => (
+                    <div class="p-4 bg-gray-900 rounded-lg border border-gray-800 relative group">
+                      <span class="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded bg-yellow-700 text-yellow-200">
+                        Wanted
+                      </span>
+                      <a
+                        href={paths.books(book.id)}
+                        class="block hover:border-indigo-600 transition-colors"
+                      >
+                        <Show when={book.image_url}>
+                          {(img) => (
+                            <img
+                              src={img()}
+                              alt={book.title}
+                              class="w-full h-48 object-cover rounded mb-3"
+                            />
+                          )}
+                        </Show>
+                        <p class="font-medium truncate">{book.title}</p>
+                        <p class="text-xs text-gray-400 mt-1">
+                          {book.genres.length > 0
+                            ? book.genres.slice(0, 2).join(", ")
+                            : "No genres"}
+                        </p>
+                      </a>
+                      <button
+                        onClick={() => void searchBook(book.id)}
+                        disabled={searchingBookId() === book.id}
+                        class="mt-3 w-full px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-700 rounded text-xs font-medium transition-colors"
+                      >
+                        {searchingBookId() === book.id ? "Searching..." : "Search & Download"}
+                      </button>
                     </div>
-                  }
-                >
-                  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <For each={w().books}>
-                      {(book) => (
-                        <div class="p-4 bg-gray-900 rounded-lg border border-gray-800 relative group">
-                          <span class="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded bg-yellow-700 text-yellow-200">
-                            Wanted
-                          </span>
-                          <a
-                            href={paths.books(book.id)}
-                            class="block hover:border-indigo-600 transition-colors"
-                          >
-                            <Show when={book.image_url}>
-                              {(img) => (
-                                <img
-                                  src={img()}
-                                  alt={book.title}
-                                  class="w-full h-48 object-cover rounded mb-3"
-                                />
-                              )}
-                            </Show>
-                            <p class="font-medium truncate">{book.title}</p>
-                            <p class="text-xs text-gray-400 mt-1">
-                              {book.genres.length > 0
-                                ? book.genres.slice(0, 2).join(", ")
-                                : "No genres"}
-                            </p>
-                          </a>
-                          <button
-                            onClick={() => void searchBook(book.id)}
-                            disabled={searchingBookId() === book.id}
-                            class="mt-3 w-full px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-700 rounded text-xs font-medium transition-colors"
-                          >
-                            {searchingBookId() === book.id ? "Searching..." : "Search & Download"}
-                          </button>
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-              </>
-            )}
-          </Show>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </>
         </Loading>
       </Errored>
     </div>
