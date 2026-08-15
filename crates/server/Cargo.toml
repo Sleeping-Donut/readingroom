@@ -12,6 +12,7 @@ readingroom-downloaders = { path = "../downloaders" }
 
 tokio.workspace = true
 axum.workspace = true
+tower.workspace = true
 tower-http.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -35,4 +36,3 @@ moka.workspace = true
 fs2.workspace = true
 
 [dev-dependencies]
-tower.workspace = true

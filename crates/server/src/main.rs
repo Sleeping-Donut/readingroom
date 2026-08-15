@@ -6,6 +6,7 @@ use axum::{Router, http::StatusCode, response::IntoResponse, routing::get};
 use clap::Parser;
 use std::os::unix::fs::OpenOptionsExt;
 use std::sync::Arc;
+use tower::ServiceExt;
 use tracing_subscriber::EnvFilter;
 
 use readingroom_core::traits::{DownloadClient, Indexer, MetadataSource};
@@ -254,14 +255,31 @@ async fn main() -> readingroom_core::error::Result<()> {
 
     let app = if let Some(dir) = frontend_dir {
         tracing::info!(path = %dir, "Serving frontend from");
-        // SPA fallback: serve real files, and send index.html for client-side
-        // routes (e.g. /authors) so refreshes don't 404. Unknown /api/v1/*
-        // paths are caught by the API router's own fallback first.
-        let index_html = std::path::Path::new(&dir).join("index.html");
-        let serve = tower_http::services::fs::ServeDir::new(&dir).not_found_service(
-            tower_http::services::fs::ServeFile::new(index_html),
+        // SPA fallback: serve real files via ServeDir, and return index.html
+        // (status 200) for client-side routes (e.g. /authors) so refreshes
+        // don't 404. Unknown /api/v1/* paths are caught by the API router's
+        // own JSON fallback first, so they never reach here.
+        let dir_path = std::path::PathBuf::from(&dir);
+        let index_html: std::sync::Arc<Vec<u8>> = std::sync::Arc::new(
+            std::fs::read(dir_path.join("index.html")).unwrap_or_default(),
         );
-        app.fallback_service(serve)
+        let spa = move |req: axum::extract::Request| {
+            let mut serve_dir = tower_http::services::fs::ServeDir::new(dir_path.clone());
+            let index_html = index_html.clone();
+            async move {
+                let res = serve_dir.oneshot(req).await.unwrap();
+                if res.status() == axum::http::StatusCode::NOT_FOUND {
+                    axum::response::Response::builder()
+                        .status(axum::http::StatusCode::OK)
+                        .header(axum::http::header::CONTENT_TYPE, "text/html")
+                        .body(axum::body::Body::from(index_html.as_ref().clone()))
+                        .unwrap()
+                } else {
+                    res.map(axum::body::Body::new)
+                }
+            }
+        };
+        app.fallback(spa)
     } else {
         tracing::warn!("No frontend dist found, API only");
         app
