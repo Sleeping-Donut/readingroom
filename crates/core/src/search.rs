@@ -161,6 +161,7 @@ mod tests {
             id: 1,
             foreign_id: "test".into(),
             author_id: 1,
+            author_name: None,
             title: title.to_string(),
             clean_title: clean_title.to_string(),
             description: None,

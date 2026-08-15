@@ -53,6 +53,13 @@ export async function register(username: string, password: string): Promise<User
   return login(username, password);
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.put<{ success: boolean }>("/auth/password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+}
+
 export function logout() {
   localStorage.removeItem("readingroom_token");
   localStorage.removeItem("readingroom_user");

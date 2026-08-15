@@ -254,7 +254,14 @@ async fn main() -> readingroom_core::error::Result<()> {
 
     let app = if let Some(dir) = frontend_dir {
         tracing::info!(path = %dir, "Serving frontend from");
-        app.fallback_service(tower_http::services::fs::ServeDir::new(dir))
+        // SPA fallback: serve real files, and send index.html for client-side
+        // routes (e.g. /authors) so refreshes don't 404. Unknown /api/v1/*
+        // paths are caught by the API router's own fallback first.
+        let index_html = std::path::Path::new(&dir).join("index.html");
+        let serve = tower_http::services::fs::ServeDir::new(&dir).not_found_service(
+            tower_http::services::fs::ServeFile::new(index_html),
+        );
+        app.fallback_service(serve)
     } else {
         tracing::warn!("No frontend dist found, API only");
         app

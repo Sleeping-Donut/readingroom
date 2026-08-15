@@ -131,6 +131,7 @@ fn map_book(body: BookResponse) -> Book {
         id: 0,
         foreign_id: body.asin.clone(),
         author_id: 0,
+        author_name: None,
         title: title.clone(),
         clean_title: title.to_lowercase(),
         description,

@@ -40,12 +40,18 @@ pub fn router(state: Arc<AppState>) -> Router<Arc<AppState>> {
             middleware::require_auth,
         ));
 
-    Router::<Arc<AppState>>::new().merge(public).merge(protected)
+    Router::<Arc<AppState>>::new()
+        .merge(public)
+        .merge(protected)
+        .fallback(static_handler)
 }
 
 pub async fn static_handler() -> impl IntoResponse {
-    axum::response::Json(json!({
-        "error": "not_found",
-        "message": "API endpoint not found"
-    }))
+    (
+        axum::http::StatusCode::NOT_FOUND,
+        axum::response::Json(json!({
+            "error": "not_found",
+            "message": "API endpoint not found"
+        })),
+    )
 }

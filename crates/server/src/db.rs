@@ -144,11 +144,12 @@ pub async fn list_calendar_books(db: &SqlitePool) -> Result<Vec<readingroom_core
 /// List all tracked books
 pub async fn list_books(db: &SqlitePool) -> Result<Vec<readingroom_core::models::Book>> {
     let rows = sqlx::query_as::<_, BookRow>(
-        "SELECT id, foreign_id, author_id, title, clean_title, description,
-                isbn, isbn13, asin, pages, publisher, publish_date,
-                image_url, genres, ratings, language, monitored,
-                last_search_at, added_at
-         FROM books ORDER BY title",
+        "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
+                b.title, b.clean_title, b.description,
+                b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.last_search_at, b.added_at
+         FROM books b LEFT JOIN authors a ON a.id = b.author_id ORDER BY b.title",
     )
     .fetch_all(db)
     .await?;
@@ -200,11 +201,12 @@ pub async fn get_book_by_id(
     id: i64,
 ) -> Result<Option<readingroom_core::models::Book>> {
     let row = sqlx::query_as::<_, BookRow>(
-        "SELECT id, foreign_id, author_id, title, clean_title, description,
-                isbn, isbn13, asin, pages, publisher, publish_date,
-                image_url, genres, ratings, language, monitored,
-                last_search_at, added_at
-         FROM books WHERE id = ?1",
+        "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
+                b.title, b.clean_title, b.description,
+                b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.last_search_at, b.added_at
+         FROM books b LEFT JOIN authors a ON a.id = b.author_id WHERE b.id = ?1",
     )
     .bind(id)
     .fetch_optional(db)
@@ -555,6 +557,7 @@ struct BookRow {
     id: i64,
     foreign_id: String,
     author_id: i64,
+    author_name: String,
     title: String,
     clean_title: String,
     description: Option<String>,
@@ -591,6 +594,7 @@ impl BookRow {
             id: self.id,
             foreign_id: self.foreign_id,
             author_id: self.author_id,
+            author_name: (!self.author_name.is_empty()).then_some(self.author_name),
             title: self.title,
             clean_title: self.clean_title,
             description: self.description,

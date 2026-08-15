@@ -58,6 +58,7 @@ async fn add_book(
                 id,
                 foreign_id: body.foreign_id,
                 author_id: body.author_id,
+                author_name: None,
                 title,
                 clean_title,
                 description: None,

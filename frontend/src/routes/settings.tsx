@@ -18,6 +18,7 @@ import {
 import { useBeforeLeave } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
 import { api } from "../api/client";
+import { user, authEnabled, changePassword } from "../api/auth";
 import type { Indexer, DownloadClient, Notification } from "../types";
 
 interface TestResult {
@@ -51,7 +52,8 @@ function StatusDot(props: { status: string }) {
 interface EditForm {
   name: string;
   implementation: string;
-  settings: string;
+  url: string;
+  api_key: string;
   enable_rss: boolean;
   enable_search: boolean;
   priority: number;
@@ -74,6 +76,8 @@ function IndexersTab() {
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [newName, setNewName] = createSignal("");
   const [newImpl, setNewImpl] = createSignal("torznab");
+  const [newUrl, setNewUrl] = createSignal("");
+  const [newApiKey, setNewApiKey] = createSignal("");
 
   const erroredIndexers: Record<number, Indexer> = {};
 
@@ -117,11 +121,23 @@ function IndexersTab() {
 
   const addIndexer = action(async function* () {
     setAdding(true);
+    setActionError(null);
+    const settings = JSON.stringify({
+      url: newUrl().trim(),
+      ...(newApiKey().trim() ? { api_key: newApiKey().trim() } : {}),
+    });
     try {
-      await api.post("/settings/indexers", { name: newName(), implementation: newImpl() });
+      await api.post("/settings/indexers", {
+        name: newName(),
+        implementation: newImpl(),
+        settings,
+      });
       yield;
       refresh(indexers);
       setShowAdd(false);
+      setNewName("");
+      setNewUrl("");
+      setNewApiKey("");
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     }
@@ -130,7 +146,11 @@ function IndexersTab() {
   const updateIndexer = action(async function* (id: number, form: EditForm) {
     setSavingId(id);
     try {
-      await api.put(`/settings/indexers/${id}`, form);
+      const settings = JSON.stringify({
+        url: form.url.trim(),
+        ...(form.api_key.trim() ? { api_key: form.api_key.trim() } : {}),
+      });
+      await api.put(`/settings/indexers/${id}`, { ...form, settings });
       yield;
       refresh(indexers);
       setEditingId(null);
@@ -226,8 +246,8 @@ function IndexersTab() {
 
           <Show when={showAdd()}>
             <div class="mb-4 p-4 bg-gray-900 rounded-lg border border-gray-800">
-              <div class="flex gap-3 items-end">
-                <div class="flex-1">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
                   <label class="block text-xs text-gray-400 mb-1">Name</label>
                   <input
                     value={newName()}
@@ -241,20 +261,42 @@ function IndexersTab() {
                   <select
                     value={newImpl()}
                     onChange={(e) => setNewImpl(e.currentTarget.value)}
-                    class="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                   >
-                    <option value="torznab">Torznab</option>
-                    <option value="newznab">Newznab</option>
+                    <option value="torznab">Torznab (torrent)</option>
+                    <option value="newznab">Newznab (usenet)</option>
                     <option value="rss">RSS</option>
                   </select>
                 </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs text-gray-400 mb-1">URL</label>
+                  <input
+                    value={newUrl()}
+                    onInput={(e) => setNewUrl(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="https://indexer.example.com"
+                  />
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs text-gray-400 mb-1">API Key</label>
+                  <input
+                    type="password"
+                    value={newApiKey()}
+                    onInput={(e) => setNewApiKey(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+              <div class="flex gap-3 items-center mt-4">
                 <button
                   onClick={() => void addIndexer()}
-                  disabled={adding() || !newName()}
+                  disabled={adding() || !newName() || !newUrl().trim()}
                   class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
                 >
                   Save
                 </button>
+                <p class="text-xs text-gray-500">Torznab/Newznab require a URL to connect.</p>
               </div>
             </div>
           </Show>
@@ -316,17 +358,24 @@ function IndexersTab() {
                         </button>
                         <button
                           onClick={() => {
-                            let formattedSettings = idx.settings;
+                            let url = "";
+                            let api_key = "";
                             try {
-                              formattedSettings = JSON.stringify(JSON.parse(idx.settings), null, 2);
+                              const parsed = JSON.parse(idx.settings) as {
+                                url?: string;
+                                api_key?: string;
+                              };
+                              url = parsed.url ?? "";
+                              api_key = parsed.api_key ?? "";
                             } catch {
-                              // use raw string
+                              // use defaults
                             }
                             setEditingId(idx.id);
                             setEditForm({
                               name: idx.name,
                               implementation: idx.implementation,
-                              settings: formattedSettings,
+                              url,
+                              api_key,
                               enable_rss: idx.enable_rss,
                               enable_search: idx.enable_search,
                               priority: idx.priority,
@@ -389,16 +438,30 @@ function IndexersTab() {
                           </select>
                         </div>
                         <div class="col-span-2">
-                          <label class="block text-xs text-gray-400 mb-1">Settings (JSON)</label>
-                          <textarea
-                            value={editForm()?.settings ?? ""}
+                          <label class="block text-xs text-gray-400 mb-1">URL</label>
+                          <input
+                            value={editForm()?.url ?? ""}
                             onInput={(e) =>
                               setEditForm((prev) =>
-                                prev ? { ...prev, settings: e.currentTarget.value } : null,
+                                prev ? { ...prev, url: e.currentTarget.value } : null,
                               )
                             }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm font-mono"
-                            rows={4}
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            placeholder="https://indexer.example.com"
+                          />
+                        </div>
+                        <div class="col-span-2">
+                          <label class="block text-xs text-gray-400 mb-1">API Key</label>
+                          <input
+                            type="password"
+                            value={editForm()?.api_key ?? ""}
+                            onInput={(e) =>
+                              setEditForm((prev) =>
+                                prev ? { ...prev, api_key: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            placeholder="Optional"
                           />
                         </div>
                         <div>
@@ -1092,10 +1155,106 @@ function NotificationItem(props: {
   );
 }
 
-export default function Settings() {
-  const [activeTab, setActiveTab] = createSignal<"indexers" | "clients" | "notifications">(
-    "indexers",
+function AccountTab() {
+  const [currentPassword, setCurrentPassword] = createSignal("");
+  const [newPassword, setNewPassword] = createSignal("");
+  const [confirmPassword, setConfirmPassword] = createSignal("");
+  const [submitting, setSubmitting] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
+  const [success, setSuccess] = createSignal(false);
+
+  const passwordError = createMemo(() => {
+    const np = newPassword();
+    if (np && np.length < 8) return "New password must be at least 8 characters";
+    if (confirmPassword() && np !== confirmPassword()) return "Passwords do not match";
+    return null;
+  });
+
+  const submit = action(async function* () {
+    setError(null);
+    setSuccess(false);
+    if (passwordError()) {
+      setError(passwordError());
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await changePassword(currentPassword(), newPassword());
+      yield;
+      setSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Request failed");
+    }
+  });
+
+  return (
+    <div>
+      <h3 class="text-lg font-semibold mb-4">Account</h3>
+      <Show
+        when={authEnabled()}
+        fallback={<p class="text-sm text-gray-500">Authentication is disabled.</p>}
+      >
+        <div class="max-w-md p-4 bg-gray-900 rounded-lg border border-gray-800 space-y-3">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Username</label>
+            <p class="text-sm">{user()?.username ?? "unknown"}</p>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Current Password</label>
+            <input
+              type="password"
+              value={currentPassword()}
+              onInput={(e) => setCurrentPassword(e.currentTarget.value)}
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+              autocomplete="current-password"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">New Password</label>
+            <input
+              type="password"
+              value={newPassword()}
+              onInput={(e) => setNewPassword(e.currentTarget.value)}
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+              autocomplete="new-password"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword()}
+              onInput={(e) => setConfirmPassword(e.currentTarget.value)}
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+              autocomplete="new-password"
+            />
+          </div>
+          <Show when={error()}>
+            <p class="text-sm text-red-400">{error()}</p>
+          </Show>
+          <Show when={success()}>
+            <p class="text-sm text-green-400">Password updated.</p>
+          </Show>
+          <button
+            onClick={() => void submit()}
+            disabled={submitting() || !currentPassword() || !newPassword() || !!passwordError()}
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-sm transition-colors"
+          >
+            {submitting() ? "Updating..." : "Update Password"}
+          </button>
+        </div>
+      </Show>
+    </div>
   );
+}
+
+export default function Settings() {
+  const [activeTab, setActiveTab] = createSignal<
+    "indexers" | "clients" | "notifications" | "account"
+  >("indexers");
 
   return (
     <div>
@@ -1139,6 +1298,18 @@ export default function Settings() {
         >
           Notifications
         </button>
+        <button
+          onClick={() => setActiveTab("account")}
+          class={[
+            "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+            {
+              "bg-indigo-600 text-white": activeTab() === "account",
+              "text-gray-400 hover:text-gray-200": activeTab() !== "account",
+            },
+          ]}
+        >
+          Account
+        </button>
       </div>
 
       <Switch>
@@ -1150,6 +1321,9 @@ export default function Settings() {
         </Match>
         <Match when={activeTab() === "notifications"}>
           <NotificationsTab />
+        </Match>
+        <Match when={activeTab() === "account"}>
+          <AccountTab />
         </Match>
       </Switch>
     </div>

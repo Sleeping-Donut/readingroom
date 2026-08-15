@@ -5,6 +5,17 @@ import { api } from "../../api/client";
 import { paths } from "../../router";
 import type { Book } from "../../types";
 
+function InfoRow(props: { label: string; value?: string | number }) {
+  return (
+    <Show when={props.value}>
+      <div class="flex justify-between py-2 border-b border-gray-800">
+        <span class="text-xs text-gray-400">{props.label}</span>
+        <span class="text-sm text-right">{props.value}</span>
+      </div>
+    </Show>
+  );
+}
+
 export default function BookDetail() {
   const params = useParams();
 
@@ -27,36 +38,43 @@ export default function BookDetail() {
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
           <Title>{book().title} · ReadingRoom</Title>
-          <div class="flex gap-8 mt-4">
-            <Show when={book().image_url}>
+          <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 mt-4">
+            <Show
+              when={book().image_url}
+              fallback={
+                <div class="w-40 sm:w-48 aspect-[2/3] rounded-lg bg-gray-800 flex items-center justify-center shrink-0">
+                  <span class="text-5xl text-gray-600">📖</span>
+                </div>
+              }
+            >
               {(img) => (
                 <img
                   src={img()}
                   alt={book().title}
-                  class="w-48 h-72 object-cover rounded-lg shadow-lg"
+                  class="w-40 sm:w-48 aspect-[2/3] object-cover rounded-lg shadow-lg shrink-0"
                 />
               )}
             </Show>
-            <div class="flex-1">
-              <h2 class="text-3xl font-bold mb-2">{book().title}</h2>
-              <div class="flex gap-4 text-sm text-gray-400 mb-4">
-                <span>Author ID: {book().author_id}</span>
-                <Show when={book().publish_date}>
-                  <span>Published: {book().publish_date}</span>
-                </Show>
-                <Show when={book().language}>
-                  <span>Language: {book().language}</span>
-                </Show>
-                <Show when={book().pages}>
-                  <span>Pages: {book().pages}</span>
-                </Show>
-                <Show when={book().isbn}>
-                  <span>ISBN: {book().isbn}</span>
-                </Show>
-              </div>
-              <Show when={book().description}>
-                <p class="text-gray-300 leading-relaxed">{book().description}</p>
+            <div class="flex-1 min-w-0">
+              <h2 class="text-3xl font-bold mb-1">{book().title}</h2>
+              <Show when={book().author_name}>
+                <a
+                  href={String(paths.authors(book().author_id))}
+                  class="text-lg text-indigo-400 hover:text-indigo-300"
+                >
+                  {book().author_name}
+                </a>
               </Show>
+
+              <div class="mt-4 max-w-md">
+                <InfoRow label="Publisher" value={book().publisher} />
+                <InfoRow label="Published" value={book().publish_date} />
+                <InfoRow label="Language" value={book().language} />
+                <InfoRow label="Pages" value={book().pages} />
+                <InfoRow label="ISBN" value={book().isbn ?? book().isbn13} />
+                <InfoRow label="Rating" value={book().ratings?.toFixed(1)} />
+              </div>
+
               <Show when={book().genres.length > 0}>
                 <div class="mt-4 flex gap-2 flex-wrap">
                   <For each={book().genres}>
@@ -65,6 +83,10 @@ export default function BookDetail() {
                     )}
                   </For>
                 </div>
+              </Show>
+
+              <Show when={book().description}>
+                <p class="mt-4 text-gray-300 leading-relaxed">{book().description}</p>
               </Show>
             </div>
           </div>

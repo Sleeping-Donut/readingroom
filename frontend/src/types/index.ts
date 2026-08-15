@@ -34,6 +34,7 @@ export interface Book {
   monitored: boolean;
   added_at: string;
   last_search_at?: string;
+  author_name?: string;
 }
 
 export interface Edition {

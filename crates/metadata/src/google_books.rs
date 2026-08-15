@@ -97,6 +97,7 @@ fn map_volume_to_book(v: Volume) -> Book {
         id: 0,
         foreign_id: v.id,
         author_id: 0,
+        author_name: None,
         title: info.title.clone(),
         clean_title: info.title.to_lowercase(),
         description: info.description,

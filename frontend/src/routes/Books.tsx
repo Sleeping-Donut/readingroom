@@ -165,25 +165,32 @@ export default function Books() {
               </div>
             }
           >
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               <For each={books().books}>
                 {(book) => (
                   <a
                     href={String(paths.books(book.id))}
-                    class="block p-4 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
+                    class="block p-3 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
                   >
-                    <Show when={book.image_url}>
+                    <Show
+                      when={book.image_url}
+                      fallback={
+                        <div class="w-full aspect-[2/3] rounded bg-gray-800 flex items-center justify-center mb-3">
+                          <span class="text-3xl text-gray-600">📖</span>
+                        </div>
+                      }
+                    >
                       {(img) => (
                         <img
                           src={img()}
                           alt={book.title}
-                          class="w-full h-48 object-cover rounded mb-3"
+                          class="w-full aspect-[2/3] object-cover rounded mb-3"
                         />
                       )}
                     </Show>
                     <p class="font-medium truncate">{book.title}</p>
-                    <p class="text-xs text-gray-400 mt-1">
-                      {book.genres.length > 0 ? book.genres.slice(0, 2).join(", ") : "No genres"}
+                    <p class="text-xs text-gray-400 mt-0.5 truncate">
+                      {book.author_name || book.genres.slice(0, 2).join(", ") || "No author"}
                     </p>
                   </a>
                 )}

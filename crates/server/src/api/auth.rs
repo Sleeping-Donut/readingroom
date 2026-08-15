@@ -5,7 +5,7 @@ use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::post,
+    routing::{post, put},
 };
 use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
@@ -34,6 +34,12 @@ struct LoginBody {
 struct RegisterBody {
     username: String,
     password: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChangePasswordBody {
+    current_password: String,
+    new_password: String,
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -203,6 +209,113 @@ async fn register(
     }
 }
 
+/// Change the authenticated user's password.
+async fn change_password(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<ChangePasswordBody>,
+) -> impl IntoResponse {
+    if !state.auth_enabled {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Authentication is disabled" })),
+        )
+            .into_response();
+    }
+
+    let claims = match current_user(&headers, &state).await {
+        Some(c) => c,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(json!({ "error": "Authentication required" })),
+            )
+                .into_response()
+        }
+    };
+
+    if body.new_password.len() < 8 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Password must be at least 8 characters" })),
+        )
+            .into_response();
+    }
+
+    let row = sqlx::query_as::<_, UserRow>(
+        "SELECT id, username, password, role FROM users WHERE id = ?1",
+    )
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await;
+
+    let row = match row {
+        Ok(Some(r)) => r,
+        Ok(None) => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(json!({ "error": "User not found" })),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    };
+
+    let parsed_hash = match PasswordHash::new(&row.password) {
+        Ok(h) => h,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Stored hash error: {e}") })),
+            )
+                .into_response()
+        }
+    };
+
+    if Argon2::default()
+        .verify_password(body.current_password.as_bytes(), &parsed_hash)
+        .is_err()
+    {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({ "error": "Current password is incorrect" })),
+        )
+            .into_response();
+    }
+
+    let salt = SaltString::generate(&mut OsRng);
+    let hash = match Argon2::default().hash_password(body.new_password.as_bytes(), &salt) {
+        Ok(h) => h.to_string(),
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Hash error: {e}") })),
+            )
+                .into_response()
+        }
+    };
+
+    match sqlx::query("UPDATE users SET password = ?1 WHERE id = ?2")
+        .bind(&hash)
+        .bind(row.id)
+        .execute(&state.db)
+        .await
+    {
+        Ok(_) => Json(json!({ "success": true })).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
 /// Extract the current user from the request headers.
 /// Returns None if auth is disabled or token is missing/invalid.
 pub async fn current_user(
@@ -250,4 +363,5 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::<Arc<AppState>>::new()
         .route("/login", post(login))
         .route("/register", post(register))
+        .route("/password", put(change_password))
 }
