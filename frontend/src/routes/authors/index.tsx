@@ -1,14 +1,4 @@
-import {
-  action,
-  createMemo,
-  createSignal,
-  Errored,
-  For,
-  Loading,
-  Match,
-  Show,
-  Switch,
-} from "solid-js";
+import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -116,52 +106,50 @@ export default function Authors() {
             <Loading fallback={<p class="text-gray-500">Loading...</p>}>
               <Show when={searchResults()} fallback={null}>
                 {(r) => (
-                  <Switch>
-                    <Match when={r().authors.length > 0}>
-                      <div class="mt-4 space-y-2">
-                        <For each={r().authors}>
-                          {(author) => (
-                            <div class="flex items-center gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
-                              <Show when={author.image_url}>
-                                {(img) => (
-                                  <img
-                                    src={img()}
-                                    alt={author.name}
-                                    class="w-10 h-14 object-cover rounded"
-                                  />
-                                )}
-                              </Show>
-                              <div class="flex-1 min-w-0">
-                                <p class="font-medium truncate">{author.name}</p>
-                                <p class="text-xs text-gray-400 truncate">
-                                  {author.birth_date && `${author.birth_date}`}
-                                  {author.birth_date && author.death_date && " – "}
-                                  {author.death_date && `${author.death_date}`}
-                                  {author.genres.length > 0 &&
-                                    ` · ${author.genres.slice(0, 3).join(", ")}`}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() =>
-                                  void addAuthor({
-                                    foreign_id: author.foreign_id,
-                                    name: author.name,
-                                  })
-                                }
-                                disabled={addingId() === author.foreign_id}
-                                class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
-                              >
-                                {addingId() === author.foreign_id ? "Adding..." : "Add"}
-                              </button>
+                  <Show
+                    when={r().authors.length > 0}
+                    fallback={<p class="mt-4 text-gray-500 text-sm">No authors found.</p>}
+                  >
+                    <div class="mt-4 space-y-2">
+                      <For each={r().authors}>
+                        {(author) => (
+                          <div class="flex items-center gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
+                            <Show when={author.image_url}>
+                              {(img) => (
+                                <img
+                                  src={img()}
+                                  alt={author.name}
+                                  class="w-10 h-14 object-cover rounded"
+                                />
+                              )}
+                            </Show>
+                            <div class="flex-1 min-w-0">
+                              <p class="font-medium truncate">{author.name}</p>
+                              <p class="text-xs text-gray-400 truncate">
+                                {author.birth_date && `${author.birth_date}`}
+                                {author.birth_date && author.death_date && " – "}
+                                {author.death_date && `${author.death_date}`}
+                                {author.genres.length > 0 &&
+                                  ` · ${author.genres.slice(0, 3).join(", ")}`}
+                              </p>
                             </div>
-                          )}
-                        </For>
-                      </div>
-                    </Match>
-                    <Match when={r().authors.length === 0}>
-                      <p class="mt-4 text-gray-500 text-sm">No authors found.</p>
-                    </Match>
-                  </Switch>
+                            <button
+                              onClick={() =>
+                                void addAuthor({
+                                  foreign_id: author.foreign_id,
+                                  name: author.name,
+                                })
+                              }
+                              disabled={addingId() === author.foreign_id}
+                              class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+                            >
+                              {addingId() === author.foreign_id ? "Adding..." : "Add"}
+                            </button>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
                 )}
               </Show>
             </Loading>

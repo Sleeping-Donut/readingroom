@@ -1,14 +1,4 @@
-import {
-  action,
-  createMemo,
-  createSignal,
-  Errored,
-  For,
-  Loading,
-  Match,
-  Show,
-  Switch,
-} from "solid-js";
+import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -121,52 +111,50 @@ export default function Books() {
             <Loading fallback={<p class="text-gray-500 text-sm">Searching...</p>}>
               <Show when={searchResults()} fallback={null}>
                 {(r) => (
-                  <Switch>
-                    <Match when={r().books.length > 0}>
-                      <div class="mt-4 space-y-2">
-                        <For each={r().books}>
-                          {(book) => (
-                            <div class="flex items-center gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
-                              <Show when={book.image_url}>
-                                {(img) => (
-                                  <img
-                                    src={img()}
-                                    alt={book.title}
-                                    class="w-10 h-14 object-cover rounded"
-                                  />
-                                )}
-                              </Show>
-                              <div class="flex-1 min-w-0">
-                                <p class="font-medium truncate">{book.title}</p>
-                                <p class="text-xs text-gray-400 truncate">
-                                  {book.publish_date && `${book.publish_date}`}
-                                  {book.genres.length > 0 &&
-                                    ` · ${book.genres.slice(0, 3).join(", ")}`}
-                                  {book.language && ` · ${book.language}`}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() =>
-                                  void addBook({
-                                    foreign_id: book.foreign_id,
-                                    author_id: book.author_id,
-                                    title: book.title,
-                                  })
-                                }
-                                disabled={addingId() === book.foreign_id}
-                                class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
-                              >
-                                {addingId() === book.foreign_id ? "Adding..." : "Add"}
-                              </button>
+                  <Show
+                    when={r().books.length > 0}
+                    fallback={<p class="mt-4 text-gray-500 text-sm">No books found.</p>}
+                  >
+                    <div class="mt-4 space-y-2">
+                      <For each={r().books}>
+                        {(book) => (
+                          <div class="flex items-center gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
+                            <Show when={book.image_url}>
+                              {(img) => (
+                                <img
+                                  src={img()}
+                                  alt={book.title}
+                                  class="w-10 h-14 object-cover rounded"
+                                />
+                              )}
+                            </Show>
+                            <div class="flex-1 min-w-0">
+                              <p class="font-medium truncate">{book.title}</p>
+                              <p class="text-xs text-gray-400 truncate">
+                                {book.publish_date && `${book.publish_date}`}
+                                {book.genres.length > 0 &&
+                                  ` · ${book.genres.slice(0, 3).join(", ")}`}
+                                {book.language && ` · ${book.language}`}
+                              </p>
                             </div>
-                          )}
-                        </For>
-                      </div>
-                    </Match>
-                    <Match when={r().books.length === 0}>
-                      <p class="mt-4 text-gray-500 text-sm">No books found.</p>
-                    </Match>
-                  </Switch>
+                            <button
+                              onClick={() =>
+                                void addBook({
+                                  foreign_id: book.foreign_id,
+                                  author_id: book.author_id,
+                                  title: book.title,
+                                })
+                              }
+                              disabled={addingId() === book.foreign_id}
+                              class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+                            >
+                              {addingId() === book.foreign_id ? "Adding..." : "Add"}
+                            </button>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
                 )}
               </Show>
             </Loading>
