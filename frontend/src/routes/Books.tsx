@@ -12,14 +12,19 @@ import {
 } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { api } from "../api/client";
+import { ViewToggle, createViewPreference } from "../components/ViewToggle";
 import { paths } from "../router";
 import type { Book } from "../types";
+
+const yearOf = (date?: string) => date?.match(/\d{4}/)?.[0];
 
 export default function Books() {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showSearch, setShowSearch] = createSignal(false);
   const [addingId, setAddingId] = createOptimistic<string | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
+  const [view, setView] = createViewPreference("books");
+  const [filterQuery, setFilterQuery] = createSignal("");
 
   const books = createMemo(async () => api.get<{ books: Book[]; total: number }>("/books"));
 
@@ -53,12 +58,15 @@ export default function Books() {
       <Title>Books · ReadingRoom</Title>
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold">Books</h2>
-        <button
-          onClick={() => setShowSearch(!showSearch())}
-          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors"
-        >
-          {showSearch() ? "Cancel" : "Add Book"}
-        </button>
+        <div class="flex items-center gap-3">
+          <ViewToggle view={view()} onChange={(v) => setView(v)} />
+          <button
+            onClick={() => setShowSearch(!showSearch())}
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors"
+          >
+            {showSearch() ? "Cancel" : "Add Book"}
+          </button>
+        </div>
       </div>
 
       <Show when={showSearch()}>
@@ -156,46 +164,124 @@ export default function Books() {
         )}
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <Show
-            when={books().books.length > 0}
-            fallback={
-              <div class="text-center py-12 text-gray-500">
-                <p class="text-lg">No books tracked yet.</p>
-                <p class="text-sm mt-2">Click "Add Book" to search and start tracking.</p>
-              </div>
-            }
-          >
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              <For each={books().books}>
-                {(book) => (
-                  <a
-                    href={String(paths.books(book.id))}
-                    class="block p-3 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
+          <Show when={books()} fallback={null}>
+            {(data) => {
+              const filteredBooks = createMemo(() => {
+                const q = filterQuery().trim().toLowerCase();
+                if (!q) return data().books;
+                return data().books.filter(
+                  (b) =>
+                    b.title.toLowerCase().includes(q) ||
+                    (b.author_name ?? "").toLowerCase().includes(q) ||
+                    b.genres.some((g) => g.toLowerCase().includes(q)),
+                );
+              });
+              return (
+                <Show
+                  when={data().books.length > 0}
+                  fallback={
+                    <div class="text-center py-12 text-gray-500">
+                      <p class="text-lg">No books tracked yet.</p>
+                      <p class="text-sm mt-2">Click "Add Book" to search and start tracking.</p>
+                    </div>
+                  }
+                >
+                  <div class="mb-4">
+                    <input
+                      type="text"
+                      placeholder="Filter tracked books by title or author..."
+                      value={filterQuery()}
+                      onInput={(e) => setFilterQuery(e.currentTarget.value)}
+                      class="w-full sm:w-72 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                  <Show
+                    when={filteredBooks().length > 0}
+                    fallback={
+                      <div class="text-center py-12 text-gray-500">
+                        <p class="text-lg">No books match your filter.</p>
+                      </div>
+                    }
                   >
                     <Show
-                      when={book.image_url}
+                      when={view() === "grid"}
                       fallback={
-                        <div class="w-full aspect-[2/3] rounded bg-gray-800 flex items-center justify-center mb-3">
-                          <span class="text-3xl text-gray-600">📖</span>
+                        <div class="space-y-2">
+                          <For each={filteredBooks()}>
+                            {(book) => (
+                              <a
+                                href={String(paths.books(book.id))}
+                                class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
+                              >
+                                <Show
+                                  when={book.image_url}
+                                  fallback={
+                                    <div class="w-10 h-14 rounded bg-gray-800 flex items-center justify-center shrink-0">
+                                      <span class="text-gray-600">📖</span>
+                                    </div>
+                                  }
+                                >
+                                  {(img) => (
+                                    <img
+                                      src={img()}
+                                      alt={book.title}
+                                      class="w-10 h-14 object-cover rounded shrink-0"
+                                    />
+                                  )}
+                                </Show>
+                                <div class="flex-1 min-w-0">
+                                  <p class="font-medium truncate">{book.title}</p>
+                                  <p class="text-xs text-gray-400 truncate">
+                                    {book.author_name ||
+                                      book.genres.slice(0, 2).join(", ") ||
+                                      "Unknown author"}
+                                    {yearOf(book.publish_date) && ` · ${yearOf(book.publish_date)}`}
+                                  </p>
+                                </div>
+                              </a>
+                            )}
+                          </For>
                         </div>
                       }
                     >
-                      {(img) => (
-                        <img
-                          src={img()}
-                          alt={book.title}
-                          class="w-full aspect-[2/3] object-cover rounded mb-3"
-                        />
-                      )}
+                      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <For each={filteredBooks()}>
+                          {(book) => (
+                            <a
+                              href={String(paths.books(book.id))}
+                              class="block p-3 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
+                            >
+                              <Show
+                                when={book.image_url}
+                                fallback={
+                                  <div class="w-full aspect-[2/3] rounded bg-gray-800 flex items-center justify-center mb-3">
+                                    <span class="text-3xl text-gray-600">📖</span>
+                                  </div>
+                                }
+                              >
+                                {(img) => (
+                                  <img
+                                    src={img()}
+                                    alt={book.title}
+                                    class="w-full aspect-[2/3] object-cover rounded mb-3"
+                                  />
+                                )}
+                              </Show>
+                              <p class="font-medium truncate">{book.title}</p>
+                              <p class="text-xs text-gray-400 mt-0.5 truncate">
+                                {book.author_name ||
+                                  book.genres.slice(0, 2).join(", ") ||
+                                  "No author"}
+                              </p>
+                            </a>
+                          )}
+                        </For>
+                      </div>
                     </Show>
-                    <p class="font-medium truncate">{book.title}</p>
-                    <p class="text-xs text-gray-400 mt-0.5 truncate">
-                      {book.author_name || book.genres.slice(0, 2).join(", ") || "No author"}
-                    </p>
-                  </a>
-                )}
-              </For>
-            </div>
+                  </Show>
+                </Show>
+              );
+            }}
           </Show>
         </Loading>
       </Errored>

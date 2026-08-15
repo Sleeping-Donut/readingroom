@@ -257,6 +257,54 @@ async fn delete_download_client(
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateDownloadClientBody {
+    pub name: Option<String>,
+    pub implementation: Option<String>,
+    pub settings: Option<String>,
+    pub priority: Option<i64>,
+}
+
+async fn update_download_client(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i64>,
+    Json(body): Json<UpdateDownloadClientBody>,
+) -> Json<Value> {
+    let current = sqlx::query_as::<_, DownloadClientRow>(
+        "SELECT id, name, implementation, settings, priority, tags, created_at
+         FROM download_clients WHERE id = ?1",
+    )
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await;
+
+    let current = match current {
+        Ok(Some(c)) => c,
+        Ok(None) => return Json(json!({ "error": "Download client not found", "success": false })),
+        Err(e) => return Json(json!({ "error": e.to_string(), "success": false })),
+    };
+
+    let name = body.name.unwrap_or(current.name);
+    let implementation = body.implementation.unwrap_or(current.implementation);
+    let settings = body.settings.unwrap_or(current.settings);
+    let priority = body.priority.unwrap_or(current.priority);
+
+    match sqlx::query(
+        "UPDATE download_clients SET name = ?1, implementation = ?2, settings = ?3, priority = ?4 WHERE id = ?5",
+    )
+    .bind(&name)
+    .bind(&implementation)
+    .bind(&settings)
+    .bind(priority)
+    .bind(id)
+    .execute(&state.db)
+    .await
+    {
+        Ok(r) => Json(json!({ "rows_affected": r.rows_affected(), "success": true })),
+        Err(e) => Json(json!({ "error": e.to_string(), "success": false })),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test Connectivity
 // ---------------------------------------------------------------------------
@@ -396,6 +444,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/indexers/:id", get(get_indexer).put(update_indexer).delete(delete_indexer))
         .route("/indexers/:id/test", post(test_indexer))
         .route("/downloadclients", get(list_download_clients).post(create_download_client))
-        .route("/downloadclients/:id", get(get_download_client).delete(delete_download_client))
+        .route("/downloadclients/:id", get(get_download_client).put(update_download_client).delete(delete_download_client))
         .route("/downloadclients/:id/test", post(test_download_client))
 }

@@ -59,6 +59,87 @@ interface EditForm {
   priority: number;
 }
 
+interface ClientEditForm {
+  name: string;
+  implementation: string;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  url_base: string;
+  category: string;
+  priority: number;
+}
+
+interface ClientSettings {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  url_base: string;
+  category: string;
+}
+
+function implementationLabel(impl: string): string {
+  switch (impl) {
+    case "torznab":
+      return "Torznab";
+    case "newznab":
+      return "Newznab";
+    case "rss":
+      return "RSS";
+    default:
+      return impl;
+  }
+}
+
+function implementationHint(impl: string): string {
+  switch (impl) {
+    case "torznab":
+      return "Torrent indexer using the Torznab protocol.";
+    case "newznab":
+      return "Usenet indexer using the Newznab protocol.";
+    case "rss":
+      return "RSS feed indexer — API key is not required.";
+    default:
+      return "";
+  }
+}
+
+function parseClientSettings(settings: string): ClientSettings {
+  try {
+    const parsed = JSON.parse(settings) as {
+      host?: string;
+      port?: number;
+      username?: string;
+      password?: string;
+      url_base?: string;
+      category?: string;
+    };
+    return {
+      host: parsed.host ?? "",
+      port: parsed.port ?? 0,
+      username: parsed.username ?? "",
+      password: parsed.password ?? "",
+      url_base: parsed.url_base ?? "",
+      category: parsed.category ?? "",
+    };
+  } catch {
+    return { host: "", port: 0, username: "", password: "", url_base: "", category: "" };
+  }
+}
+
+function buildClientSettings(s: ClientSettings): string {
+  return JSON.stringify({
+    host: s.host.trim(),
+    port: s.port || 0,
+    ...(s.username.trim() ? { username: s.username.trim() } : {}),
+    ...(s.password ? { password: s.password } : {}),
+    ...(s.url_base.trim() ? { url_base: s.url_base.trim() } : {}),
+    ...(s.category.trim() ? { category: s.category.trim() } : {}),
+  });
+}
+
 function IndexersTab() {
   const [showAdd, setShowAdd] = createSignal(false);
   const [editingId, setEditingId] = createSignal<number | null>(null);
@@ -78,6 +159,8 @@ function IndexersTab() {
   const [newImpl, setNewImpl] = createSignal("torznab");
   const [newUrl, setNewUrl] = createSignal("");
   const [newApiKey, setNewApiKey] = createSignal("");
+  const [newEnableRss, setNewEnableRss] = createSignal(true);
+  const [newEnableSearch, setNewEnableSearch] = createSignal(true);
 
   const erroredIndexers: Record<number, Indexer> = {};
 
@@ -131,6 +214,8 @@ function IndexersTab() {
         name: newName(),
         implementation: newImpl(),
         settings,
+        enable_rss: newEnableRss(),
+        enable_search: newEnableSearch(),
       });
       yield;
       refresh(indexers);
@@ -138,6 +223,8 @@ function IndexersTab() {
       setNewName("");
       setNewUrl("");
       setNewApiKey("");
+      setNewEnableRss(true);
+      setNewEnableSearch(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     }
@@ -267,6 +354,7 @@ function IndexersTab() {
                     <option value="newznab">Newznab (usenet)</option>
                     <option value="rss">RSS</option>
                   </select>
+                  <p class="mt-1 text-xs text-gray-500">{implementationHint(newImpl())}</p>
                 </div>
                 <div class="sm:col-span-2">
                   <label class="block text-xs text-gray-400 mb-1">URL</label>
@@ -287,6 +375,26 @@ function IndexersTab() {
                     placeholder="Optional"
                   />
                 </div>
+                <div class="flex items-end gap-6">
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={newEnableRss()}
+                      onChange={(e) => setNewEnableRss(e.currentTarget.checked)}
+                      class="rounded bg-gray-800 border-gray-700"
+                    />
+                    Enable RSS
+                  </label>
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={newEnableSearch()}
+                      onChange={(e) => setNewEnableSearch(e.currentTarget.checked)}
+                      class="rounded bg-gray-800 border-gray-700"
+                    />
+                    Enable Search
+                  </label>
+                </div>
               </div>
               <div class="flex gap-3 items-center mt-4">
                 <button
@@ -296,7 +404,13 @@ function IndexersTab() {
                 >
                   Save
                 </button>
-                <p class="text-xs text-gray-500">Torznab/Newznab require a URL to connect.</p>
+                <button
+                  onClick={() => setShowAdd(false)}
+                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <p class="text-xs text-gray-500">A URL is required to connect.</p>
               </div>
             </div>
           </Show>
@@ -320,11 +434,31 @@ function IndexersTab() {
                         <StatusDot status={indexerTestResults[idx.id]?.status ?? "idle"} />
                         <div class="flex-1 min-w-0">
                           <p class="font-medium truncate">{idx.name}</p>
-                          <p class="text-xs text-gray-400">
-                            {idx.implementation}
-                            <Show when={idx.enable_rss}> · RSS</Show>
-                            <Show when={idx.enable_search}> · Search</Show>
-                          </p>
+                          <div class="flex flex-wrap gap-1.5 mt-1">
+                            <span class="text-xs bg-indigo-900/40 text-indigo-400 border border-indigo-800 rounded px-1.5 py-0.5">
+                              {implementationLabel(idx.implementation)}
+                            </span>
+                            <Show when={idx.enable_rss}>
+                              <span class="text-xs bg-green-900/40 text-green-400 border border-green-800 rounded px-1.5 py-0.5">
+                                RSS
+                              </span>
+                            </Show>
+                            <Show when={idx.enable_search}>
+                              <span class="text-xs bg-green-900/40 text-green-400 border border-green-800 rounded px-1.5 py-0.5">
+                                Search
+                              </span>
+                            </Show>
+                            <Show when={!idx.enable_rss && !idx.enable_search}>
+                              <span class="text-xs bg-gray-800 text-gray-500 border border-gray-700 rounded px-1.5 py-0.5">
+                                Disabled
+                              </span>
+                            </Show>
+                            <Show when={idx.priority !== 0}>
+                              <span class="text-xs bg-gray-800 text-gray-400 border border-gray-700 rounded px-1.5 py-0.5">
+                                Priority: {idx.priority}
+                              </span>
+                            </Show>
+                          </div>
                           <Show when={indexerTestResults[idx.id]}>
                             <Switch>
                               <Match when={indexerTestResults[idx.id]?.status === "success"}>
@@ -343,7 +477,6 @@ function IndexersTab() {
                             <p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
                           </Show>
                         </div>
-                        <span class="text-xs text-gray-500">v{idx.priority}</span>
                         <button
                           onClick={() => void testIndexer(idx.id)}
                           disabled={indexerTestResults[idx.id]?.status === "testing"}
@@ -408,7 +541,7 @@ function IndexersTab() {
                     }
                   >
                     <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
-                      <div class="grid grid-cols-2 gap-3">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label class="block text-xs text-gray-400 mb-1">Name</label>
                           <input
@@ -432,12 +565,15 @@ function IndexersTab() {
                             }
                             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                           >
-                            <option value="torznab">Torznab</option>
-                            <option value="newznab">Newznab</option>
+                            <option value="torznab">Torznab (torrent)</option>
+                            <option value="newznab">Newznab (usenet)</option>
                             <option value="rss">RSS</option>
                           </select>
+                          <p class="mt-1 text-xs text-gray-500">
+                            {implementationHint(editForm()?.implementation ?? "torznab")}
+                          </p>
                         </div>
-                        <div class="col-span-2">
+                        <div class="sm:col-span-2">
                           <label class="block text-xs text-gray-400 mb-1">URL</label>
                           <input
                             value={editForm()?.url ?? ""}
@@ -450,7 +586,7 @@ function IndexersTab() {
                             placeholder="https://indexer.example.com"
                           />
                         </div>
-                        <div class="col-span-2">
+                        <div class="sm:col-span-2">
                           <label class="block text-xs text-gray-400 mb-1">API Key</label>
                           <input
                             type="password"
@@ -477,7 +613,7 @@ function IndexersTab() {
                             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                           />
                         </div>
-                        <div class="flex items-end gap-4">
+                        <div class="flex items-end gap-6">
                           <label class="flex items-center gap-2 text-sm">
                             <input
                               type="checkbox"
@@ -489,7 +625,7 @@ function IndexersTab() {
                               }
                               class="rounded bg-gray-800 border-gray-700"
                             />
-                            RSS
+                            Enable RSS
                           </label>
                           <label class="flex items-center gap-2 text-sm">
                             <input
@@ -502,7 +638,7 @@ function IndexersTab() {
                               }
                               class="rounded bg-gray-800 border-gray-700"
                             />
-                            Search
+                            Enable Search
                           </label>
                         </div>
                       </div>
@@ -542,13 +678,27 @@ function IndexersTab() {
 
 function DownloadClientsTab() {
   const [showAdd, setShowAdd] = createSignal(false);
+  const [editingClientId, setEditingClientId] = createSignal<number | null>(null);
+  const [clientEditForm, setClientEditForm] = createSignal<ClientEditForm | null>(null);
+  useBeforeLeave((event) => {
+    if (!clientEditForm()) return;
+    event.preventDefault();
+    if (window.confirm("Discard unsaved changes?")) event.retry(true);
+  });
   const [clientTestResults, setClientTestResults] = createStore<Record<number, TestResult>>({});
   const [autoTested, setAutoTested] = createSignal(false);
   const [isTestingAll, setIsTestingAll] = createOptimistic(false);
   const [adding, setAdding] = createOptimistic(false);
+  const [savingClientId, setSavingClientId] = createOptimistic<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [newName, setNewName] = createSignal("");
   const [newImpl, setNewImpl] = createSignal("transmission");
+  const [newHost, setNewHost] = createSignal("");
+  const [newPort, setNewPort] = createSignal<number>(0);
+  const [newUsername, setNewUsername] = createSignal("");
+  const [newPassword, setNewPassword] = createSignal("");
+  const [newUrlBase, setNewUrlBase] = createSignal("");
+  const [newCategory, setNewCategory] = createSignal("");
 
   const erroredClients: Record<number, DownloadClient> = {};
 
@@ -596,11 +746,50 @@ function DownloadClientsTab() {
 
   const addClient = action(async function* () {
     setAdding(true);
+    setActionError(null);
+    const settings = buildClientSettings({
+      host: newHost(),
+      port: newPort(),
+      username: newUsername(),
+      password: newPassword(),
+      url_base: newUrlBase(),
+      category: newCategory(),
+    });
     try {
-      await api.post("/settings/downloadclients", { name: newName(), implementation: newImpl() });
+      await api.post("/settings/downloadclients", {
+        name: newName(),
+        implementation: newImpl(),
+        settings,
+      });
       yield;
       refresh(clients);
       setShowAdd(false);
+      setNewName("");
+      setNewImpl("transmission");
+      setNewHost("");
+      setNewPort(0);
+      setNewUsername("");
+      setNewPassword("");
+      setNewUrlBase("");
+      setNewCategory("");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    }
+  });
+
+  const updateClient = action(async function* (id: number, form: ClientEditForm) {
+    setSavingClientId(id);
+    try {
+      await api.put(`/settings/downloadclients/${id}`, {
+        name: form.name,
+        implementation: form.implementation,
+        settings: buildClientSettings(form),
+        priority: form.priority,
+      });
+      yield;
+      refresh(clients);
+      setEditingClientId(null);
+      setClientEditForm(null);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     }
@@ -700,14 +889,14 @@ function DownloadClientsTab() {
 
           <Show when={showAdd()}>
             <div class="mb-4 p-4 bg-gray-900 rounded-lg border border-gray-800">
-              <div class="flex gap-3 items-end">
-                <div class="flex-1">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
                   <label class="block text-xs text-gray-400 mb-1">Name</label>
                   <input
                     value={newName()}
                     onInput={(e) => setNewName(e.currentTarget.value)}
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="Transmission"
+                    placeholder="My Download Client"
                   />
                 </div>
                 <div>
@@ -715,20 +904,85 @@ function DownloadClientsTab() {
                   <select
                     value={newImpl()}
                     onChange={(e) => setNewImpl(e.currentTarget.value)}
-                    class="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                   >
                     <option value="transmission">Transmission</option>
                     <option value="qbittorrent">qBittorrent</option>
                     <option value="deluge">Deluge</option>
                   </select>
                 </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Host</label>
+                  <input
+                    value={newHost()}
+                    onInput={(e) => setNewHost(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="localhost"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Port</label>
+                  <input
+                    type="number"
+                    value={newPort()}
+                    onInput={(e) => setNewPort(Number(e.currentTarget.value))}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="9091"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Username</label>
+                  <input
+                    value={newUsername()}
+                    onInput={(e) => setNewUsername(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={newPassword()}
+                    onInput={(e) => setNewPassword(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">URL Base</label>
+                  <input
+                    value={newUrlBase()}
+                    onInput={(e) => setNewUrlBase(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="/transmission/"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Category</label>
+                  <input
+                    value={newCategory()}
+                    onInput={(e) => setNewCategory(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="books"
+                  />
+                </div>
+              </div>
+              <div class="flex gap-3 items-center mt-4">
                 <button
                   onClick={() => void addClient()}
-                  disabled={adding() || !newName()}
+                  disabled={adding() || !newName() || !newHost().trim()}
                   class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
                 >
                   Save
                 </button>
+                <button
+                  onClick={() => setShowAdd(false)}
+                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <p class="text-xs text-gray-500">A host is required to connect.</p>
               </div>
             </div>
           </Show>
@@ -740,86 +994,246 @@ function DownloadClientsTab() {
             <div class="space-y-2">
               <For each={clients.download_clients}>
                 {(client) => (
-                  <div
-                    class={[
-                      "flex items-center gap-4 p-3 bg-gray-900 rounded-lg border transition-colors",
-                      { "border-red-800": !!client.error, "border-gray-800": !client.error },
-                    ]}
-                  >
-                    <StatusDot status={clientTestResults[client.id]?.status ?? "idle"} />
-                    <div class="flex-1 min-w-0">
-                      <p class="font-medium truncate">{client.name}</p>
-                      <p class="text-xs text-gray-400">
-                        {client.implementation}
-                        <Show when={clientTestResults[client.id]}>
-                          <Switch>
-                            <Match when={clientTestResults[client.id]?.status === "success"}>
-                              <span class="ml-1.5 text-xs bg-green-900/40 text-green-400 border border-green-800 rounded px-1.5 py-0.5">
-                                Connected
-                              </span>
-                            </Match>
-                            <Match when={clientTestResults[client.id]?.status === "error"}>
-                              <span class="ml-1.5 text-xs bg-red-900/40 text-red-400 border border-red-800 rounded px-1.5 py-0.5">
-                                Disconnected
-                              </span>
-                            </Match>
-                          </Switch>
-                        </Show>
-                      </p>
-                      <Show when={clientTestResults[client.id]?.status === "success"}>
-                        <p class="text-xs text-green-400 mt-1">
-                          ✓ Connected
-                          <Show when={clientTestResults[client.id]?.version}>
-                            {" "}
-                            · v{clientTestResults[client.id]?.version}
-                          </Show>
-                          <Show when={clientTestResults[client.id]?.default_save_path}>
-                            {" "}
-                            · {clientTestResults[client.id]?.default_save_path}
-                          </Show>
-                        </p>
-                      </Show>
-                      <Show when={clientTestResults[client.id]?.status === "error"}>
-                        <p class="text-xs text-red-400 mt-1">
-                          ✗ {clientTestResults[client.id]?.message}
-                        </p>
-                      </Show>
-                      <Show when={client.error}>
-                        <p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
-                      </Show>
-                    </div>
-                    <button
-                      onClick={() => void testClient(client.id)}
-                      disabled={clientTestResults[client.id]?.status === "testing"}
-                      class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
-                    >
-                      <Show
-                        when={clientTestResults[client.id]?.status === "testing"}
-                        fallback="Test"
+                  <Show
+                    when={editingClientId() === client.id}
+                    fallback={
+                      <div
+                        class={[
+                          "flex items-center gap-4 p-3 bg-gray-900 rounded-lg border transition-colors",
+                          { "border-red-800": !!client.error, "border-gray-800": !client.error },
+                        ]}
                       >
-                        Testing...
-                      </Show>
-                    </button>
-                    <Show
-                      when={client.error}
-                      fallback={
+                        <StatusDot status={clientTestResults[client.id]?.status ?? "idle"} />
+                        <div class="flex-1 min-w-0">
+                          <p class="font-medium truncate">{client.name}</p>
+                          <p class="text-xs text-gray-400">
+                            {implementationLabel(client.implementation)}
+                            <Show when={parseClientSettings(client.settings).host}>
+                              {" · "}
+                              {parseClientSettings(client.settings).host}
+                              <Show when={parseClientSettings(client.settings).port}>
+                                :{parseClientSettings(client.settings).port}
+                              </Show>
+                            </Show>
+                            <Show when={clientTestResults[client.id]}>
+                              <Switch>
+                                <Match when={clientTestResults[client.id]?.status === "success"}>
+                                  <span class="ml-1.5 text-xs bg-green-900/40 text-green-400 border border-green-800 rounded px-1.5 py-0.5">
+                                    Connected
+                                  </span>
+                                </Match>
+                                <Match when={clientTestResults[client.id]?.status === "error"}>
+                                  <span class="ml-1.5 text-xs bg-red-900/40 text-red-400 border border-red-800 rounded px-1.5 py-0.5">
+                                    Disconnected
+                                  </span>
+                                </Match>
+                              </Switch>
+                            </Show>
+                          </p>
+                          <Show when={clientTestResults[client.id]?.status === "success"}>
+                            <p class="text-xs text-green-400 mt-1">
+                              ✓ Connected
+                              <Show when={clientTestResults[client.id]?.version}>
+                                {" "}
+                                · v{clientTestResults[client.id]?.version}
+                              </Show>
+                              <Show when={clientTestResults[client.id]?.default_save_path}>
+                                {" "}
+                                · {clientTestResults[client.id]?.default_save_path}
+                              </Show>
+                            </p>
+                          </Show>
+                          <Show when={clientTestResults[client.id]?.status === "error"}>
+                            <p class="text-xs text-red-400 mt-1">
+                              ✗ {clientTestResults[client.id]?.message}
+                            </p>
+                          </Show>
+                          <Show when={client.error}>
+                            <p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
+                          </Show>
+                        </div>
                         <button
-                          onClick={() => void removeClient(client)}
-                          class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+                          onClick={() => {
+                            const parsed = parseClientSettings(client.settings);
+                            setEditingClientId(client.id);
+                            setClientEditForm({
+                              name: client.name,
+                              implementation: client.implementation,
+                              ...parsed,
+                              priority: client.priority,
+                            });
+                          }}
+                          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
                         >
-                          Remove
+                          Edit
                         </button>
-                      }
-                    >
-                      <button
-                        onClick={() => void retryRemoveClient(client)}
-                        disabled={retryingClientId() === client.id}
-                        class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
-                      >
-                        {retryingClientId() === client.id ? "Retrying..." : "Retry"}
-                      </button>
-                    </Show>
-                  </div>
+                        <button
+                          onClick={() => void testClient(client.id)}
+                          disabled={clientTestResults[client.id]?.status === "testing"}
+                          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
+                        >
+                          <Show
+                            when={clientTestResults[client.id]?.status === "testing"}
+                            fallback="Test"
+                          >
+                            Testing...
+                          </Show>
+                        </button>
+                        <Show
+                          when={client.error}
+                          fallback={
+                            <button
+                              onClick={() => void removeClient(client)}
+                              class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+                            >
+                              Remove
+                            </button>
+                          }
+                        >
+                          <button
+                            onClick={() => void retryRemoveClient(client)}
+                            disabled={retryingClientId() === client.id}
+                            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+                          >
+                            {retryingClientId() === client.id ? "Retrying..." : "Retry"}
+                          </button>
+                        </Show>
+                      </div>
+                    }
+                  >
+                    <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Name</label>
+                          <input
+                            value={clientEditForm()?.name ?? ""}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, name: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Type</label>
+                          <select
+                            value={clientEditForm()?.implementation ?? "transmission"}
+                            onChange={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, implementation: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                          >
+                            <option value="transmission">Transmission</option>
+                            <option value="qbittorrent">qBittorrent</option>
+                            <option value="deluge">Deluge</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Host</label>
+                          <input
+                            value={clientEditForm()?.host ?? ""}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, host: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Port</label>
+                          <input
+                            type="number"
+                            value={clientEditForm()?.port ?? 0}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, port: Number(e.currentTarget.value) } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Username</label>
+                          <input
+                            value={clientEditForm()?.username ?? ""}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, username: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Password</label>
+                          <input
+                            type="password"
+                            value={clientEditForm()?.password ?? ""}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, password: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">URL Base</label>
+                          <input
+                            value={clientEditForm()?.url_base ?? ""}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, url_base: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            placeholder="/transmission/"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Category</label>
+                          <input
+                            value={clientEditForm()?.category ?? ""}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, category: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            placeholder="books"
+                          />
+                        </div>
+                      </div>
+                      <div class="flex gap-2 mt-3 justify-end">
+                        <button
+                          onClick={() => {
+                            setEditingClientId(null);
+                            setClientEditForm(null);
+                          }}
+                          class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (clientEditForm()) {
+                              void updateClient(client.id, clientEditForm()!);
+                            }
+                          }}
+                          disabled={savingClientId() === client.id || !clientEditForm()?.name}
+                          class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  </Show>
                 )}
               </For>
             </div>

@@ -85,12 +85,49 @@ async fn add_book(
 async fn get_book(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Json<Value> {
     if let Ok(id64) = id.parse::<i64>() {
         if let Ok(Some(book)) = crate::db::get_book_by_id(&state.db, id64).await {
+            // Lazy-fill metadata (cover, description, publish date) from the
+            // same source as the author page, and persist it to the DB so it
+            // can be reused across the UI.
+            if book.image_url.is_none() || book.description.is_none() || book.publish_date.is_none() {
+                if let Ok(meta) = state.metadata.get_book(&book.foreign_id).await {
+                    let enriched = enrich_book(book, meta);
+                    let _ = crate::db::update_book_metadata(&state.db, &enriched).await;
+                    return Json(json!(enriched));
+                }
+            }
             return Json(json!(book));
         }
     }
     match state.metadata.get_book(&id).await {
         Ok(book) => Json(json!(book)),
         Err(e) => Json(json!({ "error": e.to_string() })),
+    }
+}
+
+/// Merge metadata from an external source into a tracked DB book, keeping the
+/// DB values (id, author, monitored state) and filling in the rest.
+fn enrich_book(db_book: readingroom_core::models::Book, meta: readingroom_core::models::Book) -> readingroom_core::models::Book {
+    readingroom_core::models::Book {
+        id: db_book.id,
+        foreign_id: db_book.foreign_id,
+        author_id: db_book.author_id,
+        author_name: db_book.author_name.or(meta.author_name),
+        title: db_book.title,
+        clean_title: db_book.clean_title,
+        description: db_book.description.or(meta.description),
+        isbn: db_book.isbn.or(meta.isbn),
+        isbn13: db_book.isbn13.or(meta.isbn13),
+        asin: db_book.asin.or(meta.asin),
+        pages: db_book.pages.or(meta.pages),
+        publisher: db_book.publisher.or(meta.publisher),
+        publish_date: db_book.publish_date.or(meta.publish_date),
+        image_url: db_book.image_url.or(meta.image_url),
+        genres: if db_book.genres.is_empty() { meta.genres } else { db_book.genres },
+        ratings: db_book.ratings.or(meta.ratings),
+        language: db_book.language,
+        monitored: db_book.monitored,
+        added_at: db_book.added_at,
+        last_search_at: db_book.last_search_at,
     }
 }
 

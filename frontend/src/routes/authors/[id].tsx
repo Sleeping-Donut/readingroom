@@ -13,6 +13,7 @@ import {
 import { Title } from "@solidjs/meta";
 import { paths } from "../../router";
 import { api } from "../../api/client";
+import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import type { Author, Book } from "../../types";
 
 interface Release {
@@ -52,6 +53,8 @@ export default function AuthorDetail() {
   const [downloadingId, setDownloadingId] = createOptimistic<number | null>(null);
   const [addingId, setAddingId] = createOptimistic<string | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
+  const [filter, setFilter] = createSignal("");
+  const [view, setView] = createViewPreference("author-books");
 
   const addBook = action(async function* (book: {
     foreign_id: string;
@@ -247,52 +250,125 @@ export default function AuthorDetail() {
         >
           <Loading fallback={<p class="text-gray-500">Loading...</p>}>
             <Show when={metadataBooks()}>
-              {(mb) => (
-                <Show when={mb().books.length > 0}>
-                  <h3 class="text-xl font-bold mb-4">Books by {author()?.name} (from metadata)</h3>
-                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    <For each={mb().books}>
-                      {(book) => (
-                        <div class="block p-3 bg-gray-900 rounded-lg border border-gray-800 transition-colors">
-                          <Show
-                            when={book.image_url}
-                            fallback={
-                              <div class="w-full aspect-[2/3] rounded bg-gray-800 flex items-center justify-center mb-3">
-                                <span class="text-3xl text-gray-600">📖</span>
+              {(mb) => {
+                const filteredBooks = createMemo(() => {
+                  const q = filter().trim().toLowerCase();
+                  if (!q) return mb().books;
+                  return mb().books.filter((b) => b.title.toLowerCase().includes(q));
+                });
+                return (
+                  <Show when={mb().books.length > 0}>
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                      <h3 class="text-xl font-bold">Books by {author()?.name} (from metadata)</h3>
+                      <div class="flex items-center gap-3">
+                        <input
+                          type="text"
+                          value={filter()}
+                          onInput={(e) => setFilter(e.currentTarget.value)}
+                          placeholder="Filter by title..."
+                          class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                        />
+                        <ViewToggle view={view()} onChange={(v) => setView(v)} />
+                      </div>
+                    </div>
+                    <Show
+                      when={filteredBooks().length > 0}
+                      fallback={<p class="text-sm text-gray-500">No books match your filter.</p>}
+                    >
+                      <Show
+                        when={view() === "grid"}
+                        fallback={
+                          <div class="space-y-2">
+                            <For each={filteredBooks()}>
+                              {(book) => (
+                                <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
+                                  <Show
+                                    when={book.image_url}
+                                    fallback={
+                                      <div class="w-10 h-14 rounded bg-gray-800 flex items-center justify-center shrink-0">
+                                        <span class="text-xl text-gray-600">📖</span>
+                                      </div>
+                                    }
+                                  >
+                                    {(img) => (
+                                      <img
+                                        src={img()}
+                                        alt={book.title}
+                                        class="w-10 h-14 object-cover rounded shrink-0"
+                                      />
+                                    )}
+                                  </Show>
+                                  <div class="flex-1 min-w-0">
+                                    <p class="font-medium truncate">{book.title}</p>
+                                    <p class="text-xs text-gray-400 mt-0.5 truncate">
+                                      {book.publish_date && `${book.publish_date}`}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() =>
+                                      void addBook({
+                                        foreign_id: book.foreign_id,
+                                        author_id: book.author_id,
+                                        title: book.title,
+                                      })
+                                    }
+                                    disabled={addingId() === book.foreign_id}
+                                    class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors shrink-0"
+                                  >
+                                    {addingId() === book.foreign_id ? "Adding..." : "Add Book"}
+                                  </button>
+                                </div>
+                              )}
+                            </For>
+                          </div>
+                        }
+                      >
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          <For each={filteredBooks()}>
+                            {(book) => (
+                              <div class="block p-3 bg-gray-900 rounded-lg border border-gray-800 transition-colors">
+                                <Show
+                                  when={book.image_url}
+                                  fallback={
+                                    <div class="w-full aspect-[2/3] rounded bg-gray-800 flex items-center justify-center mb-3">
+                                      <span class="text-3xl text-gray-600">📖</span>
+                                    </div>
+                                  }
+                                >
+                                  {(img) => (
+                                    <img
+                                      src={img()}
+                                      alt={book.title}
+                                      class="w-full aspect-[2/3] object-cover rounded mb-3"
+                                    />
+                                  )}
+                                </Show>
+                                <p class="font-medium truncate">{book.title}</p>
+                                <p class="text-xs text-gray-400 mt-0.5 truncate">
+                                  {book.publish_date && `${book.publish_date}`}
+                                </p>
+                                <button
+                                  onClick={() =>
+                                    void addBook({
+                                      foreign_id: book.foreign_id,
+                                      author_id: book.author_id,
+                                      title: book.title,
+                                    })
+                                  }
+                                  disabled={addingId() === book.foreign_id}
+                                  class="mt-2 w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+                                >
+                                  {addingId() === book.foreign_id ? "Adding..." : "Add Book"}
+                                </button>
                               </div>
-                            }
-                          >
-                            {(img) => (
-                              <img
-                                src={img()}
-                                alt={book.title}
-                                class="w-full aspect-[2/3] object-cover rounded mb-3"
-                              />
                             )}
-                          </Show>
-                          <p class="font-medium truncate">{book.title}</p>
-                          <p class="text-xs text-gray-400 mt-0.5 truncate">
-                            {book.publish_date && `${book.publish_date}`}
-                          </p>
-                          <button
-                            onClick={() =>
-                              void addBook({
-                                foreign_id: book.foreign_id,
-                                author_id: book.author_id,
-                                title: book.title,
-                              })
-                            }
-                            disabled={addingId() === book.foreign_id}
-                            class="mt-2 w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
-                          >
-                            {addingId() === book.foreign_id ? "Adding..." : "Add Book"}
-                          </button>
+                          </For>
                         </div>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-              )}
+                      </Show>
+                    </Show>
+                  </Show>
+                );
+              }}
             </Show>
           </Loading>
         </Errored>

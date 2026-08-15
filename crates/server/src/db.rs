@@ -215,6 +215,36 @@ pub async fn get_book_by_id(
     Ok(row.map(|r| r.into_domain()))
 }
 
+/// Persist metadata (cover, description, publish date, etc.) fetched from an
+/// external source back into the books table so it's available elsewhere in
+/// the UI without repeated lookups.
+pub async fn update_book_metadata(
+    db: &SqlitePool,
+    b: &readingroom_core::models::Book,
+) -> Result<bool> {
+    let genres = serde_json::to_string(&b.genres).unwrap_or_else(|_| "[]".into());
+    let result = sqlx::query(
+        "UPDATE books SET description = ?1, isbn = ?2, isbn13 = ?3, pages = ?4,
+         publisher = ?5, publish_date = ?6, image_url = ?7, genres = ?8,
+         ratings = ?9, language = ?10 WHERE id = ?11",
+    )
+    .bind(&b.description)
+    .bind(&b.isbn)
+    .bind(&b.isbn13)
+    .bind(b.pages)
+    .bind(&b.publisher)
+    .bind(b.publish_date.map(|d| d.to_string()))
+    .bind(&b.image_url)
+    .bind(&genres)
+    .bind(b.ratings)
+    .bind(&b.language)
+    .bind(b.id)
+    .execute(db)
+    .await?;
+
+    Ok(result.rows_affected() > 0)
+}
+
 /// Fetch just the title for a book (avoids loading the full Book struct)
 pub async fn get_book_title(
     db: &SqlitePool,
