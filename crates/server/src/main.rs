@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use argon2::password_hash::{PasswordHasher, SaltString, rand_core::OsRng};
+use argon2::password_hash::rand_core::RngCore;
 use axum::{Router, http::StatusCode, response::IntoResponse, routing::get};
 use clap::Parser;
+use std::os::unix::fs::OpenOptionsExt;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 
@@ -82,8 +84,35 @@ async fn main() -> readingroom_core::error::Result<()> {
     let auth_enabled = std::env::var("READINGROOM_AUTH_ENABLED")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    let jwt_secret = std::env::var("READINGROOM_JWT_SECRET")
-        .unwrap_or_else(|_| "dev-secret-change-in-production".to_string());
+
+    // JWT secret: READINGROOM_JWT_SECRET overrides; otherwise auto-generate a
+    // random one on first start and persist it in the data dir so tokens
+    // survive restarts without needing an env var.
+    let jwt_secret = match std::env::var("READINGROOM_JWT_SECRET") {
+        Ok(secret) if !secret.is_empty() => secret,
+        _ => {
+            let secret_path = config.server.data_dir.join("jwt_secret");
+            if let Ok(stored) = std::fs::read_to_string(&secret_path) {
+                stored.trim().to_string()
+            } else {
+                let mut bytes = [0u8; 32];
+                OsRng.fill_bytes(&mut bytes);
+                let secret = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+                let mut file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .mode(0o600)
+                    .open(&secret_path)
+                    .expect("failed to create JWT secret file");
+                use std::io::Write;
+                file.write_all(secret.as_bytes())
+                    .expect("failed to write JWT secret");
+                tracing::info!("Generated JWT secret at {}", secret_path.display());
+                secret
+            }
+        }
+    };
 
     // Create default admin user if auth is enabled and no users exist
     if auth_enabled {

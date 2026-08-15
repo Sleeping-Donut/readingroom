@@ -130,9 +130,9 @@ Authentication is deliberately kept out of `config.toml` (credentials don't belo
 | Variable | Description |
 |----------|-------------|
 | `READINGROOM_AUTH_ENABLED` | Set to `1`/`true` to enable username+password auth |
-| `READINGROOM_JWT_SECRET` | Secret used to sign session tokens (set a strong random value in production) |
+| `READINGROOM_JWT_SECRET` | Optional override for the session-signing secret |
 
-With auth disabled, the API is open (anonymous). With auth enabled, an `admin`/`admin` user is bootstrapped on first start — **change that password immediately**.
+On first start the server auto-generates a random secret and persists it in the data dir (file `jwt_secret`, mode 0600), so sessions survive restarts without you managing a secret. Setting `READINGROOM_JWT_SECRET` overrides it. With auth disabled, the API is open (anonymous). With auth enabled, an `admin`/`admin` user is bootstrapped on first start — **change that password immediately**.
 
 ### Rename Pattern Placeholders
 
