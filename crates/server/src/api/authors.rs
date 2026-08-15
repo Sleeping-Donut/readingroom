@@ -31,6 +31,7 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::<Arc<AppState>>::new()
         .route("/", get(list_authors).post(add_author))
         .route("/:id", get(get_author).put(update_author).delete(delete_author))
+        .route("/:id/books", get(get_author_books))
         .route("/search", get(search_authors))
 }
 
@@ -86,6 +87,13 @@ async fn get_author(State(state): State<Arc<AppState>>, Path(id): Path<String>) 
     match state.metadata.get_author(&id).await {
         Ok(author) => Json(json!(author)),
         Err(e) => Json(json!({ "error": e.to_string() })),
+    }
+}
+
+async fn get_author_books(State(state): State<Arc<AppState>>, Path(id): Path<i64>) -> Json<Value> {
+    match crate::db::get_books_by_author(&state.db, id).await {
+        Ok(books) => Json(json!({ "books": books, "total": books.len() })),
+        Err(e) => Json(json!({ "error": e.to_string(), "books": [], "total": 0 })),
     }
 }
 

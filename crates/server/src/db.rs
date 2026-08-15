@@ -182,11 +182,13 @@ pub async fn get_books_by_author(
     author_id: i64,
 ) -> Result<Vec<readingroom_core::models::Book>> {
     let rows = sqlx::query_as::<_, BookRow>(
-        "SELECT id, foreign_id, author_id, title, clean_title, description,
-                isbn, isbn13, asin, pages, publisher, publish_date,
-                image_url, genres, ratings, language, monitored,
-                last_search_at, added_at
-         FROM books WHERE author_id = ?1 ORDER BY title",
+        "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
+                b.title, b.clean_title, b.description,
+                b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.last_search_at, b.added_at
+         FROM books b LEFT JOIN authors a ON a.id = b.author_id
+         WHERE b.author_id = ?1 ORDER BY b.title",
     )
     .bind(author_id)
     .fetch_all(db)

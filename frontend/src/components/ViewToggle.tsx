@@ -4,20 +4,31 @@ export type ViewMode = "grid" | "list";
 
 const PREFIX = "readingroom.view.";
 
-export function createViewPreference(key: string): [Accessor<ViewMode>, Setter<ViewMode>] {
-  const stored =
-    typeof window !== "undefined" ? (localStorage.getItem(PREFIX + key) as ViewMode) : null;
-  const [view, setView] = createSignal<ViewMode>(stored === "list" ? "list" : "grid");
+function readStored(key: string): ViewMode | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    return localStorage.getItem(PREFIX + key) as ViewMode;
+  } catch {
+    return null;
+  }
+}
 
-  createEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(PREFIX + key, view());
-      } catch {
-        /* ignore */
-      }
-    }
-  });
+function writeStored(key: string, view: ViewMode) {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(PREFIX + key, view);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function createViewPreference(key: string): [Accessor<ViewMode>, Setter<ViewMode>] {
+  const [view, setView] = createSignal<ViewMode>(readStored(key) === "list" ? "list" : "grid");
+
+  createEffect(
+    () => view(),
+    (v) => writeStored(key, v),
+  );
 
   return [view, setView];
 }
