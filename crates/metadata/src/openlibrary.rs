@@ -77,6 +77,7 @@ struct WorkEntry {
     description: Option<serde_json::Value>,
     subjects: Option<Vec<String>>,
     first_publish_date: Option<String>,
+    covers: Option<Vec<i64>>,
 }
 
 #[derive(serde::Deserialize)]
@@ -351,7 +352,10 @@ impl MetadataSource for OpenLibrarySource {
             pages: None,
             publisher: None,
             publish_date: entry.first_publish_date.as_deref().and_then(parse_date),
-            image_url: None,
+            image_url: entry
+                .covers
+                .and_then(|c| c.first().copied())
+                .and_then(|id| cover_url(id, "L")),
             genres: entry.subjects.unwrap_or_default(),
             ratings: None,
             language: "en".into(),
