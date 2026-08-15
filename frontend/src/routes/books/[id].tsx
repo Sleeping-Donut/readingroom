@@ -4,6 +4,7 @@ import { useParams } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getBook } from "../../api/books";
 import { paths } from "../../router";
+import { BookCover } from "../../components/books/BookCover";
 
 export const route = defineFileRoute("/books/:id", {
   preload: ({ params }) => getBook(params.id),
@@ -43,22 +44,12 @@ export default function BookDetail() {
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
           <Title>{book().title} · ReadingRoom</Title>
           <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 mt-4">
-            <Show
-              when={book().image_url}
-              fallback={
-                <div class="w-40 sm:w-48 aspect-[2/3] rounded-lg bg-gray-800 flex items-center justify-center shrink-0">
-                  <span class="text-5xl text-gray-600">📖</span>
-                </div>
-              }
-            >
-              {(img) => (
-                <img
-                  src={img()}
-                  alt={book().title}
-                  class="w-40 sm:w-48 aspect-[2/3] object-cover rounded-lg shadow-lg shrink-0"
-                />
-              )}
-            </Show>
+            <BookCover
+              src={book().image_url}
+              alt={book().title}
+              class="w-40 sm:w-48 aspect-[2/3] rounded-lg shadow-lg shrink-0"
+              emojiClass="text-5xl"
+            />
             <div class="flex-1 min-w-0">
               <h2 class="text-3xl font-bold mb-1">{book().title}</h2>
               <Show when={book().author_name}>

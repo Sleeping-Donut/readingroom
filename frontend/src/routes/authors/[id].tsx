@@ -11,11 +11,79 @@ import {
   type ScoredRelease,
 } from "../../api/search";
 import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
+import { BookCard } from "../../components/books/BookCard";
+import { BookRow } from "../../components/books/BookRow";
 import type { Book, Release } from "../../types";
 
 export const route = defineFileRoute("/authors/:id", {
   preload: ({ params }) => getAuthor(params.id),
 });
+
+function BookAction(props: {
+  tracked: Book | undefined;
+  adding: boolean;
+  onAdd: () => void;
+  block?: boolean;
+}) {
+  return (
+    <Show
+      when={props.tracked}
+      fallback={
+        <button
+          onClick={props.onAdd}
+          disabled={props.adding}
+          class={[
+            "px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors",
+            props.block ? "mt-2 w-full" : "shrink-0",
+          ]}
+        >
+          {props.adding ? "Adding..." : "Add Book"}
+        </button>
+      }
+    >
+      <span
+        class={[
+          "px-3 py-1.5 bg-green-900/40 text-green-400 border border-green-800 rounded text-xs font-medium",
+          props.block ? "mt-2 w-full flex items-center justify-center" : "shrink-0",
+        ]}
+      >
+        ✓ Tracked
+      </span>
+    </Show>
+  );
+}
+
+function ReleaseRow(props: {
+  result: ScoredRelease;
+  downloading: boolean;
+  onDownload: () => void;
+}) {
+  const { release, score } = props.result;
+  return (
+    <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">{release.title}</p>
+        <p class="text-xs text-gray-400">
+          {release.indexer}
+          {release.seeders != null && ` · ${release.seeders} seeders`}
+          {release.size > 0 && ` · ${(release.size / 1_000_000).toFixed(0)} MB`}
+        </p>
+        <p class="text-xs text-gray-500">
+          Score: {score.toFixed(0)}
+          {props.result.reasons.length > 0 && ` · ${props.result.reasons.slice(0, 2).join(", ")}`}
+        </p>
+      </div>
+      <span class="text-xs text-indigo-400 mr-2">{release.download_type}</span>
+      <button
+        onClick={props.onDownload}
+        disabled={props.downloading}
+        class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+      >
+        {props.downloading ? "..." : "Download"}
+      </button>
+    </div>
+  );
+}
 
 export default function AuthorDetail() {
   const params = useParams(paths.authors);
@@ -210,35 +278,17 @@ export default function AuthorDetail() {
             <div class="space-y-2">
               <For each={r().results}>
                 {(result, index) => (
-                  <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
-                    <div class="flex-1 min-w-0">
-                      <p class="font-medium truncate">{result.release.title}</p>
-                      <p class="text-xs text-gray-400">
-                        {result.release.indexer}
-                        {result.release.seeders != null && ` · ${result.release.seeders} seeders`}
-                        {result.release.size > 0 &&
-                          ` · ${(result.release.size / 1_000_000).toFixed(0)} MB`}
-                      </p>
-                      <p class="text-xs text-gray-500">
-                        Score: {result.score.toFixed(0)}
-                        {result.reasons.length > 0 && ` · ${result.reasons.slice(0, 2).join(", ")}`}
-                      </p>
-                    </div>
-                    <span class="text-xs text-indigo-400 mr-2">{result.release.download_type}</span>
-                    <button
-                      onClick={() =>
-                        void downloadRelease({
-                          release: result.release,
-                          bookId: result.matched_book_id ?? author()?.id,
-                          index: index(),
-                        })
-                      }
-                      disabled={downloadingId() === index()}
-                      class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
-                    >
-                      {downloadingId() === index() ? "..." : "Download"}
-                    </button>
-                  </div>
+                  <ReleaseRow
+                    result={result}
+                    downloading={downloadingId() === index()}
+                    onDownload={() =>
+                      void downloadRelease({
+                        release: result.release,
+                        bookId: result.matched_book_id ?? author()?.id,
+                        index: index(),
+                      })
+                    }
+                  />
                 )}
               </For>
             </div>
@@ -282,122 +332,56 @@ export default function AuthorDetail() {
                     fallback={
                       <div class="space-y-2">
                         <For each={filteredBooks()}>
-                          {(book) => {
-                            const tracked = trackedByForeignId()[book.foreign_id];
-                            return (
-                              <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
-                                <a href={bookHref(book)} class="shrink-0">
-                                  <Show
-                                    when={book.image_url}
-                                    fallback={
-                                      <div class="w-10 h-14 rounded bg-gray-800 flex items-center justify-center shrink-0">
-                                        <span class="text-xl text-gray-600">📖</span>
-                                      </div>
-                                    }
-                                  >
-                                    {(img) => (
-                                      <img
-                                        src={img()}
-                                        alt={book.title}
-                                        class="w-10 h-14 object-cover rounded shrink-0"
-                                      />
-                                    )}
-                                  </Show>
-                                </a>
-                                <div class="flex-1 min-w-0">
-                                  <a href={bookHref(book)} class="block">
-                                    <p class="font-medium truncate hover:text-indigo-300">
-                                      {book.title}
-                                    </p>
-                                  </a>
-                                  <p class="text-xs text-gray-400 mt-0.5 truncate">
-                                    {book.publish_date && `${book.publish_date}`}
-                                  </p>
-                                </div>
-                                <Show
-                                  when={tracked}
-                                  fallback={
-                                    <button
-                                      onClick={() =>
-                                        void addBook({
-                                          foreign_id: book.foreign_id,
-                                          author_id: book.author_id,
-                                          title: book.title,
-                                        })
-                                      }
-                                      disabled={addingId() === book.foreign_id}
-                                      class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors shrink-0"
-                                    >
-                                      {addingId() === book.foreign_id ? "Adding..." : "Add Book"}
-                                    </button>
+                          {(book) => (
+                            <BookRow
+                              href={bookHref(book)}
+                              coverSrc={book.image_url}
+                              title={book.title}
+                              subtitle={book.publish_date ?? ""}
+                              coverEmojiClass="text-xl"
+                              footer={
+                                <BookAction
+                                  tracked={trackedByForeignId()[book.foreign_id]}
+                                  adding={addingId() === book.foreign_id}
+                                  onAdd={() =>
+                                    void addBook({
+                                      foreign_id: book.foreign_id,
+                                      author_id: book.author_id,
+                                      title: book.title,
+                                    })
                                   }
-                                >
-                                  <span class="px-3 py-1.5 bg-green-900/40 text-green-400 border border-green-800 rounded text-xs font-medium shrink-0">
-                                    ✓ Tracked
-                                  </span>
-                                </Show>
-                              </div>
-                            );
-                          }}
+                                />
+                              }
+                            />
+                          )}
                         </For>
                       </div>
                     }
                   >
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                       <For each={filteredBooks()}>
-                        {(book) => {
-                          const tracked = trackedByForeignId()[book.foreign_id];
-                          return (
-                            <div class="block p-3 bg-gray-900 rounded-lg border border-gray-800 transition-colors">
-                              <a href={bookHref(book)} class="block">
-                                <Show
-                                  when={book.image_url}
-                                  fallback={
-                                    <div class="w-full aspect-[2/3] rounded bg-gray-800 flex items-center justify-center mb-3">
-                                      <span class="text-3xl text-gray-600">📖</span>
-                                    </div>
-                                  }
-                                >
-                                  {(img) => (
-                                    <img
-                                      src={img()}
-                                      alt={book.title}
-                                      class="w-full aspect-[2/3] object-cover rounded mb-3"
-                                    />
-                                  )}
-                                </Show>
-                              </a>
-                              <a href={bookHref(book)} class="block">
-                                <p class="font-medium truncate">{book.title}</p>
-                              </a>
-                              <p class="text-xs text-gray-400 mt-0.5 truncate">
-                                {book.publish_date && `${book.publish_date}`}
-                              </p>
-                              <Show
-                                when={tracked}
-                                fallback={
-                                  <button
-                                    onClick={() =>
-                                      void addBook({
-                                        foreign_id: book.foreign_id,
-                                        author_id: book.author_id,
-                                        title: book.title,
-                                      })
-                                    }
-                                    disabled={addingId() === book.foreign_id}
-                                    class="mt-2 w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
-                                  >
-                                    {addingId() === book.foreign_id ? "Adding..." : "Add Book"}
-                                  </button>
+                        {(book) => (
+                          <BookCard
+                            href={bookHref(book)}
+                            coverSrc={book.image_url}
+                            title={book.title}
+                            subtitle={book.publish_date ?? ""}
+                            footer={
+                              <BookAction
+                                tracked={trackedByForeignId()[book.foreign_id]}
+                                adding={addingId() === book.foreign_id}
+                                onAdd={() =>
+                                  void addBook({
+                                    foreign_id: book.foreign_id,
+                                    author_id: book.author_id,
+                                    title: book.title,
+                                  })
                                 }
-                              >
-                                <span class="mt-2 w-full flex items-center justify-center px-3 py-1.5 bg-green-900/40 text-green-400 border border-green-800 rounded text-xs font-medium">
-                                  ✓ Tracked
-                                </span>
-                              </Show>
-                            </div>
-                          );
-                        }}
+                                block
+                              />
+                            }
+                          />
+                        )}
                       </For>
                     </div>
                   </Show>

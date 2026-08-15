@@ -5,6 +5,8 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import { addAuthor as createAuthor, getAuthors, searchAuthors } from "../../api/authors";
 import { paths } from "../../router";
 import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
+import { AuthorCard } from "../../components/authors/AuthorCard";
+import { AuthorRow } from "../../components/authors/AuthorRow";
 import type { Author } from "../../types";
 
 export const route = defineFileRoute("/authors", {
@@ -15,6 +17,12 @@ const matchesFilter = (author: Author, q: string) =>
   author.name.toLowerCase().includes(q) ||
   author.aliases.some((alias) => alias.toLowerCase().includes(q)) ||
   author.genres.some((genre) => genre.toLowerCase().includes(q));
+
+const rowSubtitle = (author: Author) => {
+  const dates = [author.birth_date, author.death_date].filter(Boolean).join(" – ");
+  const genres = author.genres.length > 0 ? ` · ${author.genres.slice(0, 2).join(", ")}` : "";
+  return `${dates}${genres}`;
+};
 
 export default function Authors() {
   const [searchQuery, setSearchQuery] = createSignal("");
@@ -206,40 +214,12 @@ export default function Authors() {
                   <div class="space-y-2">
                     <For each={filtered()}>
                       {(author) => (
-                        <a
+                        <AuthorRow
                           href={paths.authors(author.id)}
-                          class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
-                        >
-                          <Show
-                            when={author.image_url}
-                            fallback={
-                              <div class="w-10 h-12 shrink-0 rounded bg-gray-800 flex items-center justify-center">
-                                <span class="text-sm font-medium text-gray-500">
-                                  {author.name.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            }
-                          >
-                            {(img) => (
-                              <img
-                                src={img()}
-                                alt={author.name}
-                                class="w-10 h-12 shrink-0 object-cover rounded"
-                              />
-                            )}
-                          </Show>
-                          <div class="flex-1 min-w-0">
-                            <p class="font-medium truncate">{author.name}</p>
-                            <p class="text-xs text-gray-400 truncate">
-                              {author.birth_date && `${author.birth_date}`}
-                              {author.birth_date && author.death_date && " – "}
-                              {author.death_date && `${author.death_date}`}
-                              {author.genres.length > 0 &&
-                                ` · ${author.genres.slice(0, 2).join(", ")}`}
-                            </p>
-                          </div>
-                          <span class="text-gray-500 shrink-0">›</span>
-                        </a>
+                          imageUrl={author.image_url}
+                          name={author.name}
+                          subtitle={rowSubtitle(author)}
+                        />
                       )}
                     </For>
                   </div>
@@ -248,26 +228,16 @@ export default function Authors() {
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   <For each={filtered()}>
                     {(author) => (
-                      <a
+                      <AuthorCard
                         href={paths.authors(author.id)}
-                        class="block p-4 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
-                      >
-                        <Show when={author.image_url}>
-                          {(img) => (
-                            <img
-                              src={img()}
-                              alt={author.name}
-                              class="w-full h-48 object-cover rounded mb-3"
-                            />
-                          )}
-                        </Show>
-                        <p class="font-medium truncate">{author.name}</p>
-                        <p class="text-xs text-gray-400 mt-1">
-                          {author.genres.length > 0
+                        imageUrl={author.image_url}
+                        name={author.name}
+                        subtitle={
+                          author.genres.length > 0
                             ? author.genres.slice(0, 2).join(", ")
-                            : "No genres"}
-                        </p>
-                      </a>
+                            : "No genres"
+                        }
+                      />
                     )}
                   </For>
                 </div>
