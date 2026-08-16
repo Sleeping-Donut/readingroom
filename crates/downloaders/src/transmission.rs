@@ -79,10 +79,15 @@ struct SessionGetResponse {
 impl TransmissionClient {
     pub fn new(config: &DownloadClientConfig) -> Result<Self> {
         let (scheme, host, port, host_path) = crate::urlutil::parse_host(&config.host, config.port);
-        let base_path =
-            crate::urlutil::join_base_paths(&host_path, config.url_base.as_deref().unwrap_or(""));
-        let rpc_url =
-            crate::urlutil::client_url(&scheme, &host, port, &base_path, "/transmission/rpc");
+        // Transmission's RPC already lives under /transmission/rpc. When an
+        // explicit URL base is set (reverse proxy subpath), it IS that path
+        // prefix, so only append /rpc rather than doubling the /transmission.
+        let base_path = if config.url_base.is_some() {
+            crate::urlutil::join_base_paths(&host_path, config.url_base.as_deref().unwrap_or(""))
+        } else {
+            crate::urlutil::join_base_paths(&host_path, "/transmission")
+        };
+        let rpc_url = crate::urlutil::client_url(&scheme, &host, port, &base_path, "/rpc");
 
         let auth_header = match (&config.username, &config.password) {
             (Some(u), Some(p)) => {
