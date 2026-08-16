@@ -261,12 +261,17 @@ function NotificationItem(props: {
   retrying: boolean;
 }) {
   const parsedSettings = createMemo(() => {
-    try {
-      const parsed = v.safeParse(NOTIFICATION_SETTINGS_SCHEMA, JSON.parse(props.notif.settings));
-      return parsed.success ? parsed.output : {};
-    } catch {
-      return {};
-    }
+    const parsed = v.safeParse(
+      NOTIFICATION_SETTINGS_SCHEMA,
+      (() => {
+        try {
+          return JSON.parse(props.notif.settings);
+        } catch {
+          return null;
+        }
+      })(),
+    );
+    return parsed.success ? parsed.output : {};
   });
 
   return (

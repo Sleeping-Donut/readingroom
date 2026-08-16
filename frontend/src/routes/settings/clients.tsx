@@ -69,21 +69,17 @@ const CLIENT_SETTINGS_SCHEMA = v.object({
 });
 
 function parseClientSettings(settings: string): ClientSettings {
-  try {
-    const parsed = v.safeParse(CLIENT_SETTINGS_SCHEMA, JSON.parse(settings));
-    if (!parsed.success) throw new Error("Invalid settings");
-    return {
-      host: parsed.output.host ?? "",
-      port: parsed.output.port ?? 0,
-      username: parsed.output.username ?? "",
-      password: parsed.output.password ?? "",
-      url_base: parsed.output.url_base ?? "",
-      category: parsed.output.category ?? "",
-      download_dir: parsed.output.download_dir ?? "",
-      rate_limit: parsed.output.rate_limit,
-      concurrent_downloads: parsed.output.concurrent_downloads,
-    };
-  } catch {
+  const parsed = v.safeParse(
+    CLIENT_SETTINGS_SCHEMA,
+    (() => {
+      try {
+        return JSON.parse(settings);
+      } catch {
+        return null;
+      }
+    })(),
+  );
+  if (!parsed.success) {
     return {
       host: "",
       port: 0,
@@ -96,6 +92,17 @@ function parseClientSettings(settings: string): ClientSettings {
       concurrent_downloads: undefined,
     };
   }
+  return {
+    host: parsed.output.host ?? "",
+    port: parsed.output.port ?? 0,
+    username: parsed.output.username ?? "",
+    password: parsed.output.password ?? "",
+    url_base: parsed.output.url_base ?? "",
+    category: parsed.output.category ?? "",
+    download_dir: parsed.output.download_dir ?? "",
+    rate_limit: parsed.output.rate_limit,
+    concurrent_downloads: parsed.output.concurrent_downloads,
+  };
 }
 
 function isBuiltinClient(client: DownloadClient): boolean {

@@ -24,17 +24,23 @@ function connect() {
   ws = socket;
 
   socket.onmessage = (event) => {
-    try {
-      const parsed = v.safeParse(WS_MESSAGE_SCHEMA, JSON.parse(event.data));
-      if (!parsed.success) return;
-      const { event: eventType, data } = parsed.output;
-      const cbs = listeners.get(eventType);
-      if (cbs) cbs.forEach((cb) => cb(eventType, data));
-      const allCbs = listeners.get("*");
-      if (allCbs) allCbs.forEach((cb) => cb(eventType, data));
-    } catch (e) {
-      console.error("WS parse error", e);
-    }
+    const parsed = v.safeParse(
+      WS_MESSAGE_SCHEMA,
+      (() => {
+        try {
+          return JSON.parse(event.data);
+        } catch (e) {
+          console.error("WS parse error", e);
+          return null;
+        }
+      })(),
+    );
+    if (!parsed.success) return;
+    const { event: eventType, data } = parsed.output;
+    const cbs = listeners.get(eventType);
+    if (cbs) cbs.forEach((cb) => cb(eventType, data));
+    const allCbs = listeners.get("*");
+    if (allCbs) allCbs.forEach((cb) => cb(eventType, data));
   };
 
   socket.onclose = () => {

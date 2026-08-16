@@ -451,7 +451,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                                   try {
                                     return JSON.parse(idx.settings);
                                   } catch {
-                                    return {};
+                                    return null;
                                   }
                                 })(),
                               );

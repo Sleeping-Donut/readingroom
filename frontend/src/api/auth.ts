@@ -27,14 +27,19 @@ const [authEnabled, setAuthEnabled] = createSignal(false);
 
 function loadUser() {
   if (typeof window === "undefined") return;
-  try {
-    const stored = localStorage.getItem("readingroom_user");
-    if (stored) {
-      const parsed = v.safeParse(USER_SCHEMA, JSON.parse(stored));
-      if (parsed.success) setUser(parsed.output);
-    }
-  } catch {
-    /* ignore */
+  const stored = localStorage.getItem("readingroom_user");
+  if (stored) {
+    const parsed = v.safeParse(
+      USER_SCHEMA,
+      (() => {
+        try {
+          return JSON.parse(stored);
+        } catch {
+          return null;
+        }
+      })(),
+    );
+    if (parsed.success) setUser(parsed.output);
   }
 }
 
