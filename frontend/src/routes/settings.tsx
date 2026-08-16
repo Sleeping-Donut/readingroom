@@ -22,7 +22,10 @@ export default function SettingsLayout(props: RouteProps<typeof route>) {
   const activeSlug = () => {
     const chain = matches();
     const path = chain[chain.length - 1]?.route.originalPath ?? "";
-    if (path === "/settings/" || path === "/settings") return "indexers";
+    // The /settings index leaf (renders Indexers) has path "/" in the manifest.
+    if (path === "/" || path === "" || path === "/settings" || path === "/settings/") {
+      return "indexers";
+    }
     return path.replace(/^\/settings\//, "");
   };
 
