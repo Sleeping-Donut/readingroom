@@ -129,22 +129,23 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
     if (res.dump_url) setDumpUrl(res.dump_url);
   };
 
-  createEffect(() => {
-    void refresh().catch((e) => setError(String(e)));
-  });
+  // Load initial settings once on mount.
+  void refresh().catch((e) => setError(String(e)));
 
   // Poll while a download/import is in flight.
-  createEffect(() => {
-    const state = data()?.status.state;
-    if (state !== "Downloading" && state !== "Importing") return;
-    const t = setInterval(() => {
-      void settingsApi
-        .getMetadataSettings()
-        .then(setData)
-        .catch(() => {});
-    }, 3000);
-    return () => clearInterval(t);
-  });
+  createEffect(
+    () => data()?.status.state,
+    (state) => {
+      if (state !== "Downloading" && state !== "Importing") return;
+      const t = setInterval(() => {
+        void settingsApi
+          .getMetadataSettings()
+          .then(setData)
+          .catch(() => {});
+      }, 3000);
+      return () => clearInterval(t);
+    },
+  );
 
   const save = async (body: {
     mode?: "online" | "offline";
