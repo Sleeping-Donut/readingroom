@@ -9,7 +9,10 @@ export const getBooks = query(
   "books",
 );
 
-export const getBook = query(async (id: string) => api.get<Book>(`/books/${id}`), "book");
+export const getBook = query(
+  async (id: string) => api.get<Book>(`/books/${encodeURIComponent(id)}`),
+  "book",
+);
 
 export const searchBooks = (q: string) =>
   api.get<{ books: Book[]; total: number }>(`/books/search?q=${encodeURIComponent(q)}`);
