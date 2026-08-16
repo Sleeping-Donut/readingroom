@@ -1,4 +1,11 @@
+import * as v from "valibot";
+
 type WsCallback = (event: string, data: unknown) => void;
+
+const WS_MESSAGE_SCHEMA = v.object({
+  event: v.string(),
+  data: v.unknown(),
+});
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -18,8 +25,9 @@ function connect() {
 
   socket.onmessage = (event) => {
     try {
-      const parsed = JSON.parse(event.data);
-      const { event: eventType, data } = parsed;
+      const parsed = v.safeParse(WS_MESSAGE_SCHEMA, JSON.parse(event.data));
+      if (!parsed.success) return;
+      const { event: eventType, data } = parsed.output;
       const cbs = listeners.get(eventType);
       if (cbs) cbs.forEach((cb) => cb(eventType, data));
       const allCbs = listeners.get("*");

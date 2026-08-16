@@ -4,6 +4,7 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import {
   action,
   createEffect,
+  createOptimistic,
   createOptimisticStore,
   createSignal,
   createStore,
@@ -15,6 +16,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import * as v from "valibot";
 
 import type { Indexer, TestResult } from "../../types";
 
@@ -36,6 +38,20 @@ interface EditForm {
   priority: number;
 }
 
+const NEW_INDEXER_SCHEMA = v.object({
+  name: v.pipe(v.string(), v.trim(), v.minLength(1, "Name is required")),
+  implementation: v.union([v.literal("torznab"), v.literal("newznab"), v.literal("rss")]),
+  url: v.pipe(v.string(), v.trim(), v.minLength(1, "URL is required")),
+  api_key: v.optional(v.string()),
+  enable_rss: v.boolean(),
+  enable_search: v.boolean(),
+});
+
+const INDEXER_SETTINGS_SCHEMA = v.object({
+  url: v.optional(v.string()),
+  api_key: v.optional(v.string()),
+});
+
 export default function IndexersTab(_props: RouteProps<typeof route>) {
   const [showAdd, setShowAdd] = createSignal(false);
   const [editingId, setEditingId] = createSignal<number | null>(null);
@@ -47,16 +63,28 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
   });
   const [indexerTestResults, setIndexerTestResults] = createStore<Record<number, TestResult>>({});
   const [autoTested, setAutoTested] = createSignal(false);
-  const [isTestingAll, setIsTestingAll] = createSignal(false);
+  // Optimistic: reverts to false automatically when the action settles.
+  const [isTestingAll, setIsTestingAll] = createOptimistic(false);
   const [adding, setAdding] = createSignal(false);
   const [savingId, setSavingId] = createSignal<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
-  const [newName, setNewName] = createSignal("");
-  const [newImpl, setNewImpl] = createSignal("torznab");
-  const [newUrl, setNewUrl] = createSignal("");
-  const [newApiKey, setNewApiKey] = createSignal("");
-  const [newEnableRss, setNewEnableRss] = createSignal(true);
-  const [newEnableSearch, setNewEnableSearch] = createSignal(true);
+  const [newIndexer, setNewIndexer] = createStore({
+    name: "",
+    implementation: "torznab",
+    url: "",
+    api_key: "",
+    enable_rss: true,
+    enable_search: true,
+  });
+  const resetNewIndexer = () =>
+    setNewIndexer((s) => {
+      s.name = "";
+      s.implementation = "torznab";
+      s.url = "";
+      s.api_key = "";
+      s.enable_rss = true;
+      s.enable_search = true;
+    });
 
   const erroredIndexers: Record<number, Indexer> = {};
 
@@ -101,25 +129,33 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
   });
 
   const addIndexer = action(async function* () {
+    const parsed = v.safeParse(NEW_INDEXER_SCHEMA, {
+      name: newIndexer.name,
+      implementation: newIndexer.implementation,
+      url: newIndexer.url,
+      api_key: newIndexer.api_key,
+      enable_rss: newIndexer.enable_rss,
+      enable_search: newIndexer.enable_search,
+    });
+    if (!parsed.success) {
+      setActionError(parsed.issues?.[0]?.message ?? "Invalid indexer settings");
+      return;
+    }
     setAdding(true);
     setActionError(null);
     try {
       await settingsApi.addIndexer({
-        name: newName(),
-        implementation: newImpl(),
-        url: newUrl(),
-        api_key: newApiKey(),
-        enable_rss: newEnableRss(),
-        enable_search: newEnableSearch(),
+        name: parsed.output.name,
+        implementation: parsed.output.implementation,
+        url: parsed.output.url,
+        api_key: parsed.output.api_key ?? "",
+        enable_rss: parsed.output.enable_rss,
+        enable_search: parsed.output.enable_search,
       });
       yield;
       refresh(indexers);
       setShowAdd(false);
-      setNewName("");
-      setNewUrl("");
-      setNewApiKey("");
-      setNewEnableRss(true);
-      setNewEnableSearch(true);
+      resetNewIndexer();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -172,19 +208,15 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 
   const testAllIndexers = action(function* () {
     setIsTestingAll(true);
-    try {
-      const list = indexers.indexers;
-      if (list.length === 0) return;
-      for (const idx of list) {
-        try {
-          yield testIndexer(idx.id);
-        } catch {
-          /* handled inside */
-        }
-        yield new Promise((r) => setTimeout(r, 200));
+    const list = indexers.indexers;
+    if (list.length === 0) return;
+    for (const idx of list) {
+      try {
+        yield testIndexer(idx.id);
+      } catch {
+        /* handled inside */
       }
-    } finally {
-      setIsTestingAll(false);
+      yield new Promise((r) => setTimeout(r, 200));
     }
   });
 
@@ -233,8 +265,12 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                 <div>
                   <label class="block text-xs text-gray-400 mb-1">Name</label>
                   <input
-                    value={newName()}
-                    onInput={(e) => setNewName(e.currentTarget.value)}
+                    value={newIndexer.name}
+                    onInput={(e) =>
+                      setNewIndexer((s) => {
+                        s.name = e.currentTarget.value;
+                      })
+                    }
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                     placeholder="My Indexer"
                   />
@@ -242,21 +278,31 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                 <div>
                   <label class="block text-xs text-gray-400 mb-1">Type</label>
                   <select
-                    value={newImpl()}
-                    onChange={(e) => setNewImpl(e.currentTarget.value)}
+                    value={newIndexer.implementation}
+                    onChange={(e) =>
+                      setNewIndexer((s) => {
+                        s.implementation = e.currentTarget.value;
+                      })
+                    }
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                   >
                     <option value="torznab">Torznab (torrent)</option>
                     <option value="newznab">Newznab (usenet)</option>
                     <option value="rss">RSS</option>
                   </select>
-                  <p class="mt-1 text-xs text-gray-500">{implementationHint(newImpl())}</p>
+                  <p class="mt-1 text-xs text-gray-500">
+                    {implementationHint(newIndexer.implementation)}
+                  </p>
                 </div>
                 <div class="sm:col-span-2">
                   <label class="block text-xs text-gray-400 mb-1">URL</label>
                   <input
-                    value={newUrl()}
-                    onInput={(e) => setNewUrl(e.currentTarget.value)}
+                    value={newIndexer.url}
+                    onInput={(e) =>
+                      setNewIndexer((s) => {
+                        s.url = e.currentTarget.value;
+                      })
+                    }
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                     placeholder="https://indexer.example.com"
                   />
@@ -265,8 +311,12 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                   <label class="block text-xs text-gray-400 mb-1">API Key</label>
                   <input
                     type="password"
-                    value={newApiKey()}
-                    onInput={(e) => setNewApiKey(e.currentTarget.value)}
+                    value={newIndexer.api_key}
+                    onInput={(e) =>
+                      setNewIndexer((s) => {
+                        s.api_key = e.currentTarget.value;
+                      })
+                    }
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                     placeholder="Optional"
                   />
@@ -275,8 +325,12 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                   <label class="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={newEnableRss()}
-                      onChange={(e) => setNewEnableRss(e.currentTarget.checked)}
+                      checked={newIndexer.enable_rss}
+                      onChange={(e) =>
+                        setNewIndexer((s) => {
+                          s.enable_rss = e.currentTarget.checked;
+                        })
+                      }
                       class="rounded bg-gray-800 border-gray-700"
                     />
                     Enable RSS
@@ -284,8 +338,12 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                   <label class="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={newEnableSearch()}
-                      onChange={(e) => setNewEnableSearch(e.currentTarget.checked)}
+                      checked={newIndexer.enable_search}
+                      onChange={(e) =>
+                        setNewIndexer((s) => {
+                          s.enable_search = e.currentTarget.checked;
+                        })
+                      }
                       class="rounded bg-gray-800 border-gray-700"
                     />
                     Enable Search
@@ -295,7 +353,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
               <div class="flex gap-3 items-center mt-4">
                 <button
                   onClick={() => void addIndexer()}
-                  disabled={adding() || !newName() || !newUrl().trim()}
+                  disabled={adding() || !newIndexer.name || !newIndexer.url.trim()}
                   class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
                 >
                   Save
@@ -387,15 +445,19 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                             onClick={() => {
                               let url = "";
                               let api_key = "";
-                              try {
-                                const parsed = JSON.parse(idx.settings) as {
-                                  url?: string;
-                                  api_key?: string;
-                                };
-                                url = parsed.url ?? "";
-                                api_key = parsed.api_key ?? "";
-                              } catch {
-                                // use defaults
+                              const parsed = v.safeParse(
+                                INDEXER_SETTINGS_SCHEMA,
+                                (() => {
+                                  try {
+                                    return JSON.parse(idx.settings);
+                                  } catch {
+                                    return {};
+                                  }
+                                })(),
+                              );
+                              if (parsed.success) {
+                                url = parsed.output.url ?? "";
+                                api_key = parsed.output.api_key ?? "";
                               }
                               setEditingId(idx.id);
                               setEditForm({

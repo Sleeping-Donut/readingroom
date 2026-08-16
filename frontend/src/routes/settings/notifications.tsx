@@ -12,6 +12,7 @@ import {
   refresh,
   Show,
 } from "solid-js";
+import * as v from "valibot";
 
 import type { Notification } from "../../types";
 
@@ -19,6 +20,10 @@ import * as settingsApi from "../../api/settings";
 
 export const route = defineFileRoute("/settings/notifications", {
   info: { label: "Notifications" },
+});
+
+const NOTIFICATION_SETTINGS_SCHEMA = v.object({
+  webhook_url: v.optional(v.string()),
 });
 
 export default function NotificationsTab(_props: RouteProps<typeof route>) {
@@ -257,9 +262,10 @@ function NotificationItem(props: {
 }) {
   const parsedSettings = createMemo(() => {
     try {
-      return JSON.parse(props.notif.settings) as { webhook_url?: string };
+      const parsed = v.safeParse(NOTIFICATION_SETTINGS_SCHEMA, JSON.parse(props.notif.settings));
+      return parsed.success ? parsed.output : {};
     } catch {
-      return {} as { webhook_url?: string };
+      return {};
     }
   });
 

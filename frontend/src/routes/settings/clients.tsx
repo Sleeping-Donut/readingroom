@@ -4,6 +4,7 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import {
   action,
   createEffect,
+  createOptimistic,
   createOptimisticStore,
   createSignal,
   createStore,
@@ -15,6 +16,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import * as v from "valibot";
 
 import type { DownloadClientInput } from "../../api/settings";
 import type { DownloadClient, TestResult } from "../../types";
@@ -54,29 +56,32 @@ interface ClientSettings {
   concurrent_downloads?: number;
 }
 
+const CLIENT_SETTINGS_SCHEMA = v.object({
+  host: v.optional(v.string()),
+  port: v.optional(v.number()),
+  username: v.optional(v.string()),
+  password: v.optional(v.string()),
+  url_base: v.optional(v.string()),
+  category: v.optional(v.string()),
+  download_dir: v.optional(v.string()),
+  rate_limit: v.optional(v.number()),
+  concurrent_downloads: v.optional(v.number()),
+});
+
 function parseClientSettings(settings: string): ClientSettings {
   try {
-    const parsed = JSON.parse(settings) as {
-      host?: string;
-      port?: number;
-      username?: string;
-      password?: string;
-      url_base?: string;
-      category?: string;
-      download_dir?: string;
-      rate_limit?: number;
-      concurrent_downloads?: number;
-    };
+    const parsed = v.safeParse(CLIENT_SETTINGS_SCHEMA, JSON.parse(settings));
+    if (!parsed.success) throw new Error("Invalid settings");
     return {
-      host: parsed.host ?? "",
-      port: parsed.port ?? 0,
-      username: parsed.username ?? "",
-      password: parsed.password ?? "",
-      url_base: parsed.url_base ?? "",
-      category: parsed.category ?? "",
-      download_dir: parsed.download_dir ?? "",
-      rate_limit: parsed.rate_limit,
-      concurrent_downloads: parsed.concurrent_downloads,
+      host: parsed.output.host ?? "",
+      port: parsed.output.port ?? 0,
+      username: parsed.output.username ?? "",
+      password: parsed.output.password ?? "",
+      url_base: parsed.output.url_base ?? "",
+      category: parsed.output.category ?? "",
+      download_dir: parsed.output.download_dir ?? "",
+      rate_limit: parsed.output.rate_limit,
+      concurrent_downloads: parsed.output.concurrent_downloads,
     };
   } catch {
     return {
@@ -108,7 +113,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
   });
   const [clientTestResults, setClientTestResults] = createStore<Record<number, TestResult>>({});
   const [autoTested, setAutoTested] = createSignal(false);
-  const [isTestingAll, setIsTestingAll] = createSignal(false);
+  const [isTestingAll, setIsTestingAll] = createOptimistic(false);
   const [adding, setAdding] = createSignal(false);
   const [savingClientId, setSavingClientId] = createSignal<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
@@ -394,24 +399,20 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
     },
   );
 
-  const testAllClients = async () => {
+  const testAllClients = action(function* () {
     setIsTestingAll(true);
-    try {
-      const list = configurableClients();
-      if (list.length === 0) return;
-      const runTest = testClient;
-      for (const cl of list) {
-        try {
-          await runTest(cl.id);
-        } catch {
-          /* handled inside */
-        }
-        await new Promise((r) => setTimeout(r, 200));
+    const list = configurableClients();
+    if (list.length === 0) return;
+    const runTest = testClient;
+    for (const cl of list) {
+      try {
+        yield runTest(cl.id);
+      } catch {
+        /* handled inside */
       }
-    } finally {
-      setIsTestingAll(false);
+      yield new Promise((r) => setTimeout(r, 200));
     }
-  };
+  });
 
   return (
     <div>

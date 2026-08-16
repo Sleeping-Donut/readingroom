@@ -1,8 +1,15 @@
 import { createSignal } from "solid-js";
+import * as v from "valibot";
 
 import type { SystemStatus, User } from "../types";
 
 import { api, setOnUnauthorized } from "./client";
+
+const USER_SCHEMA = v.object({
+  id: v.number(),
+  username: v.string(),
+  role: v.string(),
+});
 
 interface LoginResponse {
   token: string;
@@ -22,7 +29,10 @@ function loadUser() {
   if (typeof window === "undefined") return;
   try {
     const stored = localStorage.getItem("readingroom_user");
-    if (stored) setUser(JSON.parse(stored));
+    if (stored) {
+      const parsed = v.safeParse(USER_SCHEMA, JSON.parse(stored));
+      if (parsed.success) setUser(parsed.output);
+    }
   } catch {
     /* ignore */
   }
