@@ -81,6 +81,15 @@ async fn main() -> readingroom_core::error::Result<()> {
     let db = readingroom_db::connect(&db_path).await?;
     tracing::info!("Database connected");
 
+    // Apply any runtime "library" settings from the DB config table over
+    // config.toml so imports and the settings API use the merged values.
+    if let Ok(Some(lib_json)) = crate::db::get_config_value(&db, "library").await {
+        if let Ok(overlay) = serde_json::from_str::<readingroom_core::config::LibraryConfig>(&lib_json) {
+            config.library.merge_library(&overlay);
+            tracing::info!("Applied runtime library settings from DB config");
+        }
+    }
+
     // Auth is env-driven (credentials live in the users table, not config).
     let auth_enabled = std::env::var("READINGROOM_AUTH_ENABLED")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
@@ -175,8 +184,6 @@ async fn main() -> readingroom_core::error::Result<()> {
     // Create import manager
     let import_manager = Arc::new(crate::import::ImportManager::new(
         db.clone(),
-        config.server.library_root.clone(),
-        config.server.audiobook_root.clone(),
         config.library.clone(),
     ));
     tracing::info!("Import manager initialized");

@@ -112,6 +112,7 @@ fn map_volume_to_book(v: Volume) -> Book {
         ratings: None,
         language: info.language.unwrap_or_else(|| "en".into()),
         monitored: false,
+        status: "tracked".into(),
         added_at: chrono::Utc::now(),
         last_search_at: None,
     }

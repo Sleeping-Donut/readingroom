@@ -39,6 +39,14 @@ export interface NotificationInput {
   on_health_issue: boolean;
 }
 
+export interface LibrarySettings {
+  root_folder: string;
+  audiobook_folder: string;
+  rename_files: boolean;
+  author_folder_format: string;
+  book_file_format: string;
+}
+
 function buildIndexerSettings(input: IndexerInput): string {
   return JSON.stringify({
     url: input.url.trim(),
@@ -137,4 +145,12 @@ export function removeNotification(id: number) {
 
 export function testNotification(id: number) {
   return api.post(`/notifications/${id}/test`);
+}
+
+export function getLibrarySettings() {
+  return api.get<{ library: LibrarySettings }>("/settings/library");
+}
+
+export function updateLibrarySettings(settings: Partial<LibrarySettings>) {
+  return api.put<{ success: boolean }>("/settings/library", settings);
 }

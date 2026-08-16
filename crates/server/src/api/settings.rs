@@ -8,10 +8,64 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use readingroom_core::config::{DownloadClientConfig, IndexerConfig};
+use readingroom_core::config::{DownloadClientConfig, IndexerConfig, LibraryConfig};
 use readingroom_core::error::Result;
 
 use crate::AppState;
+
+// ---------------------------------------------------------------------------
+// Library settings (download locations + naming)
+// ---------------------------------------------------------------------------
+
+/// Partial update body for library settings. Absent fields keep their current value.
+#[derive(Debug, Deserialize)]
+pub struct UpdateLibraryBody {
+    pub root_folder: Option<std::path::PathBuf>,
+    pub audiobook_folder: Option<std::path::PathBuf>,
+    pub rename_files: Option<bool>,
+    pub author_folder_format: Option<String>,
+    pub book_file_format: Option<String>,
+}
+
+async fn load_library_config(state: &Arc<AppState>) -> LibraryConfig {
+    match crate::db::get_config_value(&state.db, "library").await {
+        Ok(Some(json)) => serde_json::from_str::<LibraryConfig>(&json)
+            .unwrap_or_else(|_| state.config.library.clone()),
+        _ => state.config.library.clone(),
+    }
+}
+
+async fn get_library_settings(State(state): State<Arc<AppState>>) -> Json<Value> {
+    Json(json!({ "success": true, "library": load_library_config(&state).await }))
+}
+
+async fn update_library_settings(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<UpdateLibraryBody>,
+) -> Json<Value> {
+    let mut lib = load_library_config(&state).await;
+    if let Some(v) = body.root_folder {
+        lib.root_folder = Some(v);
+    }
+    if let Some(v) = body.audiobook_folder {
+        lib.audiobook_folder = Some(v);
+    }
+    if let Some(v) = body.rename_files {
+        lib.rename_files = v;
+    }
+    if let Some(v) = body.author_folder_format {
+        lib.author_folder_format = Some(v);
+    }
+    if let Some(v) = body.book_file_format {
+        lib.book_file_format = Some(v);
+    }
+
+    let value = serde_json::to_string(&lib).unwrap_or_else(|_| "{}".into());
+    match crate::db::set_config_value(&state.db, "library", &value).await {
+        Ok(()) => Json(json!({ "success": true })),
+        Err(e) => Json(json!({ "error": e.to_string(), "success": false })),
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Indexer CRUD
@@ -446,4 +500,5 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/downloadclients", get(list_download_clients).post(create_download_client))
         .route("/downloadclients/:id", get(get_download_client).put(update_download_client).delete(delete_download_client))
         .route("/downloadclients/:id/test", post(test_download_client))
+        .route("/library", get(get_library_settings).put(update_library_settings))
 }

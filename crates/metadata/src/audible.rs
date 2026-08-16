@@ -146,6 +146,7 @@ fn map_book(body: BookResponse) -> Book {
         ratings: parse_rating(body.rating),
         language: body.language.unwrap_or_else(|| "en".into()),
         monitored: false,
+        status: "tracked".into(),
         added_at: chrono::Utc::now(),
         last_search_at: None,
     }

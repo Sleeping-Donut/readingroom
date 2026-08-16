@@ -176,6 +176,7 @@ mod tests {
             ratings: None,
             language: "en".into(),
             monitored: true,
+            status: "tracked".into(),
             added_at: Utc::now(),
             last_search_at: None,
         }

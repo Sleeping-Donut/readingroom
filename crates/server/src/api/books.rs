@@ -73,6 +73,7 @@ async fn add_book(
                 ratings: None,
                 language: "en".into(),
                 monitored: true,
+                status: "tracked".into(),
                 added_at: chrono::Utc::now(),
                 last_search_at: None,
             };
@@ -126,6 +127,7 @@ fn enrich_book(db_book: readingroom_core::models::Book, meta: readingroom_core::
         ratings: db_book.ratings.or(meta.ratings),
         language: db_book.language,
         monitored: db_book.monitored,
+        status: db_book.status,
         added_at: db_book.added_at,
         last_search_at: db_book.last_search_at,
     }

@@ -150,6 +150,27 @@ pub struct LibraryConfig {
     pub import_existing: bool,
 }
 
+impl LibraryConfig {
+    /// Merge a runtime override on top of a base config. `overlay` wins for any
+    /// field it sets; non-optional flags are always taken from `overlay`.
+    pub fn merge_library(&mut self, overlay: &LibraryConfig) {
+        if overlay.root_folder.is_some() {
+            self.root_folder = overlay.root_folder.clone();
+        }
+        if overlay.audiobook_folder.is_some() {
+            self.audiobook_folder = overlay.audiobook_folder.clone();
+        }
+        self.rename_files = overlay.rename_files;
+        if overlay.author_folder_format.is_some() {
+            self.author_folder_format = overlay.author_folder_format.clone();
+        }
+        if overlay.book_file_format.is_some() {
+            self.book_file_format = overlay.book_file_format.clone();
+        }
+        self.import_existing = overlay.import_existing;
+    }
+}
+
 // Defaults
 fn default_host() -> String {
     "127.0.0.1".into()

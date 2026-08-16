@@ -12,24 +12,31 @@ use crate::db;
 /// Handles importing downloaded files into the library.
 pub struct ImportManager {
     db: sqlx::SqlitePool,
-    library_root: Option<PathBuf>,
-    audiobook_root: Option<PathBuf>,
     library_config: LibraryConfig,
 }
 
 impl ImportManager {
     pub fn new(
         db: sqlx::SqlitePool,
-        library_root: Option<PathBuf>,
-        audiobook_root: Option<PathBuf>,
         library_config: LibraryConfig,
     ) -> Self {
         Self {
             db,
-            library_root,
-            audiobook_root,
             library_config,
         }
+    }
+
+    /// Load the effective library config: the startup (config.toml) seed merged
+    /// with any runtime override stored in the `config` table (key "library"),
+    /// so import uses the latest settings without a restart.
+    async fn effective_library_config(&self) -> LibraryConfig {
+        let mut cfg = self.library_config.clone();
+        if let Ok(Some(json)) = db::get_config_value(&self.db, "library").await {
+            if let Ok(overlay) = serde_json::from_str::<LibraryConfig>(&json) {
+                cfg.merge_library(&overlay);
+            }
+        }
+        cfg
     }
 
     /// Import a completed download.
@@ -59,6 +66,11 @@ impl ImportManager {
             return Ok(());
         }
 
+        let lib_cfg = self.effective_library_config().await;
+        let author_name = db::get_book_author_name(&self.db, completed.book_id)
+            .await?
+            .unwrap_or_else(|| "Unknown".into());
+
         for file_path in &files {
             let ext = file_path
                 .extension()
@@ -82,8 +94,19 @@ impl ImportManager {
                 .await?
                 .unwrap_or_else(|| "Unknown".into());
 
+            let is_audiobook = is_audiobook_format(&format_name);
+
             // Build destination path
-            let dest = self.destination_path(completed.book_id, &book_title, &format_name, &quality, file_path)?;
+            let dest = self.destination_path(
+                completed.book_id,
+                &book_title,
+                &author_name,
+                is_audiobook,
+                &format_name,
+                &quality,
+                file_path,
+                &lib_cfg,
+            )?;
             if let Some(parent) = dest.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
@@ -125,6 +148,8 @@ impl ImportManager {
             completed.id,
         )
         .await?;
+
+        db::set_book_status_have(&self.db, completed.book_id).await?;
 
         tracing::info!(
             book_id = %completed.book_id,
@@ -280,44 +305,50 @@ impl ImportManager {
         &self,
         book_id: i64,
         book_title: &str,
+        author_name: &str,
+        is_audiobook: bool,
         format_name: &str,
         quality: &Quality,
         source: &Path,
+        cfg: &LibraryConfig,
     ) -> Result<PathBuf> {
-        let root = self
-            .library_root
+        let library_root = cfg
+            .root_folder
             .as_deref()
             .unwrap_or_else(|| Path::new("library"));
+
+        let root = if is_audiobook {
+            cfg.audiobook_folder.as_deref().unwrap_or(library_root)
+        } else {
+            library_root
+        };
+
+        let subdir = if is_audiobook { "audiobooks" } else { "books" };
 
         let ext = source
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("unknown");
 
-        if self.library_config.rename_files {
-            let fmt = self
-                .library_config
+        if cfg.rename_files {
+            let fmt = cfg
                 .book_file_format
                 .as_deref()
                 .unwrap_or("{book_id}.{ext}");
 
-            let author_folder = self
-                .library_config
+            let author_folder = cfg
                 .author_folder_format
                 .as_deref()
                 .unwrap_or("{book_id}");
 
-            let safe_title = book_title
-                .chars()
-                .map(|c| if c.is_ascii_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' })
-                .collect::<String>()
-                .trim()
-                .to_string();
+            let safe_title = sanitize_name(book_title);
+            let safe_author = sanitize_name(author_name);
 
             let filename = fmt
                 .replace("{book_id}", &book_id.to_string())
                 .replace("{book_title}", &safe_title)
                 .replace("{title}", &safe_title)
+                .replace("{author_name}", &safe_author)
                 .replace("{quality}", &format!("{:?}", quality))
                 .replace("{format}", format_name)
                 .replace("{ext}", ext);
@@ -325,13 +356,14 @@ impl ImportManager {
             let author_dir = author_folder
                 .replace("{book_id}", &book_id.to_string())
                 .replace("{book_title}", &safe_title)
-                .replace("{title}", &safe_title);
+                .replace("{title}", &safe_title)
+                .replace("{author_name}", &safe_author);
 
-            let dest = root.join("books").join(&author_dir).join(&filename);
+            let dest = root.join(subdir).join(&author_dir).join(&filename);
             Ok(dest)
         } else {
             let filename = format!("book-{book_id}.{ext}");
-            let dest = root.join("books").join(&filename);
+            let dest = root.join(subdir).join(&filename);
             Ok(dest)
         }
     }
@@ -403,4 +435,21 @@ pub(crate) fn classify_file(ext: &str) -> (String, Quality) {
         "flac" => ("flac".into(), Quality::FLAC),
         _ => (ext.into(), Quality::Unknown),
     }
+}
+
+/// Whether a format name denotes an audiobook.
+fn is_audiobook_format(format_name: &str) -> bool {
+    matches!(
+        format_name,
+        "mp3" | "m4b" | "flac" | "m4a" | "aac" | "ogg" | "opus" | "wma"
+    )
+}
+
+/// Sanitize a name for use in a filesystem path.
+fn sanitize_name(name: &str) -> String {
+    name.chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' })
+        .collect::<String>()
+        .trim()
+        .to_string()
 }

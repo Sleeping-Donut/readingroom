@@ -78,18 +78,11 @@ struct SessionGetResponse {
 
 impl TransmissionClient {
     pub fn new(config: &DownloadClientConfig) -> Result<Self> {
-        let scheme = if config.port == 9091 || config.port == 443 {
-            "https"
-        } else {
-            "http"
-        };
-        let rpc_url = format!(
-            "{}://{}:{}{}/transmission/rpc",
-            scheme,
-            config.host,
-            config.port,
-            config.url_base.as_deref().unwrap_or(""),
-        );
+        let (scheme, host, port, host_path) = crate::urlutil::parse_host(&config.host, config.port);
+        let base_path =
+            crate::urlutil::join_base_paths(&host_path, config.url_base.as_deref().unwrap_or(""));
+        let rpc_url =
+            crate::urlutil::client_url(&scheme, &host, port, &base_path, "/transmission/rpc");
 
         let auth_header = match (&config.username, &config.password) {
             (Some(u), Some(p)) => {

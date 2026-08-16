@@ -11,8 +11,10 @@ use std::collections::HashSet;
 
 pub struct QBittorrentClient {
     name: String,
+    scheme: String,
     host: String,
     port: u16,
+    base_path: String,
     username: Option<String>,
     password: Option<String>,
     client: reqwest::Client,
@@ -44,10 +46,15 @@ struct TorrentProperties {
 
 impl QBittorrentClient {
     pub fn new(config: &DownloadClientConfig) -> Result<Self> {
+        let (scheme, host, port, host_path) = crate::urlutil::parse_host(&config.host, config.port);
+        let base_path =
+            crate::urlutil::join_base_paths(&host_path, config.url_base.as_deref().unwrap_or(""));
         Ok(Self {
             name: config.name.clone(),
-            host: config.host.clone(),
-            port: config.port,
+            scheme,
+            host,
+            port,
+            base_path,
             username: config.username.clone(),
             password: config.password.clone(),
             client: reqwest::Client::builder()
@@ -57,12 +64,12 @@ impl QBittorrentClient {
         })
     }
 
-    fn base_url(&self) -> String {
-        format!("http://{}:{}", self.host, self.port)
+    fn url(&self, path: &str) -> String {
+        crate::urlutil::client_url(&self.scheme, &self.host, self.port, &self.base_path, path)
     }
 
     async fn login(&self) -> Result<String> {
-        let url = format!("{}/api/v2/auth/login", self.base_url());
+        let url = self.url("/api/v2/auth/login");
         let resp = self
             .client
             .post(&url)
@@ -100,7 +107,7 @@ impl QBittorrentClient {
 
     async fn api_get(&self, path: &str) -> Result<reqwest::Response> {
         let sid = self.login().await?;
-        let url = format!("{}{}", self.base_url(), path);
+        let url = self.url(path);
         let resp = self
             .client
             .get(&url)
@@ -122,7 +129,7 @@ impl QBittorrentClient {
 
     async fn api_post(&self, path: &str, body: Vec<(&str, &str)>) -> Result<reqwest::Response> {
         let sid = self.login().await?;
-        let url = format!("{}{}", self.base_url(), path);
+        let url = self.url(path);
         let resp = self
             .client
             .post(&url)

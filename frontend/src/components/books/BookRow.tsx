@@ -3,6 +3,7 @@ import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 
 import { BookCover } from "./BookCover";
+import { StatusBadge } from "./StatusBadge";
 
 export function BookRow(props: {
   coverSrc?: string;
@@ -12,6 +13,7 @@ export function BookRow(props: {
   cardLink?: boolean;
   coverEmojiClass?: string;
   footer?: JSX.Element;
+  status?: string;
 }) {
   const cover = (
     <BookCover
@@ -22,6 +24,11 @@ export function BookRow(props: {
     />
   );
   const title = <p class="font-medium truncate">{props.title}</p>;
+  const status = (
+    <div class="mt-1.5">
+      <StatusBadge status={props.status} />
+    </div>
+  );
 
   if (props.cardLink) {
     return (
@@ -33,6 +40,7 @@ export function BookRow(props: {
         <div class="flex-1 min-w-0">
           {title}
           <p class="text-xs text-gray-400 truncate">{props.subtitle}</p>
+          {status}
         </div>
         {props.footer}
       </a>
@@ -52,6 +60,7 @@ export function BookRow(props: {
           </a>
         </Show>
         <p class="text-xs text-gray-400 mt-0.5 truncate">{props.subtitle}</p>
+        {status}
       </div>
       {props.footer}
     </div>

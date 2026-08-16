@@ -5,6 +5,7 @@ import { createMemo, Errored, For, Loading, Show } from "solid-js";
 
 import { getBook } from "../../api/books";
 import { BookCover } from "../../components/books/BookCover";
+import { StatusBadge } from "../../components/books/StatusBadge";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/books/:id", {
@@ -52,7 +53,10 @@ export default function BookDetail() {
               emojiClass="text-5xl"
             />
             <div class="flex-1 min-w-0">
-              <h2 class="text-3xl font-bold mb-1">{book().title}</h2>
+              <div class="flex flex-wrap items-center gap-3 mb-1">
+                <h2 class="text-3xl font-bold">{book().title}</h2>
+                <StatusBadge status={book().status} />
+              </div>
               <Show when={book().author_name}>
                 <a
                   href={paths.authors(book().author_id)}

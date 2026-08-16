@@ -216,6 +216,7 @@ export default function Books() {
                           coverSrc={book.image_url}
                           title={book.title}
                           subtitle={listSubtitle(book)}
+                          status={book.status}
                         />
                       )}
                     </For>
@@ -233,6 +234,7 @@ export default function Books() {
                         subtitle={
                           book.author_name || book.genres.slice(0, 2).join(", ") || "No author"
                         }
+                        status={book.status}
                       />
                     )}
                   </For>

@@ -90,6 +90,8 @@ impl DownloadManager {
         )
         .await?;
 
+        db::set_book_status_getting(&self.db, book_id).await?;
+
         let queued = QueuedDownload {
             book_id,
             download_id: download_id.0,
@@ -297,7 +299,16 @@ impl DownloadManager {
             }
         }
 
-        db::delete_queue_entry(&self.db, queue_id).await
+        let removed = db::delete_queue_entry(&self.db, queue_id).await?;
+        if removed {
+            if let Some(book_id) = entry.book_id {
+                if !db::book_has_files(&self.db, book_id).await? {
+                    db::set_book_status(&self.db, book_id, "tracked").await?;
+                }
+            }
+        }
+
+        Ok(removed)
     }
 
     pub fn primary_client(&self) -> Option<&Box<dyn DownloadClient>> {

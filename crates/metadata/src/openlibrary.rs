@@ -266,6 +266,7 @@ impl MetadataSource for OpenLibrarySource {
                     ratings: None,
                     language: "en".into(),
                     monitored: false,
+                    status: "tracked".into(),
                     added_at: chrono::Utc::now(),
                     last_search_at: None,
                 }
@@ -314,6 +315,7 @@ impl MetadataSource for OpenLibrarySource {
                         .and_then(|l| l.into_iter().next())
                         .unwrap_or_else(|| "en".into()),
                     monitored: false,
+                    status: "tracked".into(),
                     added_at: chrono::Utc::now(),
                     last_search_at: None,
                 }
@@ -371,6 +373,7 @@ impl MetadataSource for OpenLibrarySource {
             ratings: None,
             language: "en".into(),
             monitored: false,
+            status: "tracked".into(),
             added_at: chrono::Utc::now(),
             last_search_at: None,
         })

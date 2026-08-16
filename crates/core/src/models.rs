@@ -47,8 +47,14 @@ pub struct Book {
     pub ratings: Option<f64>,
     pub language: String,
     pub monitored: bool,
+    #[serde(default = "default_status")]
+    pub status: String,
     pub added_at: DateTime<Utc>,
     pub last_search_at: Option<DateTime<Utc>>,
+}
+
+fn default_status() -> String {
+    "tracked".into()
 }
 
 // ---------------------------------------------------------------------------
@@ -495,6 +501,7 @@ mod tests {
             ratings: Some(4.5),
             language: "en".into(),
             monitored: true,
+            status: "tracked".into(),
             added_at: Utc::now(),
             last_search_at: None,
         };

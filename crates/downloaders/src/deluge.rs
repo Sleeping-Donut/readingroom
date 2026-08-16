@@ -11,8 +11,10 @@ use std::collections::HashMap;
 
 pub struct DelugeClient {
     name: String,
+    scheme: String,
     host: String,
     port: u16,
+    base_path: String,
     password: Option<String>,
     client: reqwest::Client,
 }
@@ -53,10 +55,15 @@ struct TorrentStatusFields {
 
 impl DelugeClient {
     pub fn new(config: &DownloadClientConfig) -> Result<Self> {
+        let (scheme, host, port, host_path) = crate::urlutil::parse_host(&config.host, config.port);
+        let base_path =
+            crate::urlutil::join_base_paths(&host_path, config.url_base.as_deref().unwrap_or(""));
         Ok(Self {
             name: config.name.clone(),
-            host: config.host.clone(),
-            port: config.port,
+            scheme,
+            host,
+            port,
+            base_path,
             password: config.password.clone(),
             client: reqwest::Client::builder()
                 .user_agent("ReadingRoom/0.1")
@@ -66,7 +73,7 @@ impl DelugeClient {
     }
 
     fn rpc_url(&self) -> String {
-        format!("http://{}:{}/json", self.host, self.port)
+        crate::urlutil::client_url(&self.scheme, &self.host, self.port, &self.base_path, "/json")
     }
 
     async fn rpc_call_raw(&self, method: &str, params: Vec<Value>) -> Result<RpcResponse> {

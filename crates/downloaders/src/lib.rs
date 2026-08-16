@@ -1,6 +1,7 @@
 pub mod transmission;
 pub mod qbittorrent;
 pub mod deluge;
+pub mod urlutil;
 
 use readingroom_core::error::{AppError, Result};
 use readingroom_core::traits::DownloadClient;

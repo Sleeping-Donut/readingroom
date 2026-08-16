@@ -129,7 +129,7 @@ pub async fn list_calendar_books(db: &SqlitePool) -> Result<Vec<readingroom_core
         "SELECT id, foreign_id, author_id, title, clean_title, description,
                 isbn, isbn13, asin, pages, publisher, publish_date,
                 image_url, genres, ratings, language, monitored,
-                last_search_at, added_at
+                status, last_search_at, added_at
          FROM books
          WHERE publish_date IS NOT NULL
          ORDER BY publish_date DESC
@@ -148,7 +148,7 @@ pub async fn list_books(db: &SqlitePool) -> Result<Vec<readingroom_core::models:
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
                 b.image_url, b.genres, b.ratings, b.language, b.monitored,
-                b.last_search_at, b.added_at
+                b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id ORDER BY b.title",
     )
     .fetch_all(db)
@@ -166,7 +166,7 @@ pub async fn find_book_by_foreign_id(
         "SELECT id, foreign_id, author_id, title, clean_title, description,
                 isbn, isbn13, asin, pages, publisher, publish_date,
                 image_url, genres, ratings, language, monitored,
-                last_search_at, added_at
+                status, last_search_at, added_at
          FROM books WHERE foreign_id = ?1",
     )
     .bind(foreign_id)
@@ -186,7 +186,7 @@ pub async fn get_books_by_author(
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
                 b.image_url, b.genres, b.ratings, b.language, b.monitored,
-                b.last_search_at, b.added_at
+                b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id
          WHERE b.author_id = ?1 ORDER BY b.title",
     )
@@ -207,7 +207,7 @@ pub async fn get_book_by_id(
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
                 b.image_url, b.genres, b.ratings, b.language, b.monitored,
-                b.last_search_at, b.added_at
+                b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id WHERE b.id = ?1",
     )
     .bind(id)
@@ -259,6 +259,75 @@ pub async fn get_book_title(
     .fetch_optional(db)
     .await?;
     Ok(title)
+}
+
+/// Set a book's lifecycle status: 'tracked' | 'getting' | 'have'.
+pub async fn set_book_status(
+    db: &SqlitePool,
+    book_id: i64,
+    status: &str,
+) -> Result<()> {
+    sqlx::query("UPDATE books SET status = ?1, updated_at = datetime('now') WHERE id = ?2")
+        .bind(status)
+        .bind(book_id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+/// Mark a book as currently being downloaded.
+pub async fn set_book_status_getting(db: &SqlitePool, book_id: i64) -> Result<()> {
+    set_book_status(db, book_id, "getting").await
+}
+
+/// Mark a book as having at least one imported file.
+pub async fn set_book_status_have(db: &SqlitePool, book_id: i64) -> Result<()> {
+    set_book_status(db, book_id, "have").await
+}
+
+/// Fetch the author's name for a book (via authors join).
+pub async fn get_book_author_name(db: &SqlitePool, book_id: i64) -> Result<Option<String>> {
+    let name: Option<String> = sqlx::query_scalar(
+        "SELECT a.name FROM books b JOIN authors a ON a.id = b.author_id WHERE b.id = ?1",
+    )
+    .bind(book_id)
+    .fetch_optional(db)
+    .await?;
+    Ok(name)
+}
+
+/// Whether the book has at least one imported file.
+pub async fn book_has_files(db: &SqlitePool, book_id: i64) -> Result<bool> {
+    let has: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM book_files bf JOIN editions e ON bf.edition_id = e.id
+         WHERE e.book_id = ?1 LIMIT 1",
+    )
+    .bind(book_id)
+    .fetch_optional(db)
+    .await?;
+    Ok(has.is_some())
+}
+
+/// Read a raw value from the config table.
+pub async fn get_config_value(db: &SqlitePool, key: &str) -> Result<Option<String>> {
+    let value: Option<String> = sqlx::query_scalar("SELECT value FROM config WHERE key = ?1")
+        .bind(key)
+        .fetch_optional(db)
+        .await?;
+    Ok(value)
+}
+
+/// Upsert a raw value into the config table.
+pub async fn set_config_value(db: &SqlitePool, key: &str, value: &str) -> Result<()> {
+    sqlx::query(
+        "INSERT INTO config (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .bind(key)
+    .bind(value)
+    .execute(db)
+    .await?;
+    Ok(())
 }
 
 /// Update a book's monitored flag
@@ -547,7 +616,7 @@ pub async fn list_wanted_books(db: &SqlitePool) -> Result<Vec<readingroom_core::
         "SELECT b.id, b.foreign_id, b.author_id, b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
                 b.image_url, b.genres, b.ratings, b.language, b.monitored,
-                b.last_search_at, b.added_at
+                b.status, b.last_search_at, b.added_at
          FROM books b
          WHERE b.monitored = 1
          AND NOT EXISTS (
@@ -604,6 +673,7 @@ struct BookRow {
     ratings: Option<f64>,
     language: String,
     monitored: bool,
+    status: String,
     last_search_at: Option<String>, // ISO datetime string
     added_at: String,     // ISO datetime string
 }
@@ -641,6 +711,7 @@ impl BookRow {
             ratings: self.ratings,
             language: self.language,
             monitored: self.monitored,
+            status: self.status,
             added_at: parse_dt(self.added_at),
             last_search_at: self
                 .last_search_at

@@ -107,6 +107,26 @@ When a download completes, ReadingRoom automatically imports the files into your
 
 Go to **Settings → Notifications** and add an Apprise webhook URL to receive grab/import notifications.
 
+## Indexers for Books
+
+Books are searched exactly like movies/shows: a **Torznab** indexer pointed at **Prowlarr** (or Jackett). If you run Radarr you almost certainly already have Prowlarr — point ReadingRoom at it and reuse the same trackers.
+
+### Getting the Torznab URL + API key from Prowlarr
+
+1. In Prowlarr, open **Settings → Indexers** and enable the trackers you want for books.
+2. Copy the Torznab URL from an indexer row (or from **Settings → General**): it looks like `http://<prowlarr-ip>:9696/<api-key>/torznab/...`
+3. The `<api-key>` segment **is** the API key.
+
+In ReadingRoom: **Settings → Indexers → Add**, choose **Torznab**, and paste the URL + API key. The existing Torznab implementation supports both search (`t=search`) and RSS; Newznab and RSS/Atom indexers work the same way for providers that only expose those.
+
+### Trackers that carry books
+
+- **MyAnonamouse (MAM)** — the best dedicated e/audiobook tracker; private, invite-only.
+- **Bibliotik** — ebooks; private.
+- **libgen / Anna's Archive** — public, via Jackett mirrors; no invite needed, lower quality.
+
+If you use Jackett instead of Prowlarr, add the same trackers there and point ReadingRoom's Torznab/Newznab indexer at Jackett's Torznab endpoint + API key.
+
 ## Configuration
 
 All configuration is in a TOML file at `{data_dir}/config.toml`. Key sections:

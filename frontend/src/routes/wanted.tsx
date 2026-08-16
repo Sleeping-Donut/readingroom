@@ -4,6 +4,7 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 
 import { getWanted, searchWantedAll, searchWantedBook } from "../api/wanted";
+import { StatusBadge } from "../components/books/StatusBadge";
 import { paths } from "../router";
 
 export const route = defineFileRoute("/wanted", {
@@ -105,6 +106,9 @@ export default function Wanted() {
                           )}
                         </Show>
                         <p class="font-medium truncate">{book.title}</p>
+                        <div class="mt-1.5">
+                          <StatusBadge status={book.status} />
+                        </div>
                         <p class="text-xs text-gray-400 mt-1">
                           {book.genres.length > 0
                             ? book.genres.slice(0, 2).join(", ")
