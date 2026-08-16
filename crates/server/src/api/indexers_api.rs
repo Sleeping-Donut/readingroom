@@ -102,13 +102,7 @@ fn validate_config(config: &IndexerConfig) -> Result<(), String> {
     Ok(())
 }
 
-fn field_template(
-    name: &str,
-    label: &str,
-    typ: &str,
-    order: i64,
-    value: Option<&str>,
-) -> Value {
+fn field_template(name: &str, label: &str, typ: &str, order: i64, value: Option<Value>) -> Value {
     json!({
         "order": order,
         "name": name,
@@ -129,14 +123,37 @@ fn field_template(
     })
 }
 
+/// Fields Prowlarr reads back and writes unconditionally when syncing indexers.
+/// `apiPath`, `categories`, and (for torrents) the seed criteria fields must be
+/// present or Prowlarr's ReadarrApp throws a NullReferenceException.
+fn indexer_fields(base_url: Option<String>, api_key: Option<String>, is_torrent: bool) -> Vec<Value> {
+    let mut fields = vec![
+        field_template("baseUrl", "Base URL", "url", 0, base_url.map(Value::String)),
+        field_template("apiKey", "API Key", "password", 1, api_key.map(Value::String)),
+        field_template("apiPath", "API Path", "text", 2, Some(Value::String("/api".into()))),
+        field_template("categories", "Categories", "select", 3, Some(Value::Array(vec![]))),
+    ];
+    if is_torrent {
+        fields.push(field_template("minimumSeeders", "Minimum Seeders", "number", 4, None));
+        fields.push(field_template("seedCriteria.seedRatio", "Seed Ratio", "number", 5, None));
+        fields.push(field_template("seedCriteria.seedTime", "Seed Time", "number", 6, None));
+        fields.push(field_template("seedCriteria.discographySeedTime", "Discography Seed Time", "number", 7, None));
+        fields.push(field_template(
+            "rejectBlocklistedTorrentHashesWhileGrabbing",
+            "Reject Blocklisted Torrent Hashes While Grabbing",
+            "checkbox",
+            8,
+            None,
+        ));
+    }
+    fields
+}
+
 fn schema_resource(info: &ImplInfo) -> Value {
     json!({
         "id": 0,
         "name": "",
-        "fields": [
-            field_template("baseUrl", "Base URL", "url", 0, None),
-            field_template("apiKey", "API Key", "password", 1, None),
-        ],
+        "fields": indexer_fields(None, None, info.protocol == "torrent"),
         "implementationName": info.implementation,
         "implementation": info.implementation,
         "configContract": info.config_contract,
@@ -169,10 +186,11 @@ fn row_to_resource(row: &IndexerRow) -> Value {
     json!({
         "id": row.id,
         "name": row.name,
-        "fields": [
-            field_template("baseUrl", "Base URL", "url", 0, Some(url)),
-            field_template("apiKey", "API Key", "password", 1, Some(api_key)),
-        ],
+        "fields": indexer_fields(
+            (!url.is_empty()).then(|| url.to_string()),
+            (!api_key.is_empty()).then(|| api_key.to_string()),
+            protocol == "torrent",
+        ),
         "implementationName": implementation,
         "implementation": implementation,
         "configContract": config_contract,
