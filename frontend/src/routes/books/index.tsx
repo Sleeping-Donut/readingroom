@@ -72,9 +72,9 @@ export default function Books() {
   return (
     <div>
       <Title>Books · ReadingRoom</Title>
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 class="text-2xl font-bold">Books</h2>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2">
           <ViewToggle view={view()} onChange={(v) => setView(v)} />
           <button
             onClick={() => setShowSearch(!showSearch())}

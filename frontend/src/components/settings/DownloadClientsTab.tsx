@@ -242,7 +242,7 @@ export default function DownloadClientsTab() {
         )}
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 class="text-lg font-semibold">Download Clients</h3>
             <div class="flex gap-2">
               <Show when={clients.download_clients.length > 0}>
@@ -379,7 +379,7 @@ export default function DownloadClientsTab() {
                     fallback={
                       <div
                         class={[
-                          "flex items-center gap-4 p-3 bg-gray-900 rounded-lg border transition-colors",
+                          "flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-900 rounded-lg border transition-colors",
                           { "border-red-800": !!client.error, "border-gray-800": !client.error },
                         ]}
                       >
@@ -432,49 +432,51 @@ export default function DownloadClientsTab() {
                             <p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
                           </Show>
                         </div>
-                        <button
-                          onClick={() => {
-                            const parsed = parseClientSettings(client.settings);
-                            setEditingClientId(client.id);
-                            setClientEditForm({
-                              name: client.name,
-                              implementation: client.implementation,
-                              ...parsed,
-                              priority: client.priority,
-                            });
-                          }}
-                          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => void testClient(client.id)}
-                          disabled={clientTestResults[client.id]?.status === "testing"}
-                          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
-                        >
-                          {clientTestResults[client.id]?.status === "testing"
-                            ? "Testing..."
-                            : "Test"}
-                        </button>
-                        <Show
-                          when={client.error}
-                          fallback={
-                            <button
-                              onClick={() => void removeClient(client)}
-                              class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
-                            >
-                              Remove
-                            </button>
-                          }
-                        >
+                        <div class="flex flex-wrap gap-2 shrink-0">
                           <button
-                            onClick={() => void retryRemoveClient(client)}
-                            disabled={retryingClientId() === client.id}
-                            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+                            onClick={() => {
+                              const parsed = parseClientSettings(client.settings);
+                              setEditingClientId(client.id);
+                              setClientEditForm({
+                                name: client.name,
+                                implementation: client.implementation,
+                                ...parsed,
+                                priority: client.priority,
+                              });
+                            }}
+                            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
                           >
-                            {retryingClientId() === client.id ? "Retrying..." : "Retry"}
+                            Edit
                           </button>
-                        </Show>
+                          <button
+                            onClick={() => void testClient(client.id)}
+                            disabled={clientTestResults[client.id]?.status === "testing"}
+                            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
+                          >
+                            {clientTestResults[client.id]?.status === "testing"
+                              ? "Testing..."
+                              : "Test"}
+                          </button>
+                          <Show
+                            when={client.error}
+                            fallback={
+                              <button
+                                onClick={() => void removeClient(client)}
+                                class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+                              >
+                                Remove
+                              </button>
+                            }
+                          >
+                            <button
+                              onClick={() => void retryRemoveClient(client)}
+                              disabled={retryingClientId() === client.id}
+                              class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+                            >
+                              {retryingClientId() === client.id ? "Retrying..." : "Retry"}
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                     }
                   >

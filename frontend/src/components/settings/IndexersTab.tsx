@@ -194,7 +194,7 @@ export default function IndexersTab() {
         )}
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 class="text-lg font-semibold">Indexers</h3>
             <div class="flex gap-2">
               <Show when={indexers.indexers.length > 0}>
@@ -315,7 +315,7 @@ export default function IndexersTab() {
                     fallback={
                       <div
                         class={[
-                          "flex items-center gap-4 p-3 bg-gray-900 rounded-lg border transition-colors",
+                          "flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-900 rounded-lg border transition-colors",
                           { "border-red-800": !!idx.error, "border-gray-800": !idx.error },
                         ]}
                       >
@@ -365,61 +365,65 @@ export default function IndexersTab() {
                             <p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
                           </Show>
                         </div>
-                        <button
-                          onClick={() => void testIndexer(idx.id)}
-                          disabled={indexerTestResults[idx.id]?.status === "testing"}
-                          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
-                        >
-                          {indexerTestResults[idx.id]?.status === "testing" ? "Testing..." : "Test"}
-                        </button>
-                        <button
-                          onClick={() => {
-                            let url = "";
-                            let api_key = "";
-                            try {
-                              const parsed = JSON.parse(idx.settings) as {
-                                url?: string;
-                                api_key?: string;
-                              };
-                              url = parsed.url ?? "";
-                              api_key = parsed.api_key ?? "";
-                            } catch {
-                              // use defaults
-                            }
-                            setEditingId(idx.id);
-                            setEditForm({
-                              name: idx.name,
-                              implementation: idx.implementation,
-                              url,
-                              api_key,
-                              enable_rss: idx.enable_rss,
-                              enable_search: idx.enable_search,
-                              priority: idx.priority,
-                            });
-                          }}
-                          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <Show
-                          when={idx.error}
-                          fallback={
-                            <button
-                              onClick={() => void removeIndexer(idx)}
-                              class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
-                            >
-                              Remove
-                            </button>
-                          }
-                        >
+                        <div class="flex flex-wrap gap-2 shrink-0">
                           <button
-                            onClick={() => void retryRemoveIndexer(idx)}
-                            disabled={retryingId() === idx.id}
-                            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+                            onClick={() => void testIndexer(idx.id)}
+                            disabled={indexerTestResults[idx.id]?.status === "testing"}
+                            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
                           >
-                            {retryingId() === idx.id ? "Retrying..." : "Retry"}
+                            {indexerTestResults[idx.id]?.status === "testing"
+                              ? "Testing..."
+                              : "Test"}
                           </button>
-                        </Show>
+                          <button
+                            onClick={() => {
+                              let url = "";
+                              let api_key = "";
+                              try {
+                                const parsed = JSON.parse(idx.settings) as {
+                                  url?: string;
+                                  api_key?: string;
+                                };
+                                url = parsed.url ?? "";
+                                api_key = parsed.api_key ?? "";
+                              } catch {
+                                // use defaults
+                              }
+                              setEditingId(idx.id);
+                              setEditForm({
+                                name: idx.name,
+                                implementation: idx.implementation,
+                                url,
+                                api_key,
+                                enable_rss: idx.enable_rss,
+                                enable_search: idx.enable_search,
+                                priority: idx.priority,
+                              });
+                            }}
+                            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <Show
+                            when={idx.error}
+                            fallback={
+                              <button
+                                onClick={() => void removeIndexer(idx)}
+                                class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+                              >
+                                Remove
+                              </button>
+                            }
+                          >
+                            <button
+                              onClick={() => void retryRemoveIndexer(idx)}
+                              disabled={retryingId() === idx.id}
+                              class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+                            >
+                              {retryingId() === idx.id ? "Retrying..." : "Retry"}
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                     }
                   >

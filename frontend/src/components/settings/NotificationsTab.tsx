@@ -117,7 +117,7 @@ export default function NotificationsTab() {
         )}
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 class="text-lg font-semibold">Notifications</h3>
             <button
               onClick={() => setShowAdd(!showAdd())}
@@ -257,7 +257,7 @@ function NotificationItem(props: {
   return (
     <div
       class={[
-        "flex items-center gap-4 p-3 bg-gray-900 rounded-lg border transition-colors",
+        "flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-900 rounded-lg border transition-colors",
         { "border-red-800": !!props.notif.error, "border-gray-800": !props.notif.error },
       ]}
     >
@@ -314,32 +314,34 @@ function NotificationItem(props: {
           <p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
         </Show>
       </div>
-      <button
-        onClick={() => props.testNotification(props.notif.id)}
-        disabled={props.testing}
-        class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
-      >
-        Test
-      </button>
-      <Show
-        when={props.notif.error}
-        fallback={
-          <button
-            onClick={() => props.deleteNotification(props.notif)}
-            class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
-          >
-            Remove
-          </button>
-        }
-      >
+      <div class="flex flex-wrap gap-2 shrink-0">
         <button
-          onClick={() => props.retryNotification(props.notif)}
-          disabled={props.retrying}
-          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+          onClick={() => props.testNotification(props.notif.id)}
+          disabled={props.testing}
+          class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
         >
-          {props.retrying ? "Retrying..." : "Retry"}
+          Test
         </button>
-      </Show>
+        <Show
+          when={props.notif.error}
+          fallback={
+            <button
+              onClick={() => props.deleteNotification(props.notif)}
+              class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+            >
+              Remove
+            </button>
+          }
+        >
+          <button
+            onClick={() => props.retryNotification(props.notif)}
+            disabled={props.retrying}
+            class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
+          >
+            {props.retrying ? "Retrying..." : "Retry"}
+          </button>
+        </Show>
+      </div>
     </div>
   );
 }
