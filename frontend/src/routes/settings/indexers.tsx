@@ -40,7 +40,12 @@ interface EditForm {
 
 const NEW_INDEXER_SCHEMA = v.object({
   name: v.pipe(v.string(), v.trim(), v.minLength(1, "Name is required")),
-  implementation: v.union([v.literal("torznab"), v.literal("newznab"), v.literal("rss")]),
+  implementation: v.union([
+    v.literal("torznab"),
+    v.literal("newznab"),
+    v.literal("rss"),
+    v.literal("anna"),
+  ]),
   url: v.pipe(v.string(), v.trim(), v.minLength(1, "URL is required")),
   api_key: v.optional(v.string()),
   enable_rss: v.boolean(),
@@ -289,6 +294,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                     <option value="torznab">Torznab (torrent)</option>
                     <option value="newznab">Newznab (usenet)</option>
                     <option value="rss">RSS</option>
+                    <option value="anna">Anna's Archive (books)</option>
                   </select>
                   <p class="mt-1 text-xs text-gray-500">
                     {implementationHint(newIndexer.implementation)}

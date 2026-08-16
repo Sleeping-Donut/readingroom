@@ -6,6 +6,8 @@ export function implementationLabel(impl: string): string {
       return "Newznab";
     case "rss":
       return "RSS";
+    case "anna":
+      return "Anna's Archive";
     default:
       return impl;
   }
@@ -19,6 +21,8 @@ export function implementationHint(impl: string): string {
       return "Usenet indexer using the Newznab protocol.";
     case "rss":
       return "RSS feed indexer — API key is not required.";
+    case "anna":
+      return "Book search via Anna's Archive. The API key enables fast downloads.";
     default:
       return "";
   }

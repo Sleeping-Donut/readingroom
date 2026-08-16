@@ -1,3 +1,4 @@
+pub mod annas;
 pub mod torznab;
 pub mod newznab;
 pub mod rss;
@@ -12,6 +13,7 @@ pub fn from_config(config: &IndexerConfig) -> Result<Box<dyn Indexer>> {
         "torznab" => Ok(Box::new(torznab::TorznabIndexer::new(config)?)),
         "newznab" => Ok(Box::new(newznab::NewznabIndexer::new(config)?)),
         "rss" => Ok(Box::new(rss::RssIndexer::new(config)?)),
+        "anna" | "annas" | "annas-archive" => Ok(Box::new(annas::AnnaIndexer::new(config)?)),
         other => Err(readingroom_core::error::AppError::Config(
             format!("Unknown indexer implementation: {other}"),
         )),

@@ -15,3 +15,6 @@ thiserror.workspace = true
 chrono.workspace = true
 quick-xml = "0.41"
 feed-rs.workspace = true
+scraper = "0.20"
+regex = "1"
+tokio.workspace = true
