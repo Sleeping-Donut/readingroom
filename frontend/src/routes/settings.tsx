@@ -4,12 +4,13 @@ import { createSignal, Match, Switch } from "solid-js";
 import AccountTab from "../components/settings/AccountTab";
 import DownloadClientsTab from "../components/settings/DownloadClientsTab";
 import IndexersTab from "../components/settings/IndexersTab";
+import IntegrationsTab from "../components/settings/IntegrationsTab";
 import LibraryTab from "../components/settings/LibraryTab";
 import NotificationsTab from "../components/settings/NotificationsTab";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = createSignal<
-    "library" | "indexers" | "clients" | "notifications" | "account"
+    "library" | "indexers" | "clients" | "notifications" | "account" | "integrations"
   >("indexers");
 
   return (
@@ -78,6 +79,18 @@ export default function Settings() {
         >
           Account
         </button>
+        <button
+          onClick={() => setActiveTab("integrations")}
+          class={[
+            "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+            {
+              "bg-indigo-600 text-white": activeTab() === "integrations",
+              "text-gray-400 hover:text-gray-200": activeTab() !== "integrations",
+            },
+          ]}
+        >
+          Integrations
+        </button>
       </div>
 
       <Switch>
@@ -95,6 +108,9 @@ export default function Settings() {
         </Match>
         <Match when={activeTab() === "account"}>
           <AccountTab />
+        </Match>
+        <Match when={activeTab() === "integrations"}>
+          <IntegrationsTab />
         </Match>
       </Switch>
     </div>

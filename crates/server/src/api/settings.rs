@@ -39,6 +39,13 @@ async fn get_library_settings(State(state): State<Arc<AppState>>) -> Json<Value>
     Json(json!({ "success": true, "library": load_library_config(&state).await }))
 }
 
+async fn get_integration_settings(State(state): State<Arc<AppState>>) -> Json<Value> {
+    Json(json!({
+        "success": true,
+        "api_key": state.api_key.clone().unwrap_or_default(),
+    }))
+}
+
 async fn update_library_settings(
     State(state): State<Arc<AppState>>,
     Json(body): Json<UpdateLibraryBody>,
@@ -501,4 +508,5 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/downloadclients/:id", get(get_download_client).put(update_download_client).delete(delete_download_client))
         .route("/downloadclients/:id/test", post(test_download_client))
         .route("/library", get(get_library_settings).put(update_library_settings))
+        .route("/integration", get(get_integration_settings))
 }

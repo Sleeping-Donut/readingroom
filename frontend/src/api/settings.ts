@@ -154,3 +154,7 @@ export function getLibrarySettings() {
 export function updateLibrarySettings(settings: Partial<LibrarySettings>) {
   return api.put<{ success: boolean }>("/settings/library", settings);
 }
+
+export function getIntegrationSettings() {
+  return api.get<{ api_key: string }>("/settings/integration");
+}
