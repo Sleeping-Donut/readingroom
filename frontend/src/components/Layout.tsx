@@ -79,8 +79,13 @@ export const Layout: Component<ParentProps> = (props) => {
         {/* Mobile menu */}
         <Show when={open()}>
           <div
+            class="fixed inset-0 z-40 bg-black/60 md:hidden"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+          <div
             id="mobile-menu"
-            class="md:hidden mt-3 flex flex-col gap-1 border-t border-gray-800 pt-3"
+            class="relative z-50 md:hidden mt-3 flex flex-col gap-1 border-t border-gray-800 pt-3 bg-gray-950 px-1 pb-3"
           >
             <For each={links()}>
               {(link) => (
