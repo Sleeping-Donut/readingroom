@@ -6,7 +6,7 @@ import * as v from "valibot";
 
 import type { Author } from "../../types";
 
-import { addAuthor as createAuthor, getAuthors, searchAuthors } from "../../api/authors";
+import { addAuthor as createAuthor, authorId, getAuthors, searchAuthors } from "../../api/authors";
 import { AuthorCard } from "../../components/authors/AuthorCard";
 import { AuthorRow } from "../../components/authors/AuthorRow";
 import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
@@ -219,7 +219,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
                     <For each={filtered()}>
                       {(author) => (
                         <AuthorRow
-                          href={paths.authors(author.id)}
+                          href={paths.authors(authorId(author))}
                           imageUrl={author.image_url}
                           name={author.name}
                           subtitle={rowSubtitle(author)}
@@ -233,7 +233,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
                   <For each={filtered()}>
                     {(author) => (
                       <AuthorCard
-                        href={paths.authors(author.id)}
+                        href={paths.authors(authorId(author))}
                         imageUrl={author.image_url}
                         name={author.name}
                         subtitle={

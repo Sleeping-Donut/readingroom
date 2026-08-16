@@ -54,7 +54,9 @@ function EditionRow(props: {
   edition: Edition;
   showAdd: boolean;
   adding: boolean;
+  searching: boolean;
   onAdd: () => void;
+  onInteractiveAdd: () => void;
 }) {
   const format = () => FORMAT_LABELS[props.edition.format] ?? props.edition.format;
   const meta = () =>
@@ -68,7 +70,7 @@ function EditionRow(props: {
       .join(" · ");
 
   return (
-    <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
+    <div class="p-3 bg-gray-900 rounded-lg border border-gray-800 space-y-3">
       <div class="flex-1 min-w-0">
         <p class="font-medium truncate">{props.edition.title}</p>
         <p class="text-xs text-gray-400">{meta()}</p>
@@ -76,15 +78,24 @@ function EditionRow(props: {
           <p class="text-xs text-gray-500">ISBN: {props.edition.isbn13}</p>
         </Show>
       </div>
-      <Show when={props.showAdd}>
+      <div class="flex items-center gap-2">
+        <Show when={props.showAdd}>
+          <button
+            onClick={props.onAdd}
+            disabled={props.adding}
+            class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors shrink-0"
+          >
+            {props.adding ? "Adding..." : "Add"}
+          </button>
+        </Show>
         <button
-          onClick={props.onAdd}
-          disabled={props.adding}
-          class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors shrink-0"
+          onClick={props.onInteractiveAdd}
+          disabled={props.searching}
+          class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors shrink-0"
         >
-          {props.adding ? "Adding..." : "Add"}
+          {props.searching ? "Searching..." : "Interactive Add"}
         </button>
-      </Show>
+      </div>
     </div>
   );
 }
@@ -178,6 +189,7 @@ export default function BookDetail() {
   const [savingMonitored, setSavingMonitored] = createSignal(false);
   const [showAllTags, setShowAllTags] = createSignal(false);
   const [addingEditionId, setAddingEditionId] = createSignal<string | null>(null);
+  const [searchTitle, setSearchTitle] = createSignal<string | null>(null);
 
   // Optimistic view of the book's monitored flag: mirrors the server value
   // from getBook(), but writes made inside an action show immediately and
@@ -196,6 +208,7 @@ export default function BookDetail() {
   const indexerSearch = action(async function* () {
     setSearching(true);
     setActionError(null);
+    setSearchTitle(null);
     try {
       const id = book().id;
       const res =
@@ -209,9 +222,29 @@ export default function BookDetail() {
     }
   });
 
+  const editionSearch = action(async function* (edition: Edition) {
+    setSearching(true);
+    setActionError(null);
+    setSearchTitle(edition.title);
+    try {
+      const res = await searchIndexersForTitle(edition.title);
+      yield;
+      setIndexerResults(res);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSearching(false);
+    }
+  });
+
   const openSearch = () => {
     setSearchOpen(true);
     void indexerSearch();
+  };
+
+  const openEditionSearch = (edition: Edition) => {
+    setSearchOpen(true);
+    void editionSearch(edition);
   };
 
   const downloadRelease = action(async function* (result: ScoredRelease, index: number) {
@@ -323,7 +356,7 @@ export default function BookDetail() {
             <BookCover
               src={book().image_url}
               alt={book().title}
-              class="w-40 sm:w-48 aspect-[2/3] rounded-lg shadow-lg shrink-0"
+              class="w-40 sm:w-48 aspect-[2/3] rounded-lg shadow-lg shrink-0 object-contain"
               emojiClass="text-5xl"
             />
             <div class="flex-1 min-w-0">
@@ -455,112 +488,6 @@ export default function BookDetail() {
 
       <Errored fallback={null}>
         <Loading fallback={null}>
-          <Show when={editions()}>
-            {(list) => (
-              <Show when={list().editions.length > 0}>
-                <section class="mt-8 max-w-3xl">
-                  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <div>
-                      <h3 class="text-xl font-bold">Editions</h3>
-                      <p class="text-xs text-gray-500 mt-0.5">
-                        {book().title}
-                        <Show when={book().id === 0}>
-                          {" · add a specific edition to your library"}
-                        </Show>
-                      </p>
-                    </div>
-                    <span class="text-xs text-gray-500">{list().editions.length} total</span>
-                  </div>
-                  <div class="space-y-2">
-                    <For each={list().editions}>
-                      {(edition) => (
-                        <EditionRow
-                          edition={edition}
-                          showAdd={book().id === 0}
-                          adding={
-                            addingEditionId() === (edition.foreign_edition_id ?? edition.title)
-                          }
-                          onAdd={() => void addEdition(edition)}
-                        />
-                      )}
-                    </For>
-                  </div>
-                </section>
-              </Show>
-            )}
-          </Show>
-        </Loading>
-      </Errored>
-
-      <Show when={actionError()}>
-        <p class="text-sm text-red-400 mt-4">{actionError()}</p>
-      </Show>
-
-      <Show when={searchOpen()}>
-        <section class="mt-8">
-          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div>
-              <h3 class="text-xl font-bold">Interactive Search</h3>
-              <p class="text-xs text-gray-500 mt-0.5">
-                {book().title}
-                <Show when={indexerResults()}>{(r) => ` · ${r().total} results`}</Show>
-              </p>
-            </div>
-            <button
-              onClick={() => void indexerSearch()}
-              disabled={searching()}
-              class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-sm font-medium transition-colors"
-            >
-              {searching() ? "Searching..." : "Search again"}
-            </button>
-          </div>
-          <Show
-            when={indexerResults()}
-            fallback={
-              <p class="text-sm text-gray-500">
-                {searching() ? "Searching indexers..." : "Click Search Indexers to find releases."}
-              </p>
-            }
-          >
-            {(r) => (
-              <Show
-                when={r().results.length > 0}
-                fallback={<p class="text-sm text-gray-500">No releases found.</p>}
-              >
-                <div class="overflow-x-auto">
-                  <table class="w-full text-sm">
-                    <thead>
-                      <tr class="text-left text-gray-400 border-b border-gray-800">
-                        <th class="pb-3 pr-4">Title</th>
-                        <th class="pb-3 pr-4">Indexer</th>
-                        <th class="pb-3 pr-4">Size</th>
-                        <th class="pb-3 pr-4">Seeders</th>
-                        <th class="pb-3 pr-4">Score</th>
-                        <th class="pb-3 pr-4">Type</th>
-                        <th class="pb-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <For each={r().results}>
-                        {(result, index) => (
-                          <ReleaseRow
-                            result={result}
-                            downloading={downloadingId() === index()}
-                            onDownload={() => void downloadRelease(result, index())}
-                          />
-                        )}
-                      </For>
-                    </tbody>
-                  </table>
-                </div>
-              </Show>
-            )}
-          </Show>
-        </section>
-      </Show>
-
-      <Errored fallback={null}>
-        <Loading fallback={null}>
           <Show when={queueEntry() || (book().status === "have" && library())}>
             <div class="mt-8 grid gap-6 max-w-3xl sm:grid-cols-2">
               <Show when={queueEntry()}>
@@ -630,6 +557,114 @@ export default function BookDetail() {
           </Show>
         </Loading>
       </Errored>
+
+      <Errored fallback={null}>
+        <Loading fallback={null}>
+          <Show when={editions()}>
+            {(list) => (
+              <Show when={list().editions.length > 0}>
+                <section class="mt-8 max-w-3xl">
+                  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 class="text-xl font-bold">Editions</h3>
+                      <p class="text-xs text-gray-500 mt-0.5">
+                        {book().title}
+                        <Show when={book().id === 0}>
+                          {" · add a specific edition to your library"}
+                        </Show>
+                      </p>
+                    </div>
+                    <span class="text-xs text-gray-500">{list().editions.length} total</span>
+                  </div>
+                  <div class="space-y-2">
+                    <For each={list().editions}>
+                      {(edition) => (
+                        <EditionRow
+                          edition={edition}
+                          showAdd={book().id === 0}
+                          adding={
+                            addingEditionId() === (edition.foreign_edition_id ?? edition.title)
+                          }
+                          searching={searching()}
+                          onAdd={() => void addEdition(edition)}
+                          onInteractiveAdd={() => openEditionSearch(edition)}
+                        />
+                      )}
+                    </For>
+                  </div>
+                </section>
+              </Show>
+            )}
+          </Show>
+        </Loading>
+      </Errored>
+
+      <Show when={actionError()}>
+        <p class="text-sm text-red-400 mt-4">{actionError()}</p>
+      </Show>
+
+      <Show when={searchOpen()}>
+        <section class="mt-8">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 class="text-xl font-bold">Interactive Search</h3>
+              <p class="text-xs text-gray-500 mt-0.5">
+                {searchTitle() ?? book().title}
+                <Show when={indexerResults()}>{(r) => ` · ${r().total} results`}</Show>
+              </p>
+            </div>
+            <button
+              onClick={() => void indexerSearch()}
+              disabled={searching()}
+              class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-sm font-medium transition-colors"
+            >
+              {searching() ? "Searching..." : "Search again"}
+            </button>
+          </div>
+          <Show
+            when={indexerResults()}
+            fallback={
+              <p class="text-sm text-gray-500">
+                {searching() ? "Searching indexers..." : "Click Search Indexers to find releases."}
+              </p>
+            }
+          >
+            {(r) => (
+              <Show
+                when={r().results.length > 0}
+                fallback={<p class="text-sm text-gray-500">No releases found.</p>}
+              >
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="text-left text-gray-400 border-b border-gray-800">
+                        <th class="pb-3 pr-4">Title</th>
+                        <th class="pb-3 pr-4">Indexer</th>
+                        <th class="pb-3 pr-4">Size</th>
+                        <th class="pb-3 pr-4">Seeders</th>
+                        <th class="pb-3 pr-4">Score</th>
+                        <th class="pb-3 pr-4">Type</th>
+                        <th class="pb-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <For each={r().results}>
+                        {(result, index) => (
+                          <ReleaseRow
+                            result={result}
+                            downloading={downloadingId() === index()}
+                            onDownload={() => void downloadRelease(result, index())}
+                          />
+                        )}
+                      </For>
+                    </tbody>
+                  </table>
+                </div>
+              </Show>
+            )}
+          </Show>
+        </section>
+      </Show>
     </div>
   );
 }

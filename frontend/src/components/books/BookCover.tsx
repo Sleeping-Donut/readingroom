@@ -6,6 +6,9 @@ export function BookCover(props: {
   class?: string;
   emojiClass?: string;
 }) {
+  const fit = () =>
+    props.class?.match(/\bobject-(cover|contain|fill|none|scale-down)\b/) ? "" : "object-cover";
+
   return (
     <Show
       when={props.src}
@@ -15,7 +18,7 @@ export function BookCover(props: {
         </div>
       }
     >
-      {(img) => <img src={img()} alt={props.alt} class={["object-cover", props.class]} />}
+      {(img) => <img src={img()} alt={props.alt} class={[fit(), props.class]} />}
     </Show>
   );
 }

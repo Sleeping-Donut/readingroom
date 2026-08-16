@@ -3,6 +3,7 @@ import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 
+import { bookId } from "../api/books";
 import { getWanted, searchWantedAll, searchWantedBook } from "../api/wanted";
 import { StatusBadge } from "../components/books/StatusBadge";
 import { paths } from "../router";
@@ -95,7 +96,7 @@ export default function Wanted() {
                         Wanted
                       </span>
                       <a
-                        href={paths.books(book.id)}
+                        href={paths.books(bookId(book))}
                         class="block hover:border-indigo-600 transition-colors"
                       >
                         <Show when={book.image_url}>

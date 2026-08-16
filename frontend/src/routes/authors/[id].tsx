@@ -1,12 +1,12 @@
 import { Title } from "@solidjs/meta";
-import { int, revalidate, type RouteProps } from "@solidjs/router";
+import { revalidate, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 
 import type { Author, Book, Release } from "../../types";
 
 import { getAuthor, getAuthorBooks } from "../../api/authors";
-import { addBook as createBook, searchBooks } from "../../api/books";
+import { addBook as createBook, bookId, searchBooks } from "../../api/books";
 import {
   downloadIndexerRelease,
   searchIndexersForAuthor,
@@ -18,7 +18,6 @@ import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors/:id", {
-  matchFilters: { id: int },
   preload: ({ params }) => getAuthor(params.id),
 });
 
@@ -151,9 +150,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
   });
 
   const trackedBooks = createMemo(() =>
-    Number.isInteger(Number(props.params.id))
-      ? getAuthorBooks(Number(props.params.id)).catch(() => ({ books: [] }))
-      : { books: [] },
+    getAuthorBooks(props.params.id).catch(() => ({ books: [] })),
   );
 
   const dedupedBooks = createMemo(() => {
@@ -184,7 +181,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 
   const bookHref = (book: Book) => {
     const tracked = trackedByForeignId()[book.foreign_id];
-    return tracked ? paths.books(tracked.id) : paths.books(book.foreign_id);
+    return paths.books(bookId(tracked ?? book));
   };
 
   const [indexerResults, setIndexerResults] = createSignal<{
@@ -209,7 +206,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
     try {
       await createBook(book);
       yield;
-      revalidate(getAuthorBooks.keyFor(Number(props.params.id)));
+      revalidate(getAuthorBooks.keyFor(props.params.id));
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {

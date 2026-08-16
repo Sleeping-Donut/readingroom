@@ -4,7 +4,7 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import * as v from "valibot";
 
-import { addBook as createBook, getBooks, searchBooks } from "../../api/books";
+import { addBook as createBook, bookId, getBooks, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
 import { ViewToggle, createViewPreference } from "../../components/ViewToggle";
@@ -215,7 +215,7 @@ export default function Books(_props: RouteProps<typeof route>) {
                     <For each={filteredBooks()}>
                       {(book) => (
                         <BookRow
-                          href={paths.books(book.id)}
+                          href={paths.books(bookId(book))}
                           cardLink
                           coverSrc={book.image_url}
                           title={book.title}
@@ -231,7 +231,7 @@ export default function Books(_props: RouteProps<typeof route>) {
                   <For each={filteredBooks()}>
                     {(book) => (
                       <BookCard
-                        href={paths.books(book.id)}
+                        href={paths.books(bookId(book))}
                         cardLink
                         coverSrc={book.image_url}
                         title={book.title}

@@ -40,6 +40,94 @@ impl OpenLibrarySource {
         let details: AuthorDetails = resp.json().await.ok()?;
         Some(details.name)
     }
+
+    /// Resolve a book from a bare ISBN. OpenLibrary exposes a dedicated
+    /// `/isbn/{isbn}.json` endpoint returning an edition record; when the
+    /// edition links a work, the work-based `get_book` does the heavy lifting
+    /// and the edition's own details (title, cover, pages, publish date, ISBN)
+    /// are mapped over the result so they take precedence.
+    async fn get_book_by_isbn(&self, isbn: &str) -> Result<Book> {
+        let normalized: String = isbn.chars().filter(|c| *c != '-' && *c != ' ').collect();
+        let url = format!("{BASE}/isbn/{normalized}.json");
+        let resp = self.client.get(&url).send().await?;
+        if resp.status().as_u16() == 404 {
+            return Err(AppError::NotFound(format!("Book {isbn} not found")));
+        }
+        if !resp.status().is_success() {
+            return Err(AppError::Provider(format!("OpenLibrary returned {}", resp.status())));
+        }
+        let edition: EditionDetails = resp.json().await?;
+
+        let mut book = if let Some(work_key) = edition
+            .works
+            .as_ref()
+            .and_then(|w| w.first())
+            .map(|w| w.key.trim_start_matches('/').to_string())
+        {
+            self.get_book(&work_key).await?
+        } else {
+            let title = edition.title.clone().unwrap_or_default();
+            Book {
+                id: 0,
+                foreign_id: edition
+                    .key
+                    .as_deref()
+                    .map(ol_id_from_key)
+                    .unwrap_or_else(|| format!("isbn:{normalized}")),
+                author_id: 0,
+                author_name: None,
+                title: title.clone(),
+                clean_title: title.to_lowercase(),
+                description: None,
+                isbn: None,
+                isbn13: None,
+                asin: None,
+                pages: edition.number_of_pages,
+                publisher: edition.publishers.as_ref().and_then(|p| p.first().cloned()),
+                publish_date: edition.publish_date.as_deref().and_then(parse_date),
+                image_url: edition
+                    .covers
+                    .as_ref()
+                    .and_then(|c| c.first().copied())
+                    .and_then(|id| cover_url(id, "L")),
+                genres: vec![],
+                ratings: None,
+                language: "en".into(),
+                monitored: false,
+                status: "tracked".into(),
+                added_at: chrono::Utc::now(),
+                last_search_at: None,
+            }
+        };
+
+        // Prefer the edition's own details over the work's when present.
+        if let Some(title) = edition.title {
+            book.title = title;
+            book.clean_title = book.title.to_lowercase();
+        }
+        if let Some(cover_id) = edition.covers.as_ref().and_then(|c| c.first().copied()) {
+            if let Some(url) = cover_url(cover_id, "L") {
+                book.image_url = Some(url);
+            }
+        }
+        if let Some(pages) = edition.number_of_pages {
+            book.pages = Some(pages);
+        }
+        if let Some(date) = edition.publish_date.as_deref().and_then(parse_date) {
+            book.publish_date = Some(date);
+        }
+        if let Some(publisher) = edition.publishers.as_ref().and_then(|p| p.first().cloned()) {
+            book.publisher = Some(publisher);
+        }
+        if let Some(isbn13) = edition.isbn_13.as_ref().and_then(|i| i.first().cloned()) {
+            book.isbn13 = Some(isbn13);
+        }
+        if let Some(isbn10) = edition.isbn_10.as_ref().and_then(|i| i.first().cloned()) {
+            book.isbn = Some(isbn10);
+        }
+
+        Ok(book)
+    }
 }
 
 // -- OpenLibrary API response types --
@@ -161,8 +249,48 @@ struct EditionCover {
     small: Option<String>,
 }
 
+/// A single edition record returned by `GET /isbn/{isbn}.json`. Carries the
+/// linked work key so an ISBN can be resolved onto the work-based `get_book`.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EditionDetails {
+    key: Option<String>,
+    title: Option<String>,
+    works: Option<Vec<EditionWorkRef>>,
+    covers: Option<Vec<i64>>,
+    publishers: Option<Vec<String>>,
+    publish_date: Option<String>,
+    number_of_pages: Option<i32>,
+    isbn_13: Option<Vec<String>>,
+    isbn_10: Option<Vec<String>>,
+}
+
+#[derive(serde::Deserialize)]
+struct EditionWorkRef {
+    key: String,
+}
+
 fn ol_id_from_key(key: &str) -> String {
     key.trim_start_matches('/').to_string()
+}
+
+/// Whether a route id is a bare ISBN (10- or 13-digit, with hyphens/spaces
+/// allowed) rather than an OpenLibrary works/books key. An isbn10 may end in
+/// an `X`/`x` check digit, which is preserved.
+fn looks_like_isbn(s: &str) -> bool {
+    let digits: String = s.chars().filter(|c| *c != '-' && *c != ' ').collect();
+    if digits.len() == 13 {
+        digits.chars().all(|c| c.is_ascii_digit())
+    } else if digits.len() == 10 {
+        digits.chars().take(9).all(|c| c.is_ascii_digit())
+            && digits
+                .chars()
+                .last()
+                .map(|c| c.is_ascii_digit() || c == 'X' || c == 'x')
+                .unwrap_or(false)
+    } else {
+        false
+    }
 }
 
 fn cover_url(cover_id: i64, size: &str) -> Option<String> {
@@ -222,7 +350,11 @@ impl MetadataSource for OpenLibrarySource {
     }
 
     async fn get_author(&self, foreign_id: &str) -> Result<Author> {
-        let url = format!("{BASE}/authors/{foreign_id}.json");
+        let ol_key = foreign_id
+            .strip_prefix("authors/")
+            .or_else(|| foreign_id.strip_prefix('/'))
+            .unwrap_or(foreign_id);
+        let url = format!("{BASE}/authors/{ol_key}.json");
         let resp = self.client.get(&url).send().await?;
         if !resp.status().is_success() {
             return Err(AppError::NotFound(format!("Author {foreign_id} not found")));
@@ -363,6 +495,13 @@ impl MetadataSource for OpenLibrarySource {
     }
 
     async fn get_book(&self, foreign_id: &str) -> Result<Book> {
+        // A bare ISBN resolves through the edition record first; when the
+        // edition links a work, the work-based path below does the heavy
+        // lifting and this edition's details are mapped over it.
+        if looks_like_isbn(foreign_id) {
+            return self.get_book_by_isbn(foreign_id).await;
+        }
+
         // Normalize the key: search results use "works/OL123W"/"books/OL456M"
         // while the DB may hold bare "OL123W"/"OL456M" keys.
         let (kind, key) = if let Some(k) = foreign_id.strip_prefix("works/") {
@@ -460,5 +599,30 @@ impl MetadataSource for OpenLibrarySource {
 
     async fn get_series(&self, _foreign_id: &str) -> Result<Series> {
         Err(AppError::Other("OpenLibrary series lookup not implemented".into()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::looks_like_isbn;
+
+    #[test]
+    fn isbn_detection_accepts_isbn10_and_isbn13() {
+        assert!(looks_like_isbn("9780553382570"));
+        assert!(looks_like_isbn("978-0-553-38257-0"));
+        assert!(looks_like_isbn("978 0 553 38257 0"));
+        assert!(looks_like_isbn("055338257X"));
+        assert!(looks_like_isbn("055338257x"));
+        assert!(looks_like_isbn("0-553-38257-X"));
+    }
+
+    #[test]
+    fn isbn_detection_rejects_non_isbns() {
+        assert!(!looks_like_isbn("OL123W"));
+        assert!(!looks_like_isbn("works/OL123W"));
+        assert!(!looks_like_isbn("books/OL456M"));
+        assert!(!looks_like_isbn("123"));
+        assert!(!looks_like_isbn("B00ABC123"));
+        assert!(!looks_like_isbn(""));
     }
 }

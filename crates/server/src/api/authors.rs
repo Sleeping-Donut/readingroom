@@ -83,6 +83,12 @@ async fn get_author(State(state): State<Arc<AppState>>, Path(id): Path<String>) 
             return Json(json!(author));
         }
     }
+    // Bare OpenLibrary author id (e.g. "OL123A") -> tracked author, then metadata
+    if looks_like_ol_author_id(&id) {
+        if let Ok(Some(author)) = crate::db::find_author_by_ol_id(&state.db, &id).await {
+            return Json(json!(author));
+        }
+    }
     // Fallback to metadata source by foreign_id
     match state.metadata.get_author(&id).await {
         Ok(author) => Json(json!(author)),
@@ -90,9 +96,41 @@ async fn get_author(State(state): State<Arc<AppState>>, Path(id): Path<String>) 
     }
 }
 
-async fn get_author_books(State(state): State<Arc<AppState>>, Path(id): Path<i64>) -> Json<Value> {
-    match crate::db::get_books_by_author(&state.db, id).await {
-        Ok(books) => Json(json!({ "books": books, "total": books.len() })),
+/// OpenLibrary author ids look like "OL123A" (or prefixed with "authors/").
+fn looks_like_ol_author_id(id: &str) -> bool {
+    let bare = id.strip_prefix("authors/").unwrap_or(id);
+    let upper = bare.to_ascii_uppercase();
+    let Some(digits) = upper.strip_prefix("OL") else {
+        return false;
+    };
+    digits.len() >= 1 && digits.ends_with('A') && digits[..digits.len() - 1].chars().all(|c| c.is_ascii_digit())
+}
+
+pub(crate) async fn resolve_author_id(
+    state: &AppState,
+    id: &str,
+) -> Result<i64, Box<dyn std::error::Error + Send + Sync>> {
+    if let Ok(id64) = id.parse::<i64>() {
+        if let Ok(Some(_)) = crate::db::get_author_by_id(&state.db, id64).await {
+            return Ok(id64);
+        }
+        return Err(format!("Author {id} not found").into());
+    }
+    if looks_like_ol_author_id(id) {
+        if let Ok(Some(author)) = crate::db::find_author_by_ol_id(&state.db, id).await {
+            return Ok(author.id);
+        }
+        return Err(format!("Author {id} not found in library").into());
+    }
+    Err(format!("Invalid author id: {id}").into())
+}
+
+async fn get_author_books(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Json<Value> {
+    match resolve_author_id(&state, &id).await {
+        Ok(author_id) => match crate::db::get_books_by_author(&state.db, author_id).await {
+            Ok(books) => Json(json!({ "books": books, "total": books.len() })),
+            Err(e) => Json(json!({ "error": e.to_string(), "books": [], "total": 0 })),
+        },
         Err(e) => Json(json!({ "error": e.to_string(), "books": [], "total": 0 })),
     }
 }

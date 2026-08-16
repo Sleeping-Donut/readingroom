@@ -24,6 +24,7 @@ export interface Book {
   description?: string;
   isbn?: string;
   isbn13?: string;
+  asin?: string;
   pages?: number;
   publisher?: string;
   publish_date?: string;

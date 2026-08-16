@@ -2,6 +2,7 @@ import { Title } from "@solidjs/meta";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { createMemo, Errored, For, Loading, Show } from "solid-js";
 
+import { bookId } from "../api/books";
 import { getCalendar } from "../api/calendar";
 import { paths } from "../router";
 
@@ -65,7 +66,7 @@ export default function Calendar() {
                       <For each={monthGroup.books}>
                         {(book) => (
                           <a
-                            href={paths.books(book.id)}
+                            href={paths.books(bookId(book))}
                             class="block p-4 bg-gray-900 rounded-lg border border-gray-800 hover:border-indigo-600 transition-colors"
                           >
                             <Show when={book.image_url}>

@@ -67,9 +67,12 @@ async fn search_indexers(
 /// Search indexers for an author's books
 async fn search_author_indexers(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<i64>,
+    Path(id): Path<String>,
 ) -> Json<Value> {
-    let results = state.search_engine.search_author(id).await.unwrap_or_default();
+    let results = match crate::api::authors::resolve_author_id(&state, &id).await {
+        Ok(author_id) => state.search_engine.search_author(author_id).await.unwrap_or_default(),
+        Err(_) => vec![],
+    };
     Json(json!({
         "results": results,
         "total": results.len(),

@@ -53,6 +53,28 @@ pub async fn find_author_by_foreign_id(
     Ok(row.map(|r| r.into_domain()))
 }
 
+/// Find a tracked author by a bare OpenLibrary id (e.g. "OL123A"). Matches the
+/// exact foreign_id or the `authors/`-prefixed form, preferring the exact match.
+pub async fn find_author_by_ol_id(
+    db: &SqlitePool,
+    ol_id: &str,
+) -> Result<Option<readingroom_core::models::Author>> {
+    let row = sqlx::query_as::<_, AuthorRow>(
+        "SELECT id, foreign_id, name, sort_name, biography, image_url,
+                birth_date, death_date, genres, aliases, links,
+                monitored, added_at, tags
+         FROM authors
+         WHERE foreign_id = ?1 OR foreign_id = 'authors/' || ?1
+         ORDER BY CASE WHEN foreign_id = ?1 THEN 0 ELSE 1 END
+         LIMIT 1",
+    )
+    .bind(ol_id)
+    .fetch_optional(db)
+    .await?;
+
+    Ok(row.map(|r| r.into_domain()))
+}
+
 /// Find an author by internal DB id
 pub async fn get_author_by_id(
     db: &SqlitePool,
