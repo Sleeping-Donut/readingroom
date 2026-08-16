@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
+
 import type { Author, Book, Release, SystemStatus } from "../types";
 
 describe("TypeScript types", () => {

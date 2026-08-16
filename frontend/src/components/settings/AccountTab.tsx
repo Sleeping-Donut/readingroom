@@ -1,4 +1,5 @@
 import { createMemo, createSignal, Show } from "solid-js";
+
 import { user, authEnabled, changePassword } from "../../api/auth";
 
 export default function AccountTab() {

@@ -1,10 +1,11 @@
-import { createMemo, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { useParams } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
+import { createMemo, Errored, For, Loading, Show } from "solid-js";
+
 import { getBook } from "../../api/books";
-import { paths } from "../../router";
 import { BookCover } from "../../components/books/BookCover";
+import { paths } from "../../router";
 
 export const route = defineFileRoute("/books/:id", {
   preload: ({ params }) => getBook(params.id),

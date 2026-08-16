@@ -1,9 +1,10 @@
-import { createSignal, Match, Switch } from "solid-js";
 import { Title } from "@solidjs/meta";
-import IndexersTab from "../components/settings/IndexersTab";
-import DownloadClientsTab from "../components/settings/DownloadClientsTab";
-import NotificationsTab from "../components/settings/NotificationsTab";
+import { createSignal, Match, Switch } from "solid-js";
+
 import AccountTab from "../components/settings/AccountTab";
+import DownloadClientsTab from "../components/settings/DownloadClientsTab";
+import IndexersTab from "../components/settings/IndexersTab";
+import NotificationsTab from "../components/settings/NotificationsTab";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = createSignal<

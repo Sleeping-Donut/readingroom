@@ -1,8 +1,9 @@
-import { createEffect, onSettled, type Component, type ParentProps, Errored } from "solid-js";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { Router, paths } from "./router";
-import { Layout } from "./components/Layout";
+import { createEffect, onSettled, type Component, type ParentProps, Errored } from "solid-js";
+
 import { user, checkAuthEnabled, authEnabled } from "./api/auth";
+import { Layout } from "./components/Layout";
+import { Router, paths } from "./router";
 import "./index.css";
 
 const AuthLayout: Component<ParentProps> = (props) => {

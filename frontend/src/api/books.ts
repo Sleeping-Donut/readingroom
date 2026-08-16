@@ -1,6 +1,8 @@
 import { query } from "@solidjs/router";
-import { api } from "./client";
+
 import type { Book } from "../types";
+
+import { api } from "./client";
 
 export const getBooks = query(
   async () => api.get<{ books: Book[]; total: number }>("/books"),

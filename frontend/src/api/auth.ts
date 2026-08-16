@@ -1,6 +1,8 @@
 import { createSignal } from "solid-js";
-import { api, setOnUnauthorized } from "./client";
+
 import type { SystemStatus, User } from "../types";
+
+import { api, setOnUnauthorized } from "./client";
 
 interface LoginResponse {
   token: string;

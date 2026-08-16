@@ -1,13 +1,15 @@
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
+import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+
+import type { Author } from "../../types";
+
 import { addAuthor as createAuthor, getAuthors, searchAuthors } from "../../api/authors";
-import { paths } from "../../router";
-import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import { AuthorCard } from "../../components/authors/AuthorCard";
 import { AuthorRow } from "../../components/authors/AuthorRow";
-import type { Author } from "../../types";
+import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
+import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors", {
   preload: () => getAuthors(),

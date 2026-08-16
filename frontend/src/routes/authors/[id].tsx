@@ -1,8 +1,10 @@
-import { useParams, revalidate } from "@solidjs/router";
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
+import { useParams, revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { paths } from "../../router";
+import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+
+import type { Book, Release } from "../../types";
+
 import { getAuthor, getAuthorBooks } from "../../api/authors";
 import { addBook as createBook, searchBooks } from "../../api/books";
 import {
@@ -10,10 +12,10 @@ import {
   searchIndexersForAuthor,
   type ScoredRelease,
 } from "../../api/search";
-import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
-import type { Book, Release } from "../../types";
+import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
+import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors/:id", {
   preload: ({ params }) => getAuthor(params.id),

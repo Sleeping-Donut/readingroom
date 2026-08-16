@@ -1,10 +1,11 @@
-import { api } from "./client";
 import type {
   DownloadClientsResponse,
   IndexersResponse,
   NotificationsResponse,
   TestResponse,
 } from "../types";
+
+import { api } from "./client";
 
 export interface IndexerInput {
   name: string;

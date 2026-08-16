@@ -1,5 +1,6 @@
-import { revalidate } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
+import { revalidate } from "@solidjs/router";
+import { defineFileRoute } from "@solidjs/router/fs";
 import {
   action,
   createOptimisticStore,
@@ -10,10 +11,11 @@ import {
   Show,
   onSettled,
 } from "solid-js";
-import { defineFileRoute } from "@solidjs/router/fs";
+
+import type { QueueEntry, QueueResponse } from "../types";
+
 import { getQueue, removeQueueEntry } from "../api/queue";
 import { subscribeAll } from "../api/ws";
-import type { QueueEntry, QueueResponse } from "../types";
 
 export const route = defineFileRoute("/queue", {
   preload: () => {

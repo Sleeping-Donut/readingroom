@@ -9,8 +9,10 @@ import {
   refresh,
   Show,
 } from "solid-js";
-import * as settingsApi from "../../api/settings";
+
 import type { Notification } from "../../types";
+
+import * as settingsApi from "../../api/settings";
 
 export default function NotificationsTab() {
   const [showAdd, setShowAdd] = createSignal(false);

@@ -1,7 +1,8 @@
 import { Title } from "@solidjs/meta";
-import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
+import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+
 import { getWanted, searchWantedAll, searchWantedBook } from "../api/wanted";
 import { paths } from "../router";
 

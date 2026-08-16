@@ -1,4 +1,5 @@
 import type { JSX } from "@solidjs/web";
+
 import { AuthorCover } from "./AuthorCover";
 
 export function AuthorRow(props: {

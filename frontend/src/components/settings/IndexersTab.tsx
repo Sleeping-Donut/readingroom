@@ -1,3 +1,4 @@
+import { useBeforeLeave } from "@solidjs/router";
 import {
   action,
   createEffect,
@@ -12,11 +13,12 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { useBeforeLeave } from "@solidjs/router";
-import * as settingsApi from "../../api/settings";
+
 import type { Indexer, TestResult } from "../../types";
-import StatusDot from "./StatusDot";
+
+import * as settingsApi from "../../api/settings";
 import { implementationLabel, implementationHint } from "./shared";
+import StatusDot from "./StatusDot";
 
 interface EditForm {
   name: string;

@@ -1,5 +1,6 @@
-import { api } from "./client";
 import type { Release } from "../types";
+
+import { api } from "./client";
 
 export interface ScoredRelease {
   release: Release;

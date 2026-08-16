@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vite-plus/test";
 import { createRoot, flush } from "solid-js";
+import { describe, it, expect } from "vite-plus/test";
+
 import { createViewPreference } from "../components/ViewToggle";
 
 const PREFIX = "readingroom.view.";

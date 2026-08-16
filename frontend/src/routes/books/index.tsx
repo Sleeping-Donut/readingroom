@@ -1,12 +1,13 @@
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
+import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+
 import { addBook as createBook, getBooks, searchBooks } from "../../api/books";
-import { paths } from "../../router";
-import { ViewToggle, createViewPreference } from "../../components/ViewToggle";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
+import { ViewToggle, createViewPreference } from "../../components/ViewToggle";
+import { paths } from "../../router";
 
 export const route = defineFileRoute("/books", {
   preload: () => getBooks(),

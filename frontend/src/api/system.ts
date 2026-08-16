@@ -1,6 +1,8 @@
 import { query } from "@solidjs/router";
-import { api } from "./client";
+
 import type { SystemStatus, SystemStats } from "../types";
+
+import { api } from "./client";
 
 export const getSystemStatus = query(
   async () => api.get<SystemStatus>("/system/status"),

@@ -1,6 +1,8 @@
 import type { Component, ParentProps } from "solid-js";
-import { Show } from "solid-js";
+
 import { useNavigate } from "@solidjs/router";
+import { Show } from "solid-js";
+
 import { user, authEnabled, logout } from "../api/auth";
 import { paths } from "../router";
 

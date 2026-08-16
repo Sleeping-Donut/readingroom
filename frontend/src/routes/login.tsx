@@ -1,6 +1,7 @@
 import { Title } from "@solidjs/meta";
-import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { createSignal, Show } from "solid-js";
+
 import { login, register } from "../api/auth";
 import { paths } from "../router";
 

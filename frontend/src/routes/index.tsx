@@ -1,6 +1,7 @@
-import { createMemo, Errored, For, Loading, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { defineFileRoute } from "@solidjs/router/fs";
+import { createMemo, Errored, For, Loading, Show } from "solid-js";
+
 import { getSystemStatus, getSystemStats } from "../api/system";
 import { paths } from "../router";
 

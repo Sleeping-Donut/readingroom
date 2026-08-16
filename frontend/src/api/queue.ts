@@ -1,6 +1,8 @@
 import { query } from "@solidjs/router";
-import { api } from "./client";
+
 import type { QueueResponse } from "../types";
+
+import { api } from "./client";
 
 export const getQueue = query(async () => api.get<QueueResponse>("/queue"), "queue");
 

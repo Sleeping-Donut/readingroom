@@ -1,6 +1,8 @@
 import { query } from "@solidjs/router";
-import { api } from "./client";
+
 import type { WantedResponse } from "../types";
+
+import { api } from "./client";
 
 export const getWanted = query(async () => api.get<WantedResponse>("/wanted"), "wanted");
 
