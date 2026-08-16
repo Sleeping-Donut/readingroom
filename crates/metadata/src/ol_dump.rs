@@ -13,13 +13,28 @@ use tokio::io::AsyncWriteExt;
 
 pub const DEFAULT_DUMP_URL: &str = "https://openlibrary.org/data/ol_dump_all_latest.txt.gz";
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ImportState {
     Idle,
     Downloading,
     Importing,
     Done,
     Failed(String),
+}
+
+impl serde::Serialize for ImportState {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        match self {
+            ImportState::Idle => serializer.serialize_str("Idle"),
+            ImportState::Downloading => serializer.serialize_str("Downloading"),
+            ImportState::Importing => serializer.serialize_str("Importing"),
+            ImportState::Done => serializer.serialize_str("Done"),
+            ImportState::Failed(msg) => serializer.serialize_str(&format!("Failed: {msg}")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
