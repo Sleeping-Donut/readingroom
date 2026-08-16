@@ -193,6 +193,27 @@ async fn main() -> readingroom_core::error::Result<()> {
         }
     }
 
+    // The direct HTTP downloader is built-in: always ensure at least one
+    // client exists so releases can be downloaded even with nothing configured.
+    if !client_configs.iter().any(|c| c.name == "HTTP Direct") {
+        client_configs.push(readingroom_core::config::DownloadClientConfig {
+            name: "HTTP Direct".into(),
+            implementation: "http".into(),
+            host: String::new(),
+            port: 0,
+            username: None,
+            password: None,
+            url_base: None,
+            category: None,
+            download_dir: Some(config.server.data_dir.join("downloads")),
+            enabled: true,
+            rate_limit: None,
+            concurrent_downloads: None,
+            priority: 0,
+        });
+        tracing::info!("Added built-in HTTP Direct download client");
+    }
+
     let clients: Vec<Box<dyn DownloadClient>> = client_configs
         .iter()
         .filter(|c| c.enabled)

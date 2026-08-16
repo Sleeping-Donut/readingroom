@@ -99,16 +99,58 @@ declare module "virtual:file-routes" {
       $$route: FileRouteEagerRef<typeof import("./routes/authors/index")>;
     },
     {
-      path: "/books/:id";
+      path: "/books/*id";
       page: true;
-      $component: FileRouteLazyRef<typeof import("./routes/books/[id]")>;
-      $$route: FileRouteEagerRef<typeof import("./routes/books/[id]")>;
+      $component: FileRouteLazyRef<typeof import("./routes/books/[...id]")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/books/[...id]")>;
     },
     {
       path: "/books/";
       page: true;
       $component: FileRouteLazyRef<typeof import("./routes/books/index")>;
       $$route: FileRouteEagerRef<typeof import("./routes/books/index")>;
+    },
+    {
+      path: "/settings/account";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/account")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/account")>;
+    },
+    {
+      path: "/settings/clients";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/clients")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/clients")>;
+    },
+    {
+      path: "/settings/";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/index")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/index")>;
+    },
+    {
+      path: "/settings/indexers";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/indexers")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/indexers")>;
+    },
+    {
+      path: "/settings/integrations";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/integrations")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/integrations")>;
+    },
+    {
+      path: "/settings/library";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/library")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/library")>;
+    },
+    {
+      path: "/settings/notifications";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/notifications")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/notifications")>;
     }
   ];
   export default routes;
@@ -139,11 +181,11 @@ declare module "virtual:file-routes" {
           children?: undefined;
         },
         {
-          path: "/:id";
-          id: "/:id";
+          path: "/*id";
+          id: "/*id";
           page: true;
-          $component: FileRouteLazyRef<typeof import("./routes/books/[id]")>;
-          $$route: FileRouteEagerRef<typeof import("./routes/books/[id]")>;
+          $component: FileRouteLazyRef<typeof import("./routes/books/[...id]")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/books/[...id]")>;
           children?: undefined;
         }
       ];
@@ -219,7 +261,64 @@ declare module "virtual:file-routes" {
       page: true;
       $component: FileRouteLazyRef<typeof import("./routes/settings")>;
       $$route?: undefined;
-      children?: undefined;
+      children: readonly [
+        {
+          path: "/";
+          id: "/";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/index")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/index")>;
+          children?: undefined;
+        },
+        {
+          path: "/account";
+          id: "/account";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/account")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/account")>;
+          children?: undefined;
+        },
+        {
+          path: "/clients";
+          id: "/clients";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/clients")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/clients")>;
+          children?: undefined;
+        },
+        {
+          path: "/library";
+          id: "/library";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/library")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/library")>;
+          children?: undefined;
+        },
+        {
+          path: "/indexers";
+          id: "/indexers";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/indexers")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/indexers")>;
+          children?: undefined;
+        },
+        {
+          path: "/integrations";
+          id: "/integrations";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/integrations")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/integrations")>;
+          children?: undefined;
+        },
+        {
+          path: "/notifications";
+          id: "/notifications";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/notifications")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/notifications")>;
+          children?: undefined;
+        }
+      ];
     }
   ];
 }

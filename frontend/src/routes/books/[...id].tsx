@@ -1,0 +1,323 @@
+import { Title } from "@solidjs/meta";
+import { revalidate, useParams } from "@solidjs/router";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { action, createMemo, createSignal, Errored, For, Loading, onSettled, Show } from "solid-js";
+
+import type { Release } from "../../types";
+
+import { getBook } from "../../api/books";
+import { getQueue } from "../../api/queue";
+import {
+  downloadIndexerRelease,
+  searchIndexersForBook,
+  searchIndexersForTitle,
+  type ScoredRelease,
+} from "../../api/search";
+import { getLibrarySettings } from "../../api/settings";
+import { subscribeAll } from "../../api/ws";
+import { BookCover } from "../../components/books/BookCover";
+import { StatusBadge } from "../../components/books/StatusBadge";
+import { paths } from "../../router";
+
+export const route = defineFileRoute("/books/*id", {
+  preload: ({ params }) => getBook(params.id),
+});
+
+const QUEUE_LABELS: Record<string, string> = {
+  queued: "Pending",
+  downloading: "Downloading",
+  seeding: "Seeding",
+  completed: "Completed",
+  failed: "Failed",
+  imported: "Imported",
+  removed: "Removed",
+};
+
+function InfoRow(props: { label: string; value?: string | number }) {
+  return (
+    <Show when={props.value}>
+      <div class="flex justify-between py-2 border-b border-gray-800">
+        <span class="text-xs text-gray-400">{props.label}</span>
+        <span class="text-sm text-right">{props.value}</span>
+      </div>
+    </Show>
+  );
+}
+
+function ReleaseRow(props: {
+  result: ScoredRelease;
+  downloading: boolean;
+  onDownload: () => void;
+}) {
+  return (
+    <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">{props.result.release.title}</p>
+        <p class="text-xs text-gray-400">
+          {props.result.release.indexer}
+          {props.result.release.seeders != null && ` · ${props.result.release.seeders} seeders`}
+          {props.result.release.size > 0 &&
+            ` · ${(props.result.release.size / 1_000_000).toFixed(0)} MB`}
+        </p>
+        <p class="text-xs text-gray-500">
+          Score: {props.result.score.toFixed(0)}
+          {props.result.reasons.length > 0 && ` · ${props.result.reasons.slice(0, 2).join(", ")}`}
+        </p>
+      </div>
+      <span class="text-xs text-indigo-400 mr-2">{props.result.release.download_type}</span>
+      <button
+        onClick={props.onDownload}
+        disabled={props.downloading}
+        class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+      >
+        {props.downloading ? "..." : "Download"}
+      </button>
+    </div>
+  );
+}
+
+export default function BookDetail() {
+  const params = useParams(paths.books);
+
+  const book = createMemo(() => getBook(params.id));
+
+  const queue = createMemo(() => getQueue());
+
+  const queueEntry = createMemo(() =>
+    book().id > 0 ? queue()?.queue.find((e) => e.book_id === book().id) : undefined,
+  );
+
+  const library = createMemo(() =>
+    book().status === "have" ? getLibrarySettings().catch(() => null) : null,
+  );
+
+  const [indexerResults, setIndexerResults] = createSignal<{
+    results: ScoredRelease[];
+    total: number;
+  } | null>(null);
+  const [searching, setSearching] = createSignal(false);
+  const [downloadingId, setDownloadingId] = createSignal<number | null>(null);
+  const [actionError, setActionError] = createSignal<string | null>(null);
+
+  onSettled(() => {
+    const pollId = setInterval(() => revalidate(getQueue.key), 30000);
+    const unsub = subscribeAll(() => revalidate(getQueue.key));
+    return () => {
+      clearInterval(pollId);
+      unsub();
+    };
+  });
+
+  const indexerSearch = action(async function* () {
+    setSearching(true);
+    setActionError(null);
+    try {
+      const id = book().id;
+      const res =
+        id > 0 ? await searchIndexersForBook(id) : await searchIndexersForTitle(book().title);
+      yield;
+      setIndexerResults(res);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSearching(false);
+    }
+  });
+
+  const downloadRelease = action(async function* (release: Release, index: number) {
+    setDownloadingId(index);
+    setActionError(null);
+    try {
+      await downloadIndexerRelease(release, book().id);
+      yield;
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setDownloadingId(null);
+    }
+  });
+
+  return (
+    <div>
+      <a href="/books" class="text-sm text-indigo-400 hover:text-indigo-300 mb-4 inline-block">
+        &larr; Back to Books
+      </a>
+
+      <Errored
+        fallback={(err, reset) => (
+          <p class="text-sm text-red-400 mt-2">
+            Failed to load: {String(err())}{" "}
+            <button onClick={reset} class="text-indigo-400 underline ml-1">
+              Retry
+            </button>
+          </p>
+        )}
+      >
+        <Loading fallback={<p class="text-gray-500">Loading...</p>}>
+          <Title>{book().title} · ReadingRoom</Title>
+          <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 mt-4">
+            <BookCover
+              src={book().image_url}
+              alt={book().title}
+              class="w-40 sm:w-48 aspect-[2/3] rounded-lg shadow-lg shrink-0"
+              emojiClass="text-5xl"
+            />
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-3 mb-1">
+                    <h2 class="text-3xl font-bold">{book().title}</h2>
+                    <StatusBadge status={book().status} />
+                  </div>
+                  <Show when={book().author_name}>
+                    <a
+                      href={paths.authors(book().author_id)}
+                      class="text-lg text-indigo-400 hover:text-indigo-300"
+                    >
+                      {book().author_name}
+                    </a>
+                  </Show>
+                </div>
+                <button
+                  onClick={() => void indexerSearch()}
+                  disabled={searching()}
+                  class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  {searching() ? "Searching..." : "Search Indexers"}
+                </button>
+              </div>
+
+              <div class="mt-4 max-w-md">
+                <InfoRow label="Publisher" value={book().publisher} />
+                <InfoRow label="Published" value={book().publish_date} />
+                <InfoRow label="Language" value={book().language} />
+                <InfoRow label="Pages" value={book().pages} />
+                <InfoRow label="ISBN" value={book().isbn ?? book().isbn13} />
+                <InfoRow label="Rating" value={book().ratings?.toFixed(1)} />
+              </div>
+
+              <Show when={book().genres.length > 0}>
+                <div class="mt-4 flex gap-2 flex-wrap">
+                  <For each={book().genres}>
+                    {(g) => (
+                      <span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">{g}</span>
+                    )}
+                  </For>
+                </div>
+              </Show>
+
+              <Show when={book().description}>
+                <p class="mt-4 text-gray-300 leading-relaxed">{book().description}</p>
+              </Show>
+            </div>
+          </div>
+        </Loading>
+      </Errored>
+
+      <Errored fallback={null}>
+        <Loading fallback={null}>
+          <Show when={queueEntry() || library()}>
+            <div class="mt-8 max-w-md">
+              <h3 class="text-xl font-bold mb-4">Download Status</h3>
+              <div class="space-y-4">
+                <Show when={queueEntry()}>
+                  {(entry) => {
+                    const size = () => entry().size ?? 0;
+                    return (
+                      <div class="p-4 bg-gray-900 rounded-lg border border-gray-800 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-sm font-medium">
+                            {QUEUE_LABELS[entry().status] ?? entry().status}
+                          </span>
+                          <span class="text-xs text-indigo-400">{entry().download_client}</span>
+                        </div>
+                        <Show when={entry().title && entry().title !== book().title}>
+                          <p class="text-xs text-gray-400 truncate">{entry().title}</p>
+                        </Show>
+                        <Show
+                          when={
+                            entry().status === "queued" ||
+                            entry().status === "downloading" ||
+                            entry().status === "seeding"
+                          }
+                        >
+                          <div class="w-full bg-gray-800 rounded-full h-1.5">
+                            <div
+                              class="bg-indigo-500 h-1.5 rounded-full transition-all"
+                              style={{ width: `${Math.round(entry().progress * 100)}%` }}
+                            />
+                          </div>
+                          <p class="text-xs text-gray-400">
+                            {Math.round(entry().progress * 100)}% complete
+                          </p>
+                        </Show>
+                        <Show when={size() > 0}>
+                          <p class="text-xs text-gray-400">{(size() / 1_000_000).toFixed(1)} MB</p>
+                        </Show>
+                      </div>
+                    );
+                  }}
+                </Show>
+                <Show when={library()}>
+                  {(lib) => (
+                    <div class="p-4 bg-gray-900 rounded-lg border border-gray-800 space-y-1">
+                      <p class="text-sm font-medium text-green-400">✓ Saved to library</p>
+                      <Show when={lib().library.root_folder}>
+                        <p class="text-xs text-gray-400">Library location</p>
+                        <p class="text-xs font-mono text-gray-300 break-all">
+                          {lib().library.root_folder}
+                        </p>
+                      </Show>
+                    </div>
+                  )}
+                </Show>
+              </div>
+            </div>
+          </Show>
+        </Loading>
+      </Errored>
+
+      <Show when={actionError()}>
+        <p class="text-sm text-red-400 mt-2 mb-4">{actionError()}</p>
+      </Show>
+
+      <Show when={indexerResults()}>
+        {(r) => (
+          <div class="mt-8">
+            <h3 class="text-xl font-bold mb-4">Search Results ({r().total} releases found)</h3>
+            <Show
+              when={r().results.length > 0}
+              fallback={<p class="text-sm text-gray-500">No releases found.</p>}
+            >
+              <div class="space-y-2">
+                <For each={r().results}>
+                  {(result, index) => (
+                    <ReleaseRow
+                      result={result}
+                      downloading={downloadingId() === index()}
+                      onDownload={() => void downloadRelease(result.release, index())}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
+        )}
+      </Show>
+    </div>
+  );
+}

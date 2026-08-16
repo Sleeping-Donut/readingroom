@@ -3,7 +3,7 @@ import { useParams, revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 
-import type { Book, Release } from "../../types";
+import type { Author, Book, Release } from "../../types";
 
 import { getAuthor, getAuthorBooks } from "../../api/authors";
 import { addBook as createBook, searchBooks } from "../../api/books";
@@ -60,22 +60,22 @@ function ReleaseRow(props: {
   downloading: boolean;
   onDownload: () => void;
 }) {
-  const { release, score } = props.result;
   return (
     <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
       <div class="flex-1 min-w-0">
-        <p class="font-medium truncate">{release.title}</p>
+        <p class="font-medium truncate">{props.result.release.title}</p>
         <p class="text-xs text-gray-400">
-          {release.indexer}
-          {release.seeders != null && ` · ${release.seeders} seeders`}
-          {release.size > 0 && ` · ${(release.size / 1_000_000).toFixed(0)} MB`}
+          {props.result.release.indexer}
+          {props.result.release.seeders != null && ` · ${props.result.release.seeders} seeders`}
+          {props.result.release.size > 0 &&
+            ` · ${(props.result.release.size / 1_000_000).toFixed(0)} MB`}
         </p>
         <p class="text-xs text-gray-500">
-          Score: {score.toFixed(0)}
+          Score: {props.result.score.toFixed(0)}
           {props.result.reasons.length > 0 && ` · ${props.result.reasons.slice(0, 2).join(", ")}`}
         </p>
       </div>
-      <span class="text-xs text-indigo-400 mr-2">{release.download_type}</span>
+      <span class="text-xs text-indigo-400 mr-2">{props.result.release.download_type}</span>
       <button
         onClick={props.onDownload}
         disabled={props.downloading}
@@ -83,6 +83,59 @@ function ReleaseRow(props: {
       >
         {props.downloading ? "..." : "Download"}
       </button>
+    </div>
+  );
+}
+
+function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => void }) {
+  return (
+    <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 mb-6">
+      <Show when={props.author.image_url}>
+        {(img) => (
+          <img
+            src={img()}
+            alt={props.author.name}
+            class="w-48 h-72 object-cover rounded-lg shadow-lg"
+          />
+        )}
+      </Show>
+      <div class="flex-1">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-3xl font-bold mb-2">{props.author.name}</h2>
+            <div class="flex gap-4 text-sm text-gray-400 mb-4">
+              <Show when={props.author.birth_date}>
+                <span>Born: {props.author.birth_date}</span>
+              </Show>
+              <Show when={props.author.death_date}>
+                <span>Died: {props.author.death_date}</span>
+              </Show>
+              <span>ID: {props.author.id}</span>
+            </div>
+          </div>
+          <button
+            onClick={props.onSearch}
+            disabled={props.searching}
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+          >
+            {props.searching ? "Searching..." : "Search Indexers"}
+          </button>
+        </div>
+
+        <Show when={props.author.biography}>
+          <p class="text-gray-300 leading-relaxed">{props.author.biography}</p>
+        </Show>
+        <Show when={props.author.genres.length > 0}>
+          <div class="mt-4 flex gap-2 flex-wrap">
+            <For each={props.author.genres}>
+              {(g) => <span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">{g}</span>}
+            </For>
+          </div>
+        </Show>
+        <Show when={props.author.aliases.length > 0}>
+          <p class="mt-4 text-sm text-gray-400">Also known as: {props.author.aliases.join(", ")}</p>
+        </Show>
+      </div>
     </div>
   );
 }
@@ -208,58 +261,11 @@ export default function AuthorDetail() {
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
           <Title>{author().name} · ReadingRoom</Title>
-          <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 mb-6">
-            <Show when={author().image_url}>
-              {(img) => (
-                <img
-                  src={img()}
-                  alt={author().name}
-                  class="w-48 h-72 object-cover rounded-lg shadow-lg"
-                />
-              )}
-            </Show>
-            <div class="flex-1">
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 class="text-3xl font-bold mb-2">{author().name}</h2>
-                  <div class="flex gap-4 text-sm text-gray-400 mb-4">
-                    <Show when={author().birth_date}>
-                      <span>Born: {author().birth_date}</span>
-                    </Show>
-                    <Show when={author().death_date}>
-                      <span>Died: {author().death_date}</span>
-                    </Show>
-                    <span>ID: {author().id}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => void indexerSearch()}
-                  disabled={searching()}
-                  class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-                >
-                  {searching() ? "Searching..." : "Search Indexers"}
-                </button>
-              </div>
-
-              <Show when={author().biography}>
-                <p class="text-gray-300 leading-relaxed">{author().biography}</p>
-              </Show>
-              <Show when={author().genres.length > 0}>
-                <div class="mt-4 flex gap-2 flex-wrap">
-                  <For each={author().genres}>
-                    {(g) => (
-                      <span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">{g}</span>
-                    )}
-                  </For>
-                </div>
-              </Show>
-              <Show when={author().aliases.length > 0}>
-                <p class="mt-4 text-sm text-gray-400">
-                  Also known as: {author().aliases.join(", ")}
-                </p>
-              </Show>
-            </div>
-          </div>
+          <AuthorBio
+            author={author()}
+            searching={searching()}
+            onSearch={() => void indexerSearch()}
+          />
         </Loading>
       </Errored>
 

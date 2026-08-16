@@ -109,6 +109,7 @@ export interface DownloadClient {
   name: string;
   implementation: string;
   settings: string;
+  enabled: boolean;
   priority: number;
   tags: string;
   created_at: string;

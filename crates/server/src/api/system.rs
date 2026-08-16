@@ -439,6 +439,8 @@ async fn health_check(State(state): State<Arc<AppState>>) -> Json<Value> {
             category: settings.category,
             download_dir: settings.download_dir.map(std::path::PathBuf::from),
             enabled: true,
+            rate_limit: settings.rate_limit,
+            concurrent_downloads: settings.concurrent_downloads,
             priority: row.priority as i32,
         };
 
@@ -517,6 +519,10 @@ struct DownloadClientSettings {
     category: Option<String>,
     #[serde(default)]
     download_dir: Option<String>,
+    #[serde(default)]
+    rate_limit: Option<u64>,
+    #[serde(default)]
+    concurrent_downloads: Option<usize>,
 }
 
 #[derive(Deserialize)]

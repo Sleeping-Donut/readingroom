@@ -12,5 +12,13 @@ export interface ScoredRelease {
 export const searchIndexersForAuthor = (authorId: string) =>
   api.post<{ results: ScoredRelease[]; total: number }>(`/search/indexers/authors/${authorId}`);
 
+export const searchIndexersForBook = (bookId: number) =>
+  api.post<{ results: ScoredRelease[]; total: number }>(`/search/indexers/books/${bookId}`);
+
+export const searchIndexersForTitle = (query: string) =>
+  api.get<{ results: ScoredRelease[]; total: number }>(
+    `/search/indexers?q=${encodeURIComponent(query)}`,
+  );
+
 export const downloadIndexerRelease = (release: Release, bookId: number | undefined) =>
   api.post("/search/indexers/download", { release, book_id: bookId });

@@ -237,6 +237,7 @@ pub struct DownloadClientRow {
     pub name: String,
     pub implementation: String,
     pub settings: String,
+    pub enabled: bool,
     pub priority: i64,
     pub tags: String,
     pub created_at: String,
@@ -244,7 +245,7 @@ pub struct DownloadClientRow {
 
 async fn list_download_clients(State(state): State<Arc<AppState>>) -> Json<Value> {
     let rows = sqlx::query_as::<_, DownloadClientRow>(
-        "SELECT id, name, implementation, settings, priority, tags, created_at
+        "SELECT id, name, implementation, settings, enabled, priority, tags, created_at
          FROM download_clients ORDER BY priority, name",
     )
     .fetch_all(&state.db)
@@ -261,13 +262,14 @@ async fn create_download_client(
     Json(body): Json<CreateDownloadClientBody>,
 ) -> Json<Value> {
     let result = sqlx::query(
-        "INSERT INTO download_clients (name, implementation, settings, priority)
-         VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO download_clients (name, implementation, settings, priority, enabled)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
     )
     .bind(&body.name)
     .bind(&body.implementation)
     .bind(body.settings.as_deref().unwrap_or("{}"))
     .bind(body.priority.unwrap_or(0))
+    .bind(body.enabled.unwrap_or(true))
     .execute(&state.db)
     .await;
 
@@ -283,6 +285,7 @@ pub struct CreateDownloadClientBody {
     pub implementation: String,
     pub settings: Option<String>,
     pub priority: Option<i64>,
+    pub enabled: Option<bool>,
 }
 
 async fn get_download_client(
@@ -290,7 +293,7 @@ async fn get_download_client(
     Path(id): Path<i64>,
 ) -> Json<Value> {
     let row = sqlx::query_as::<_, DownloadClientRow>(
-        "SELECT id, name, implementation, settings, priority, tags, created_at
+        "SELECT id, name, implementation, settings, enabled, priority, tags, created_at
          FROM download_clients WHERE id = ?1",
     )
     .bind(id)
@@ -324,6 +327,7 @@ pub struct UpdateDownloadClientBody {
     pub implementation: Option<String>,
     pub settings: Option<String>,
     pub priority: Option<i64>,
+    pub enabled: Option<bool>,
 }
 
 async fn update_download_client(
@@ -332,7 +336,7 @@ async fn update_download_client(
     Json(body): Json<UpdateDownloadClientBody>,
 ) -> Json<Value> {
     let current = sqlx::query_as::<_, DownloadClientRow>(
-        "SELECT id, name, implementation, settings, priority, tags, created_at
+        "SELECT id, name, implementation, settings, enabled, priority, tags, created_at
          FROM download_clients WHERE id = ?1",
     )
     .bind(id)
@@ -349,14 +353,16 @@ async fn update_download_client(
     let implementation = body.implementation.unwrap_or(current.implementation);
     let settings = body.settings.unwrap_or(current.settings);
     let priority = body.priority.unwrap_or(current.priority);
+    let enabled = body.enabled.unwrap_or(current.enabled);
 
     match sqlx::query(
-        "UPDATE download_clients SET name = ?1, implementation = ?2, settings = ?3, priority = ?4 WHERE id = ?5",
+        "UPDATE download_clients SET name = ?1, implementation = ?2, settings = ?3, priority = ?4, enabled = ?5 WHERE id = ?6",
     )
     .bind(&name)
     .bind(&implementation)
     .bind(&settings)
     .bind(priority)
+    .bind(enabled)
     .bind(id)
     .execute(&state.db)
     .await
@@ -382,6 +388,10 @@ struct DownloadClientSettings {
     category: Option<String>,
     #[serde(default)]
     download_dir: Option<String>,
+    #[serde(default)]
+    rate_limit: Option<u64>,
+    #[serde(default)]
+    concurrent_downloads: Option<usize>,
 }
 
 #[derive(Deserialize)]
@@ -451,7 +461,7 @@ async fn test_download_client(
     Path(id): Path<i64>,
 ) -> Json<Value> {
     let row = sqlx::query_as::<_, DownloadClientRow>(
-        "SELECT id, name, implementation, settings, priority, tags, created_at
+        "SELECT id, name, implementation, settings, enabled, priority, tags, created_at
          FROM download_clients WHERE id = ?1",
     )
     .bind(id)
@@ -479,7 +489,9 @@ async fn test_download_client(
         url_base: settings.url_base,
         category: settings.category,
         download_dir: settings.download_dir.map(std::path::PathBuf::from),
-        enabled: true,
+        enabled: row.enabled,
+        rate_limit: settings.rate_limit,
+        concurrent_downloads: settings.concurrent_downloads,
         priority: row.priority as i32,
     };
 

@@ -347,16 +347,19 @@ pub async fn list_download_client_configs(
         url_base: Option<String>,
         category: Option<String>,
         download_dir: Option<std::path::PathBuf>,
+        rate_limit: Option<u64>,
+        concurrent_downloads: Option<usize>,
     }
 
-    let rows = sqlx::query_as::<_, (String, String, String, i64)>(
-        "SELECT name, implementation, settings, priority FROM download_clients ORDER BY priority, name",
+    let rows = sqlx::query_as::<_, (String, String, String, i64, bool)>(
+        "SELECT name, implementation, settings, priority, enabled
+         FROM download_clients ORDER BY priority, name",
     )
     .fetch_all(db)
     .await?;
 
     let mut configs = Vec::new();
-    for (name, implementation, settings, priority) in rows {
+    for (name, implementation, settings, priority, enabled) in rows {
         let settings: SettingsRow = match serde_json::from_str(&settings) {
             Ok(s) => s,
             Err(_) => continue,
@@ -371,7 +374,9 @@ pub async fn list_download_client_configs(
             url_base: settings.url_base,
             category: settings.category,
             download_dir: settings.download_dir,
-            enabled: true,
+            enabled,
+            rate_limit: settings.rate_limit,
+            concurrent_downloads: settings.concurrent_downloads,
             priority: priority as i32,
         });
     }

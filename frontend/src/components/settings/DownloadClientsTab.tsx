@@ -14,6 +14,7 @@ import {
   Switch,
 } from "solid-js";
 
+import type { DownloadClientInput } from "../../api/settings";
 import type { DownloadClient, TestResult } from "../../types";
 
 import * as settingsApi from "../../api/settings";
@@ -30,6 +31,8 @@ interface ClientEditForm {
   url_base: string;
   category: string;
   download_dir: string;
+  rate_limit_kb: string;
+  concurrent_downloads: string;
   priority: number;
 }
 
@@ -41,6 +44,8 @@ interface ClientSettings {
   url_base: string;
   category: string;
   download_dir: string;
+  rate_limit?: number;
+  concurrent_downloads?: number;
 }
 
 function parseClientSettings(settings: string): ClientSettings {
@@ -53,6 +58,8 @@ function parseClientSettings(settings: string): ClientSettings {
       url_base?: string;
       category?: string;
       download_dir?: string;
+      rate_limit?: number;
+      concurrent_downloads?: number;
     };
     return {
       host: parsed.host ?? "",
@@ -62,6 +69,8 @@ function parseClientSettings(settings: string): ClientSettings {
       url_base: parsed.url_base ?? "",
       category: parsed.category ?? "",
       download_dir: parsed.download_dir ?? "",
+      rate_limit: parsed.rate_limit,
+      concurrent_downloads: parsed.concurrent_downloads,
     };
   } catch {
     return {
@@ -72,8 +81,14 @@ function parseClientSettings(settings: string): ClientSettings {
       url_base: "",
       category: "",
       download_dir: "",
+      rate_limit: undefined,
+      concurrent_downloads: undefined,
     };
   }
+}
+
+function isBuiltinClient(client: DownloadClient): boolean {
+  return client.implementation === "http" && client.name === "HTTP Direct";
 }
 
 export default function DownloadClientsTab() {
@@ -100,6 +115,16 @@ export default function DownloadClientsTab() {
   const [newUrlBase, setNewUrlBase] = createSignal("");
   const [newCategory, setNewCategory] = createSignal("");
   const [newDownloadDir, setNewDownloadDir] = createSignal("");
+  const [newRateLimit, setNewRateLimit] = createSignal("");
+  const [newConcurrent, setNewConcurrent] = createSignal("");
+
+  const [builtinDir, setBuiltinDir] = createSignal("");
+  const [builtinRateKb, setBuiltinRateKb] = createSignal("");
+  const [builtinConcurrent, setBuiltinConcurrent] = createSignal("2");
+  const [builtinEnabled, setBuiltinEnabled] = createSignal(true);
+  const [builtinFormInitialized, setBuiltinFormInitialized] = createSignal(false);
+  const [builtinTestResult, setBuiltinTestResult] = createSignal<TestResult | undefined>(undefined);
+  const [savingBuiltin, setSavingBuiltin] = createSignal(false);
 
   const erroredClients: Record<number, DownloadClient> = {};
 
@@ -116,6 +141,22 @@ export default function DownloadClientsTab() {
     },
     { download_clients: [] },
   );
+
+  const builtinClient = () => clients.download_clients.find((c) => isBuiltinClient(c));
+
+  const configurableClients = () => clients.download_clients.filter((c) => !isBuiltinClient(c));
+
+  createEffect(() => {
+    const row = builtinClient();
+    if (row && !builtinFormInitialized()) {
+      const s = parseClientSettings(row.settings);
+      setBuiltinDir(s.download_dir || "./downloads");
+      setBuiltinRateKb(s.rate_limit ? String(Math.round(s.rate_limit / 1024)) : "");
+      setBuiltinConcurrent(String(s.concurrent_downloads ?? 2));
+      setBuiltinEnabled(row.enabled);
+      setBuiltinFormInitialized(true);
+    }
+  });
 
   const removeClient = action(function* (client: DownloadClient) {
     setClients((s) => {
@@ -145,6 +186,20 @@ export default function DownloadClientsTab() {
     refresh(clients);
   });
 
+  const toggleClientEnabled = action(function* (client: DownloadClient, enabled: boolean) {
+    setClients((s) => {
+      s.download_clients = s.download_clients.map((c) =>
+        c.id === client.id ? { ...c, enabled } : c,
+      );
+    });
+    try {
+      yield settingsApi.setDownloadClientEnabled(client.id, enabled);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    }
+    refresh(clients);
+  });
+
   const addClient = action(async function* () {
     setAdding(true);
     setActionError(null);
@@ -159,6 +214,13 @@ export default function DownloadClientsTab() {
         url_base: newUrlBase(),
         category: newCategory(),
         download_dir: newDownloadDir(),
+        rate_limit:
+          newImpl() === "http" && newRateLimit()
+            ? Math.round(Number(newRateLimit()) * 1024)
+            : undefined,
+        concurrent_downloads:
+          newImpl() === "http" && newConcurrent() ? Number(newConcurrent()) : undefined,
+        enabled: true,
       });
       yield;
       refresh(clients);
@@ -172,6 +234,8 @@ export default function DownloadClientsTab() {
       setNewUrlBase("");
       setNewCategory("");
       setNewDownloadDir("");
+      setNewRateLimit("");
+      setNewConcurrent("");
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -182,7 +246,21 @@ export default function DownloadClientsTab() {
   const updateClient = action(async function* (id: number, form: ClientEditForm) {
     setSavingClientId(id);
     try {
-      await settingsApi.updateDownloadClient(id, form);
+      await settingsApi.updateDownloadClient(id, {
+        name: form.name,
+        implementation: form.implementation,
+        host: form.host,
+        port: form.port,
+        username: form.username,
+        password: form.password,
+        url_base: form.url_base,
+        category: form.category,
+        download_dir: form.download_dir,
+        rate_limit: form.rate_limit_kb ? Math.round(Number(form.rate_limit_kb) * 1024) : undefined,
+        concurrent_downloads: form.concurrent_downloads
+          ? Number(form.concurrent_downloads)
+          : undefined,
+      });
       yield;
       refresh(clients);
       setEditingClientId(null);
@@ -194,7 +272,61 @@ export default function DownloadClientsTab() {
     }
   });
 
-  const testClient = async (id: number) => {
+  const builtinInput = (): DownloadClientInput => ({
+    name: "HTTP Direct",
+    implementation: "http",
+    host: "",
+    port: 0,
+    username: "",
+    password: "",
+    url_base: "",
+    category: "",
+    download_dir: builtinDir(),
+    rate_limit: builtinRateKb() ? Math.round(Number(builtinRateKb()) * 1024) : undefined,
+    concurrent_downloads: builtinConcurrent() ? Number(builtinConcurrent()) : undefined,
+    enabled: builtinEnabled(),
+  });
+
+  const saveBuiltinClient = action(async function* () {
+    setSavingBuiltin(true);
+    setActionError(null);
+    try {
+      const input = builtinInput();
+      const row = builtinClient();
+      if (row) {
+        await settingsApi.updateDownloadClient(row.id, input);
+      } else {
+        await settingsApi.addDownloadClient(input);
+      }
+      yield;
+      refresh(clients);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSavingBuiltin(false);
+    }
+  });
+
+  const toggleBuiltinEnabled = action(async function* (enabled: boolean) {
+    setBuiltinEnabled(enabled);
+    setActionError(null);
+    try {
+      const row = builtinClient();
+      if (row) {
+        yield settingsApi.setDownloadClientEnabled(row.id, enabled);
+      } else {
+        const input = builtinInput();
+        yield settingsApi.addDownloadClient({ ...input, enabled });
+      }
+      yield;
+      refresh(clients);
+    } catch (err) {
+      setBuiltinEnabled(!enabled);
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    }
+  });
+
+  const testClient: (id: number) => Promise<void> = async (id: number) => {
     setClientTestResults((r) => {
       r[id] = { status: "testing" };
     });
@@ -215,8 +347,35 @@ export default function DownloadClientsTab() {
     }
   };
 
+  const testBuiltinClient = async () => {
+    setBuiltinTestResult({ status: "testing" });
+    try {
+      const row = builtinClient();
+      let id: number;
+      if (row) {
+        id = row.id;
+      } else {
+        const created = await settingsApi.addDownloadClient(builtinInput());
+        id = created.id;
+        refresh(clients);
+      }
+      const data = await settingsApi.testDownloadClient(id);
+      setBuiltinTestResult({
+        status: data.success ? "success" : "error",
+        message: data.message,
+        version: data.version,
+        default_save_path: data.default_save_path,
+      });
+    } catch (err) {
+      setBuiltinTestResult({
+        status: "error",
+        message: err instanceof Error ? err.message : "Test failed",
+      });
+    }
+  };
+
   createEffect(
-    () => clients.download_clients,
+    () => configurableClients(),
     (list) => {
       if (!autoTested() && list.length > 0) {
         setAutoTested(true);
@@ -229,11 +388,12 @@ export default function DownloadClientsTab() {
   const testAllClients = async () => {
     setIsTestingAll(true);
     try {
-      const list = clients.download_clients;
+      const list = configurableClients();
       if (list.length === 0) return;
+      const runTest = testClient;
       for (const cl of list) {
         try {
-          await testClient(cl.id);
+          await runTest(cl.id);
         } catch {
           /* handled inside */
         }
@@ -260,7 +420,7 @@ export default function DownloadClientsTab() {
           <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 class="text-lg font-semibold">Download Clients</h3>
             <div class="flex gap-2">
-              <Show when={clients.download_clients.length > 0}>
+              <Show when={configurableClients().length > 0}>
                 <button
                   onClick={() => void testAllClients()}
                   disabled={isTestingAll()}
@@ -281,6 +441,102 @@ export default function DownloadClientsTab() {
           <Show when={actionError()}>
             <p class="text-sm text-red-400 mt-2">{actionError()}</p>
           </Show>
+
+          <div class="mb-4 p-4 bg-gray-900 rounded-lg border border-gray-800">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <StatusDot status={builtinTestResult()?.status ?? "idle"} />
+                <h4 class="font-medium">HTTP (Direct)</h4>
+                <span class="text-xs bg-gray-800 text-gray-400 border border-gray-700 rounded px-1.5 py-0.5">
+                  Built-in
+                </span>
+                <Show when={builtinTestResult()?.status === "success"}>
+                  <span class="text-xs bg-green-900/40 text-green-400 border border-green-800 rounded px-1.5 py-0.5">
+                    Connected
+                  </span>
+                </Show>
+                <Show when={builtinTestResult()?.status === "error"}>
+                  <span class="text-xs bg-red-900/40 text-red-400 border border-red-800 rounded px-1.5 py-0.5">
+                    Disconnected
+                  </span>
+                </Show>
+              </div>
+              <button
+                onClick={() => void toggleBuiltinEnabled(!builtinEnabled())}
+                class={[
+                  "px-3 py-1.5 rounded text-sm transition-colors",
+                  builtinEnabled()
+                    ? "bg-green-700 hover:bg-green-600"
+                    : "bg-gray-700 hover:bg-gray-600",
+                ]}
+              >
+                {builtinEnabled() ? "Enabled" : "Disabled"}
+              </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Download Directory</label>
+                <input
+                  value={builtinDir()}
+                  onInput={(e) => setBuiltinDir(e.currentTarget.value)}
+                  class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                  placeholder="./downloads"
+                />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Rate Limit (KB/s)</label>
+                <input
+                  type="number"
+                  value={builtinRateKb()}
+                  onInput={(e) => setBuiltinRateKb(e.currentTarget.value)}
+                  class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                  placeholder="Unlimited"
+                />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Concurrent Downloads</label>
+                <input
+                  type="number"
+                  value={builtinConcurrent()}
+                  onInput={(e) => setBuiltinConcurrent(e.currentTarget.value)}
+                  class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                  placeholder="2"
+                />
+              </div>
+            </div>
+            <Show when={builtinTestResult()?.status === "success"}>
+              <p class="text-xs text-green-400 mt-2">
+                ✓ Connected
+                <Show when={builtinTestResult()?.version}> · v{builtinTestResult()?.version}</Show>
+                <Show when={builtinTestResult()?.default_save_path}>
+                  {" "}
+                  · {builtinTestResult()?.default_save_path}
+                </Show>
+              </p>
+            </Show>
+            <Show when={builtinTestResult()?.status === "error"}>
+              <p class="text-xs text-red-400 mt-2">✗ {builtinTestResult()?.message}</p>
+            </Show>
+            <div class="flex gap-3 items-center mt-3">
+              <button
+                onClick={() => void saveBuiltinClient()}
+                disabled={savingBuiltin()}
+                class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => void testBuiltinClient()}
+                disabled={builtinTestResult()?.status === "testing"}
+                class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded text-sm transition-colors"
+              >
+                {builtinTestResult()?.status === "testing" ? "Testing..." : "Test"}
+              </button>
+              <p class="text-xs text-gray-500">
+                The built-in HTTP downloader streams release URLs to disk.
+              </p>
+            </div>
+          </div>
 
           <Show when={showAdd()}>
             <div class="mb-4 p-4 bg-gray-900 rounded-lg border border-gray-800">
@@ -307,62 +563,74 @@ export default function DownloadClientsTab() {
                     <option value="http">HTTP (Direct)</option>
                   </select>
                 </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Host</label>
-                  <input
-                    value={newHost()}
-                    onInput={(e) => setNewHost(e.currentTarget.value)}
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="localhost"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Port</label>
-                  <input
-                    type="number"
-                    value={newPort()}
-                    onInput={(e) => setNewPort(Number(e.currentTarget.value))}
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="9091"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Username</label>
-                  <input
-                    value={newUsername()}
-                    onInput={(e) => setNewUsername(e.currentTarget.value)}
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="Optional"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Password</label>
-                  <input
-                    type="password"
-                    value={newPassword()}
-                    onInput={(e) => setNewPassword(e.currentTarget.value)}
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="Optional"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">URL Base</label>
-                  <input
-                    value={newUrlBase()}
-                    onInput={(e) => setNewUrlBase(e.currentTarget.value)}
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="/transmission/"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Category</label>
-                  <input
-                    value={newCategory()}
-                    onInput={(e) => setNewCategory(e.currentTarget.value)}
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="books"
-                  />
-                </div>
+                <Show when={newImpl() !== "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Host</label>
+                    <input
+                      value={newHost()}
+                      onInput={(e) => setNewHost(e.currentTarget.value)}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="localhost"
+                    />
+                  </div>
+                </Show>
+                <Show when={newImpl() !== "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Port</label>
+                    <input
+                      type="number"
+                      value={newPort()}
+                      onInput={(e) => setNewPort(Number(e.currentTarget.value))}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="9091"
+                    />
+                  </div>
+                </Show>
+                <Show when={newImpl() !== "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Username</label>
+                    <input
+                      value={newUsername()}
+                      onInput={(e) => setNewUsername(e.currentTarget.value)}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="Optional"
+                    />
+                  </div>
+                </Show>
+                <Show when={newImpl() !== "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={newPassword()}
+                      onInput={(e) => setNewPassword(e.currentTarget.value)}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="Optional"
+                    />
+                  </div>
+                </Show>
+                <Show when={newImpl() !== "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">URL Base</label>
+                    <input
+                      value={newUrlBase()}
+                      onInput={(e) => setNewUrlBase(e.currentTarget.value)}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="/transmission/"
+                    />
+                  </div>
+                </Show>
+                <Show when={newImpl() !== "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Category</label>
+                    <input
+                      value={newCategory()}
+                      onInput={(e) => setNewCategory(e.currentTarget.value)}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="books"
+                    />
+                  </div>
+                </Show>
                 <div>
                   <label class="block text-xs text-gray-400 mb-1">Download Directory</label>
                   <input
@@ -372,6 +640,30 @@ export default function DownloadClientsTab() {
                     placeholder="./downloads"
                   />
                 </div>
+                <Show when={newImpl() === "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Rate Limit (KB/s)</label>
+                    <input
+                      type="number"
+                      value={newRateLimit()}
+                      onInput={(e) => setNewRateLimit(e.currentTarget.value)}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="Unlimited"
+                    />
+                  </div>
+                </Show>
+                <Show when={newImpl() === "http"}>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Concurrent Downloads</label>
+                    <input
+                      type="number"
+                      value={newConcurrent()}
+                      onInput={(e) => setNewConcurrent(e.currentTarget.value)}
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                      placeholder="2"
+                    />
+                  </div>
+                </Show>
               </div>
               <div class="flex gap-3 items-center mt-4">
                 <button
@@ -397,11 +689,11 @@ export default function DownloadClientsTab() {
           </Show>
 
           <Show
-            when={clients.download_clients.length > 0}
+            when={configurableClients().length > 0}
             fallback={<p class="text-gray-500 text-sm">No download clients configured.</p>}
           >
             <div class="space-y-2">
-              <For each={clients.download_clients}>
+              <For each={configurableClients()}>
                 {(client) => (
                   <Show
                     when={editingClientId() === client.id}
@@ -414,7 +706,12 @@ export default function DownloadClientsTab() {
                       >
                         <StatusDot status={clientTestResults[client.id]?.status ?? "idle"} />
                         <div class="flex-1 min-w-0">
-                          <p class="font-medium truncate">{client.name}</p>
+                          <p class="font-medium truncate">
+                            <span class={client.enabled ? "" : "text-gray-500"}>{client.name}</span>
+                            {!client.enabled && (
+                              <span class="ml-2 text-xs text-gray-500">Disabled</span>
+                            )}
+                          </p>
                           <p class="text-xs text-gray-400">
                             {implementationLabel(client.implementation)}
                             <Show
@@ -476,6 +773,17 @@ export default function DownloadClientsTab() {
                         </div>
                         <div class="flex flex-wrap gap-2 shrink-0">
                           <button
+                            onClick={() => void toggleClientEnabled(client, !client.enabled)}
+                            class={[
+                              "px-2 py-1 rounded text-xs transition-colors",
+                              client.enabled
+                                ? "bg-green-700 hover:bg-green-600"
+                                : "bg-gray-700 hover:bg-gray-600",
+                            ]}
+                          >
+                            {client.enabled ? "Enabled" : "Disabled"}
+                          </button>
+                          <button
                             onClick={() => {
                               const parsed = parseClientSettings(client.settings);
                               setEditingClientId(client.id);
@@ -483,6 +791,12 @@ export default function DownloadClientsTab() {
                                 name: client.name,
                                 implementation: client.implementation,
                                 ...parsed,
+                                rate_limit_kb: parsed.rate_limit
+                                  ? String(Math.round(parsed.rate_limit / 1024))
+                                  : "",
+                                concurrent_downloads: parsed.concurrent_downloads
+                                  ? String(parsed.concurrent_downloads)
+                                  : "",
                                 priority: client.priority,
                               });
                             }}
@@ -553,84 +867,96 @@ export default function DownloadClientsTab() {
                             <option value="http">HTTP (Direct)</option>
                           </select>
                         </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Host</label>
-                          <input
-                            value={clientEditForm()?.host ?? ""}
-                            onInput={(e) =>
-                              setClientEditForm((prev) =>
-                                prev ? { ...prev, host: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Port</label>
-                          <input
-                            type="number"
-                            value={clientEditForm()?.port ?? 0}
-                            onInput={(e) =>
-                              setClientEditForm((prev) =>
-                                prev ? { ...prev, port: Number(e.currentTarget.value) } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Username</label>
-                          <input
-                            value={clientEditForm()?.username ?? ""}
-                            onInput={(e) =>
-                              setClientEditForm((prev) =>
-                                prev ? { ...prev, username: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Password</label>
-                          <input
-                            type="password"
-                            value={clientEditForm()?.password ?? ""}
-                            onInput={(e) =>
-                              setClientEditForm((prev) =>
-                                prev ? { ...prev, password: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">URL Base</label>
-                          <input
-                            value={clientEditForm()?.url_base ?? ""}
-                            onInput={(e) =>
-                              setClientEditForm((prev) =>
-                                prev ? { ...prev, url_base: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                            placeholder="/transmission/"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Category</label>
-                          <input
-                            value={clientEditForm()?.category ?? ""}
-                            onInput={(e) =>
-                              setClientEditForm((prev) =>
-                                prev ? { ...prev, category: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                            placeholder="books"
-                          />
-                        </div>
+                        <Show when={clientEditForm()?.implementation !== "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">Host</label>
+                            <input
+                              value={clientEditForm()?.host ?? ""}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev ? { ...prev, host: e.currentTarget.value } : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            />
+                          </div>
+                        </Show>
+                        <Show when={clientEditForm()?.implementation !== "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">Port</label>
+                            <input
+                              type="number"
+                              value={clientEditForm()?.port ?? 0}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev ? { ...prev, port: Number(e.currentTarget.value) } : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            />
+                          </div>
+                        </Show>
+                        <Show when={clientEditForm()?.implementation !== "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">Username</label>
+                            <input
+                              value={clientEditForm()?.username ?? ""}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev ? { ...prev, username: e.currentTarget.value } : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </Show>
+                        <Show when={clientEditForm()?.implementation !== "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">Password</label>
+                            <input
+                              type="password"
+                              value={clientEditForm()?.password ?? ""}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev ? { ...prev, password: e.currentTarget.value } : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </Show>
+                        <Show when={clientEditForm()?.implementation !== "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">URL Base</label>
+                            <input
+                              value={clientEditForm()?.url_base ?? ""}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev ? { ...prev, url_base: e.currentTarget.value } : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                              placeholder="/transmission/"
+                            />
+                          </div>
+                        </Show>
+                        <Show when={clientEditForm()?.implementation !== "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">Category</label>
+                            <input
+                              value={clientEditForm()?.category ?? ""}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev ? { ...prev, category: e.currentTarget.value } : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                              placeholder="books"
+                            />
+                          </div>
+                        </Show>
                         <div>
                           <label class="block text-xs text-gray-400 mb-1">Download Directory</label>
                           <input
@@ -644,6 +970,44 @@ export default function DownloadClientsTab() {
                             placeholder="./downloads"
                           />
                         </div>
+                        <Show when={clientEditForm()?.implementation === "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">
+                              Rate Limit (KB/s)
+                            </label>
+                            <input
+                              type="number"
+                              value={clientEditForm()?.rate_limit_kb ?? ""}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev ? { ...prev, rate_limit_kb: e.currentTarget.value } : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                              placeholder="Unlimited"
+                            />
+                          </div>
+                        </Show>
+                        <Show when={clientEditForm()?.implementation === "http"}>
+                          <div>
+                            <label class="block text-xs text-gray-400 mb-1">
+                              Concurrent Downloads
+                            </label>
+                            <input
+                              type="number"
+                              value={clientEditForm()?.concurrent_downloads ?? ""}
+                              onInput={(e) =>
+                                setClientEditForm((prev) =>
+                                  prev
+                                    ? { ...prev, concurrent_downloads: e.currentTarget.value }
+                                    : null,
+                                )
+                              }
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                              placeholder="2"
+                            />
+                          </div>
+                        </Show>
                       </div>
                       <div class="flex gap-2 mt-3 justify-end">
                         <button

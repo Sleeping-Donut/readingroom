@@ -105,6 +105,10 @@ pub struct DownloadClientConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
+    pub rate_limit: Option<u64>,
+    #[serde(default)]
+    pub concurrent_downloads: Option<usize>,
+    #[serde(default)]
     pub priority: i32,
 }
 

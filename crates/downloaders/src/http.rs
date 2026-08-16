@@ -1,17 +1,35 @@
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use readingroom_core::{
     config::DownloadClientConfig,
     error::{AppError, Result},
     models::{DownloadType, Release},
     traits::{ClientConfig, DownloadClient, DownloadId, DownloadItem, DownloadStatus},
 };
+use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
+
+#[derive(Debug)]
+struct DownloadProgress {
+    total: u64,
+    downloaded: u64,
+    error: Option<String>,
+    added_at: chrono::DateTime<chrono::Utc>,
+    cancelled: Arc<AtomicBool>,
+}
 
 pub struct HttpDownloadClient {
     name: String,
-    download_dir: std::path::PathBuf,
+    download_dir: PathBuf,
     client: reqwest::Client,
+    rate_limit: Option<u64>,
+    concurrency: Arc<tokio::sync::Semaphore>,
+    active: Arc<Mutex<HashMap<String, DownloadProgress>>>,
 }
 
 impl HttpDownloadClient {
@@ -22,6 +40,8 @@ impl HttpDownloadClient {
             .unwrap_or_else(|| std::path::PathBuf::from("./downloads"));
         std::fs::create_dir_all(&download_dir)?;
 
+        let concurrency = config.concurrent_downloads.unwrap_or(2).max(1);
+
         Ok(Self {
             name: config.name.clone(),
             download_dir,
@@ -29,6 +49,9 @@ impl HttpDownloadClient {
                 .user_agent("ReadingRoom/0.1")
                 .build()
                 .map_err(|e| AppError::Config(format!("HTTP client: {e}")))?,
+            rate_limit: config.rate_limit,
+            concurrency: Arc::new(tokio::sync::Semaphore::new(concurrency)),
+            active: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -57,6 +80,83 @@ impl HttpDownloadClient {
     }
 }
 
+/// Whether the download directory contains a finished (non-`.part`) file.
+fn has_final_file(dir: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        if let Some(name) = entry.file_name().to_str() {
+            if !name.ends_with(".part") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Stream the response body to `part_path` (respecting an optional byte/sec
+/// rate limit), then rename it to `final_path`. Progress is recorded in
+/// `active` under `title`.
+async fn stream_download(
+    client: reqwest::Client,
+    url: String,
+    part_path: PathBuf,
+    final_path: PathBuf,
+    rate_limit: Option<u64>,
+    cancelled: Arc<AtomicBool>,
+    active: Arc<Mutex<HashMap<String, DownloadProgress>>>,
+    title: String,
+) -> Result<()> {
+    let resp = client.get(&url).send().await?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(AppError::Provider(format!("HTTP download returned {status}")));
+    }
+    let total = resp.content_length().unwrap_or(0);
+
+    {
+        let mut m = active.lock().await;
+        if let Some(p) = m.get_mut(&title) {
+            p.total = total;
+        }
+    }
+
+    let mut out = tokio::fs::File::create(&part_path).await?;
+    let mut stream = resp.bytes_stream();
+    let mut downloaded: u64 = 0;
+    let start = std::time::Instant::now();
+
+    while let Some(chunk) = stream.next().await {
+        if cancelled.load(Ordering::Relaxed) {
+            return Err(AppError::Other("Download cancelled".into()));
+        }
+        let chunk = chunk?;
+        out.write_all(&chunk).await?;
+        downloaded += chunk.len() as u64;
+
+        {
+            let mut m = active.lock().await;
+            if let Some(p) = m.get_mut(&title) {
+                p.downloaded = downloaded;
+            }
+        }
+
+        if let Some(rate) = rate_limit.filter(|r| *r > 0) {
+            let expected = std::time::Duration::from_secs_f64(downloaded as f64 / rate as f64);
+            let elapsed = start.elapsed();
+            if expected > elapsed {
+                tokio::time::sleep(expected - elapsed).await;
+            }
+        }
+    }
+
+    out.flush().await?;
+    drop(out);
+    tokio::fs::rename(&part_path, &final_path).await?;
+    Ok(())
+}
+
 #[async_trait]
 impl DownloadClient for HttpDownloadClient {
     fn name(&self) -> &str {
@@ -70,39 +170,84 @@ impl DownloadClient for HttpDownloadClient {
     async fn add_release(&self, release: &Release) -> Result<DownloadId> {
         let ext = Self::ext_from_url(&release.download_url);
         let title = Self::sanitize_title(&release.title);
-        let filename = format!("{title}.{ext}");
+        let id = DownloadId(title.clone());
+
         // One subdirectory per download so the import step can scan it like a
         // torrent client's completed download folder.
         let dir = self.download_dir.join(&title);
-        std::fs::create_dir_all(&dir)?;
-        let dest = dir.join(&filename);
+        tokio::fs::create_dir_all(&dir).await?;
+        let part_path = dir.join(format!("{title}.{ext}.part"));
+        let final_path = dir.join(format!("{title}.{ext}"));
 
-        let resp = self
-            .client
-            .get(&release.download_url)
-            .send()
-            .await
-            .map_err(|e| AppError::Provider(format!("HTTP download failed: {e}")))?;
-
-        let status = resp.status();
-        if !status.is_success() {
-            return Err(AppError::Provider(format!(
-                "HTTP download returned {status}"
-            )));
+        let cancelled = Arc::new(AtomicBool::new(false));
+        {
+            let mut active = self.active.lock().await;
+            active.insert(
+                title.clone(),
+                DownloadProgress {
+                    total: release.size.max(0) as u64,
+                    downloaded: 0,
+                    error: None,
+                    added_at: chrono::Utc::now(),
+                    cancelled: cancelled.clone(),
+                },
+            );
         }
 
-        let bytes = resp.bytes().await.map_err(|e| {
-            AppError::Provider(format!("HTTP download read failed: {e}"))
-        })?;
-        std::fs::write(&dest, bytes)?;
+        let client = self.client.clone();
+        let url = release.download_url.clone();
+        let semaphore = self.concurrency.clone();
+        let active_map = self.active.clone();
+        let rate_limit = self.rate_limit;
+        let name = self.name.clone();
 
-        tracing::info!(client = %self.name, file = %filename, "File downloaded via direct HTTP");
-        Ok(DownloadId(title))
+        tracing::info!(client = %name, file = %final_path.display(), "Direct HTTP download queued");
+
+        // Spawn the download in the background and return immediately. The
+        // semaphore permits `concurrent_downloads` downloads at a time; excess
+        // releases queue up until a permit frees.
+        tokio::spawn(async move {
+            let _permit = semaphore.acquire_owned().await;
+            let result = stream_download(
+                client,
+                url,
+                part_path,
+                final_path,
+                rate_limit,
+                cancelled.clone(),
+                active_map.clone(),
+                title.clone(),
+            )
+            .await;
+
+            match result {
+                Ok(()) => {
+                    let mut m = active_map.lock().await;
+                    m.remove(&title);
+                }
+                Err(e) => {
+                    if !cancelled.load(Ordering::Relaxed) {
+                        let mut m = active_map.lock().await;
+                        if let Some(p) = m.get_mut(&title) {
+                            p.error = Some(e.to_string());
+                        }
+                    }
+                }
+            }
+        });
+
+        Ok(id)
     }
 
     async fn remove_download(&self, id: &DownloadId) -> Result<()> {
         let path = self.download_dir.join(&id.0);
-        match std::fs::remove_dir_all(&path) {
+        {
+            let mut active = self.active.lock().await;
+            if let Some(p) = active.remove(&id.0) {
+                p.cancelled.store(true, Ordering::Relaxed);
+            }
+        }
+        match tokio::fs::remove_dir_all(&path).await {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e.into()),
@@ -111,15 +256,49 @@ impl DownloadClient for HttpDownloadClient {
 
     async fn get_status(&self, id: &DownloadId) -> Result<DownloadStatus> {
         let dir = self.download_dir.join(&id.0);
-        if dir.is_dir() && std::fs::read_dir(&dir).map(|mut d| d.next().is_some()).unwrap_or(false) {
-            Ok(DownloadStatus::Completed)
-        } else {
-            Ok(DownloadStatus::Failed("File not found".into()))
+        if has_final_file(&dir) {
+            return Ok(DownloadStatus::Completed);
+        }
+
+        let active = self.active.lock().await;
+        match active.get(&id.0) {
+            Some(p) => {
+                if let Some(err) = &p.error {
+                    Ok(DownloadStatus::Failed(err.clone()))
+                } else {
+                    Ok(DownloadStatus::Downloading)
+                }
+            }
+            None => Ok(DownloadStatus::Failed("File not found".into())),
         }
     }
 
     async fn list_active(&self) -> Result<Vec<DownloadItem>> {
-        Ok(vec![])
+        let active = self.active.lock().await;
+        let mut items = Vec::new();
+        for (id, p) in active.iter() {
+            let status = if let Some(err) = &p.error {
+                DownloadStatus::Failed(err.clone())
+            } else {
+                DownloadStatus::Downloading
+            };
+            let progress = if p.total > 0 {
+                (p.downloaded as f64 / p.total as f64) * 100.0
+            } else {
+                0.0
+            };
+            items.push(DownloadItem {
+                id: DownloadId(id.clone()),
+                name: id.clone(),
+                status,
+                size: p.total as i64,
+                downloaded_bytes: p.downloaded as i64,
+                progress,
+                added_at: p.added_at,
+                estimated_completion: None,
+            });
+        }
+        Ok(items)
     }
 
     async fn get_config(&self) -> Result<ClientConfig> {
@@ -146,14 +325,16 @@ mod tests {
     use readingroom_core::models::Release;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::time::Duration;
 
-    fn spawn_test_server(body: &'static [u8]) -> String {
+    fn spawn_test_server(body: &'static [u8], delay_ms: u64) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
         std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf).unwrap();
+            std::thread::sleep(Duration::from_millis(delay_ms));
             let head = format!(
                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                 body.len()
@@ -168,7 +349,7 @@ mod tests {
     #[tokio::test]
     async fn downloads_release_from_url() {
         let body: &'static [u8] = b"fake epub bytes";
-        let url = spawn_test_server(body);
+        let url = spawn_test_server(body, 200);
 
         let temp = std::env::temp_dir().join(format!("rr_http_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp);
@@ -184,6 +365,8 @@ mod tests {
             category: None,
             download_dir: Some(temp.clone()),
             enabled: true,
+            rate_limit: None,
+            concurrent_downloads: None,
             priority: 0,
         };
 
@@ -205,12 +388,29 @@ mod tests {
         let id = client.add_release(&release).await.unwrap();
         assert_eq!(id.0, "Some Title With Symbols");
 
-        let path = temp.join(&id.0).join("Some Title With Symbols.epub");
-        assert_eq!(std::fs::read(&path).unwrap(), body);
+        // add_release is non-blocking: the download runs in the background, so
+        // immediately after it returns the download is still in progress.
         assert!(matches!(
             client.get_status(&id).await.unwrap(),
-            DownloadStatus::Completed
+            DownloadStatus::Downloading
         ));
+
+        // Poll until the background download renames the file into place.
+        let mut completed = false;
+        for _ in 0..200 {
+            if matches!(
+                client.get_status(&id).await.unwrap(),
+                DownloadStatus::Completed
+            ) {
+                completed = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert!(completed, "download did not complete in time");
+
+        let path = temp.join(&id.0).join("Some Title With Symbols.epub");
+        assert_eq!(std::fs::read(&path).unwrap(), body);
 
         client.remove_download(&id).await.unwrap();
         assert!(!path.exists());

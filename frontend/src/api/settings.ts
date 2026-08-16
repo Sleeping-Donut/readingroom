@@ -27,6 +27,9 @@ export interface DownloadClientInput {
   url_base: string;
   category: string;
   download_dir?: string;
+  rate_limit?: number;
+  concurrent_downloads?: number;
+  enabled?: boolean;
   priority?: number;
 }
 
@@ -56,6 +59,15 @@ function buildIndexerSettings(input: IndexerInput): string {
 }
 
 function buildClientSettings(input: DownloadClientInput): string {
+  if (input.implementation === "http") {
+    const settings: Record<string, unknown> = {};
+    if (input.download_dir?.trim()) settings.download_dir = input.download_dir.trim();
+    if (input.rate_limit !== undefined && input.rate_limit > 0)
+      settings.rate_limit = input.rate_limit;
+    if (input.concurrent_downloads !== undefined && input.concurrent_downloads > 0)
+      settings.concurrent_downloads = input.concurrent_downloads;
+    return JSON.stringify(settings);
+  }
   return JSON.stringify({
     host: input.host.trim(),
     port: input.port || 0,
@@ -101,10 +113,11 @@ export function listDownloadClients() {
 }
 
 export function addDownloadClient(input: DownloadClientInput) {
-  return api.post("/settings/downloadclients", {
+  return api.post<{ id: number; success: boolean }>("/settings/downloadclients", {
     name: input.name,
     implementation: input.implementation,
     settings: buildClientSettings(input),
+    enabled: input.enabled ?? true,
   });
 }
 
@@ -114,7 +127,12 @@ export function updateDownloadClient(id: number, input: DownloadClientInput) {
     implementation: input.implementation,
     settings: buildClientSettings(input),
     priority: input.priority,
+    ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
   });
+}
+
+export function setDownloadClientEnabled(id: number, enabled: boolean) {
+  return api.put(`/settings/downloadclients/${id}`, { enabled });
 }
 
 export function removeDownloadClient(id: number) {
