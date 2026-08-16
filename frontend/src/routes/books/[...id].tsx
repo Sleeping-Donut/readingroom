@@ -368,7 +368,7 @@ export default function BookDetail() {
                   </div>
                   <Show when={book().author_name}>
                     <a
-                      href={paths.authors(book().author_id)}
+                      href={paths.authors(book().author_foreign_id ?? book().author_id)}
                       class="text-lg text-indigo-400 hover:text-indigo-300"
                     >
                       {book().author_name}

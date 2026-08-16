@@ -19,6 +19,7 @@ export interface Book {
   id: number;
   foreign_id: string;
   author_id: number;
+  author_foreign_id?: string;
   title: string;
   clean_title: string;
   description?: string;

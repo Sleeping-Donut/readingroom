@@ -202,28 +202,45 @@ async fn get_book(State(state): State<Arc<AppState>>, Path(id): Path<String>) ->
     // 1. Numeric DB id
     if let Ok(id64) = id.parse::<i64>() {
         if let Ok(Some(book)) = crate::db::get_book_by_id(&state.db, id64).await {
-            return Json(json!(enriched_book(&state, book).await));
+            return Json(tracked_book_json(&state, book).await);
         }
     }
     // 2. Bare OpenLibrary id -> tracked DB book first, else metadata
     if looks_like_ol_id(&id) {
         if let Ok(Some(book)) = crate::db::find_book_by_ol_id(&state.db, &id).await {
-            return Json(json!(enriched_book(&state, book).await));
+            return Json(tracked_book_json(&state, book).await);
         }
     } else if id.starts_with("works/") || id.starts_with("books/") {
         // 3. Prefixed foreign key -> tracked DB book first, else metadata
         if let Ok(Some(book)) = crate::db::find_book_by_foreign_id(&state.db, &id).await {
-            return Json(json!(enriched_book(&state, book).await));
+            return Json(tracked_book_json(&state, book).await);
         }
     } else if let Ok(Some(book)) = crate::db::find_book_by_isbn(&state.db, &id).await {
         // 4. ISBN/ASIN -> tracked DB book, else metadata
-        return Json(json!(enriched_book(&state, book).await));
+        return Json(tracked_book_json(&state, book).await);
     }
 
     match state.metadata.get_book(&id).await {
         Ok(book) => Json(json!(book)),
         Err(e) => Json(json!({ "error": e.to_string() })),
     }
+}
+
+/// Serialize a tracked book for the detail endpoint, attaching the author's
+/// foreign (OpenLibrary) id so the frontend can link to the canonical author
+/// route instead of the numeric DB id.
+async fn tracked_book_json(
+    state: &AppState,
+    book: readingroom_core::models::Book,
+) -> Value {
+    let enriched = enriched_book(state, book).await;
+    let mut value = json!(enriched);
+    if enriched.author_id > 0 {
+        if let Ok(Some(author)) = crate::db::get_author_by_id(&state.db, enriched.author_id).await {
+            value["author_foreign_id"] = json!(author.foreign_id);
+        }
+    }
+    value
 }
 
 /// Merge metadata from an external source into a tracked DB book, keeping the
