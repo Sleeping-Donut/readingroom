@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { createMemo, createSignal, Errored, Loading, Show } from "solid-js";
+import { createMemo, createSignal, createStore, Errored, Loading, Show } from "solid-js";
 
 import { getIntegrationSettings } from "../../api/settings";
 
@@ -59,15 +59,12 @@ function copyableRow(props: {
 }
 
 export default function IntegrationsTab(_props: RouteProps<typeof route>) {
-  const [apiKey, setApiKey] = createSignal("");
+  const [integration] = createStore<{ api_key: string }>(
+    async () => await getIntegrationSettings(),
+    { api_key: "" },
+  );
 
   const baseUrl = createMemo(() => (typeof window !== "undefined" ? window.location.origin : ""));
-
-  const load = createMemo(async () => {
-    const data = await getIntegrationSettings();
-    setApiKey(data.api_key);
-    return data;
-  });
 
   return (
     <div>
@@ -88,22 +85,20 @@ export default function IntegrationsTab(_props: RouteProps<typeof route>) {
         )}
       >
         <Loading fallback={<p class="text-gray-500 text-sm">Loading...</p>}>
-          {load() && (
-            <div class="max-w-md">
-              {copyableRow({ label: "URL", value: baseUrl() })}
-              <Show
-                when={apiKey()}
-                fallback={
-                  <p class="text-sm text-yellow-300/80">
-                    No API key configured. Set <code class="text-xs">READINGROOM_API_KEY</code> on
-                    the server to enable Prowlarr sync.
-                  </p>
-                }
-              >
-                {copyableRow({ label: "API Key", value: apiKey(), secret: true })}
-              </Show>
-            </div>
-          )}
+          <div class="max-w-md">
+            {copyableRow({ label: "URL", value: baseUrl() })}
+            <Show
+              when={integration.api_key}
+              fallback={
+                <p class="text-sm text-yellow-300/80">
+                  No API key configured. Set <code class="text-xs">READINGROOM_API_KEY</code> on the
+                  server to enable Prowlarr sync.
+                </p>
+              }
+            >
+              {copyableRow({ label: "API Key", value: integration.api_key, secret: true })}
+            </Show>
+          </div>
         </Loading>
       </Errored>
     </div>

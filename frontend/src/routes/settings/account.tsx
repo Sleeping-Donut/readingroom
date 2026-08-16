@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { createMemo, createSignal, Show } from "solid-js";
+import { action, createMemo, createSignal, Show } from "solid-js";
 
 import { user, authEnabled, changePassword } from "../../api/auth";
 
@@ -24,7 +24,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
     return null;
   });
 
-  const submit = async () => {
+  const submit = action(async function* () {
     setError(null);
     setSuccess(false);
     if (passwordError()) {
@@ -34,6 +34,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
     setSubmitting(true);
     try {
       await changePassword(currentPassword(), newPassword());
+      yield;
       setSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
@@ -43,7 +44,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
     } finally {
       setSubmitting(false);
     }
-  };
+  });
 
   return (
     <div>

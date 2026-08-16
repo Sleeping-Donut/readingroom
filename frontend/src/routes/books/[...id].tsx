@@ -1,9 +1,19 @@
 import { Title } from "@solidjs/meta";
 import { revalidate, useNavigate, useParams } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { action, createMemo, createSignal, Errored, For, Loading, onSettled, Show } from "solid-js";
+import {
+  action,
+  createMemo,
+  createOptimistic,
+  createSignal,
+  Errored,
+  For,
+  Loading,
+  onSettled,
+  Show,
+} from "solid-js";
 
-import { addBook, getBook } from "../../api/books";
+import { addBook, getBook, updateBookMonitored } from "../../api/books";
 import { getQueue } from "../../api/queue";
 import {
   downloadIndexerRelease,
@@ -12,6 +22,7 @@ import {
   type ScoredRelease,
 } from "../../api/search";
 import { getLibrarySettings } from "../../api/settings";
+import { automaticSearchBook } from "../../api/wanted";
 import { subscribeAll } from "../../api/ws";
 import { BookCover } from "../../components/books/BookCover";
 import { StatusBadge } from "../../components/books/StatusBadge";
@@ -109,6 +120,13 @@ export default function BookDetail() {
   const [downloadingId, setDownloadingId] = createSignal<number | null>(null);
   const [adding, setAdding] = createSignal(false);
   const [actionError, setActionError] = createSignal<string | null>(null);
+  const [autoSearching, setAutoSearching] = createSignal(false);
+  const [savingMonitored, setSavingMonitored] = createSignal(false);
+
+  // Optimistic view of the book's monitored flag: mirrors the server value
+  // from getBook(), but writes made inside an action show immediately and
+  // revert to the server value once the action settles (revalidated below).
+  const [monitored, setMonitored] = createOptimistic(() => book().monitored);
 
   onSettled(() => {
     const pollId = setInterval(() => revalidate(getQueue.key), 30000);
@@ -172,6 +190,38 @@ export default function BookDetail() {
     }
   });
 
+  const autoSearch = action(async function* () {
+    setAutoSearching(true);
+    setActionError(null);
+    try {
+      const res = yield automaticSearchBook(book().id);
+      if (res.status === "no_match") {
+        setActionError(res.message ?? "No release scored above threshold");
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setAutoSearching(false);
+    }
+    revalidate(getQueue.key);
+    revalidate(getBook.key);
+  });
+
+  const toggleMonitored = action(async function* () {
+    setSavingMonitored(true);
+    setActionError(null);
+    const next = !monitored();
+    setMonitored(next);
+    try {
+      yield updateBookMonitored(book().id, next);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSavingMonitored(false);
+    }
+    revalidate(getBook.key);
+  });
+
   return (
     <div>
       <a href="/books" class="text-sm text-indigo-400 hover:text-indigo-300 mb-4 inline-block">
@@ -214,6 +264,27 @@ export default function BookDetail() {
                   </Show>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
+                  <Show when={book().id > 0}>
+                    <button
+                      onClick={() => void autoSearch()}
+                      disabled={autoSearching()}
+                      class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {autoSearching() ? "Searching..." : "Automatic Search"}
+                    </button>
+                    <button
+                      onClick={() => void toggleMonitored()}
+                      disabled={savingMonitored()}
+                      class={[
+                        "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                        monitored()
+                          ? "bg-green-700 hover:bg-green-600 text-white"
+                          : "bg-gray-700 hover:bg-gray-600 text-gray-300",
+                      ]}
+                    >
+                      {monitored() ? "Monitored" : "Unmonitored"}
+                    </button>
+                  </Show>
                   <button
                     onClick={openSearch}
                     disabled={searching()}
@@ -233,7 +304,7 @@ export default function BookDetail() {
                         d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
                       />
                     </svg>
-                    {searching() ? "Searching..." : "Search Indexers"}
+                    {searching() ? "Searching..." : "Interactive Search"}
                   </button>
                   <Show when={book().id === 0}>
                     <button
@@ -343,14 +414,14 @@ export default function BookDetail() {
 
       <Errored fallback={null}>
         <Loading fallback={null}>
-          <Show when={queueEntry() || library()}>
-            <div class="mt-8 max-w-md">
-              <h3 class="text-xl font-bold mb-4">Download Status</h3>
-              <div class="space-y-4">
-                <Show when={queueEntry()}>
-                  {(entry) => {
-                    const size = () => entry().size ?? 0;
-                    return (
+          <Show when={queueEntry() || (book().status === "have" && library())}>
+            <div class="mt-8 grid gap-6 max-w-3xl sm:grid-cols-2">
+              <Show when={queueEntry()}>
+                {(entry) => {
+                  const size = () => entry().size ?? 0;
+                  return (
+                    <section>
+                      <h3 class="text-xl font-bold mb-4">Download Status</h3>
                       <div class="p-4 bg-gray-900 rounded-lg border border-gray-800 space-y-2">
                         <div class="flex items-center justify-between gap-2">
                           <span class="text-sm font-medium">
@@ -382,23 +453,32 @@ export default function BookDetail() {
                           <p class="text-xs text-gray-400">{(size() / 1_000_000).toFixed(1)} MB</p>
                         </Show>
                       </div>
-                    );
-                  }}
-                </Show>
-                <Show when={library()}>
-                  {(lib) => (
-                    <div class="p-4 bg-gray-900 rounded-lg border border-gray-800 space-y-1">
+                    </section>
+                  );
+                }}
+              </Show>
+              <Show when={book().status === "have" && library()}>
+                {(lib) => (
+                  <section>
+                    <h3 class="text-xl font-bold mb-4">Files</h3>
+                    <div class="p-4 bg-gray-900 rounded-lg border border-gray-800 space-y-2">
                       <p class="text-sm font-medium text-green-400">✓ Saved to library</p>
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs text-gray-400">Status</span>
+                        <StatusBadge status={book().status} />
+                      </div>
                       <Show when={lib().library.root_folder}>
-                        <p class="text-xs text-gray-400">Library location</p>
-                        <p class="text-xs font-mono text-gray-300 break-all">
-                          {lib().library.root_folder}
-                        </p>
+                        <div>
+                          <p class="text-xs text-gray-400">Library location</p>
+                          <p class="text-xs font-mono text-gray-300 break-all">
+                            {lib().library.root_folder}
+                          </p>
+                        </div>
                       </Show>
                     </div>
-                  )}
-                </Show>
-              </div>
+                  </section>
+                )}
+              </Show>
             </div>
           </Show>
         </Loading>

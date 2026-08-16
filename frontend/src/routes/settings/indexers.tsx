@@ -142,12 +142,13 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
     }
   });
 
-  const testIndexer = async (id: number) => {
+  const testIndexer = action(async function* (id: number) {
     setIndexerTestResults((r) => {
       r[id] = { status: "testing" };
     });
     try {
       const data = await settingsApi.testIndexer(id);
+      yield;
       setIndexerTestResults((r) => {
         r[id] = { status: data.success ? "success" : "error", message: data.message };
       });
@@ -156,7 +157,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
         r[id] = { status: "error", message: err instanceof Error ? err.message : "Test failed" };
       });
     }
-  };
+  });
 
   createEffect(
     () => indexers.indexers,
@@ -169,23 +170,23 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
     },
   );
 
-  const testAllIndexers = async () => {
+  const testAllIndexers = action(function* () {
     setIsTestingAll(true);
     try {
       const list = indexers.indexers;
       if (list.length === 0) return;
       for (const idx of list) {
         try {
-          await testIndexer(idx.id);
+          yield testIndexer(idx.id);
         } catch {
           /* handled inside */
         }
-        await new Promise((r) => setTimeout(r, 200));
+        yield new Promise((r) => setTimeout(r, 200));
       }
     } finally {
       setIsTestingAll(false);
     }
-  };
+  });
 
   return (
     <div>

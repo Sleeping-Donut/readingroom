@@ -3,7 +3,8 @@ use std::sync::Arc;
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
-    routing::{get, post},
+    http::StatusCode,
+    routing::{get, post, put},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -27,7 +28,7 @@ pub struct AddBookBody {
 pub fn router() -> Router<Arc<AppState>> {
     Router::<Arc<AppState>>::new()
         .route("/", get(list_books).post(add_book))
-        .route("/:id", get(get_book))
+        .route("/:id", get(get_book).put(update_book))
         .route("/:id/editions", get(get_book_editions))
         .route("/:id/convert", post(convert_book))
         .route("/search", get(search_books))
@@ -81,6 +82,48 @@ async fn add_book(
         }
         Err(e) => Json(json!({ "error": e.to_string() })),
     }
+}
+
+#[derive(Deserialize)]
+pub struct UpdateBookBody {
+    pub monitored: Option<bool>,
+}
+
+async fn update_book(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(body): Json<UpdateBookBody>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let not_found = || (StatusCode::NOT_FOUND, Json(json!({ "error": "Book not found" })));
+    let internal =
+        |e: &dyn std::fmt::Display| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        };
+
+    let id: i64 = match id.parse() {
+        Ok(id) => id,
+        Err(_) => return Err(not_found()),
+    };
+
+    if let Some(monitored) = body.monitored {
+        match crate::db::update_book_monitored(&state.db, id, monitored).await {
+            Ok(true) => {}
+            Ok(false) => return Err(not_found()),
+            Err(e) => return Err(internal(&e)),
+        }
+    } else {
+        // No fields provided — just verify the book exists.
+        match crate::db::get_book_by_id(&state.db, id).await {
+            Ok(Some(_)) => {}
+            Ok(None) => return Err(not_found()),
+            Err(e) => return Err(internal(&e)),
+        }
+    }
+
+    Ok(Json(json!({ "success": true })))
 }
 
 async fn get_book(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Json<Value> {

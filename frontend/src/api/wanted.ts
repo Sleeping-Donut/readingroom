@@ -13,3 +13,12 @@ export async function searchWantedAll() {
 export async function searchWantedBook(id: number) {
   await api.post(`/wanted/search/${id}`);
 }
+
+export async function automaticSearchBook(id: number) {
+  return api.post<{
+    status: string;
+    message?: string;
+    queue_id?: number;
+    score?: number;
+  }>(`/wanted/search/${id}`);
+}

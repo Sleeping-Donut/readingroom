@@ -100,16 +100,17 @@ export default function NotificationsTab(_props: RouteProps<typeof route>) {
     }
   });
 
-  const testNotification = async (id: number) => {
+  const testNotification = action(async function* (id: number) {
     setTestingId(id);
     try {
       await settingsApi.testNotification(id);
+      yield;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
       setTestingId(null);
     }
-  };
+  });
 
   return (
     <div>

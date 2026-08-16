@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 
 import { getWanted, searchWantedAll, searchWantedBook } from "../api/wanted";
 import { StatusBadge } from "../components/books/StatusBadge";
@@ -19,31 +19,33 @@ export default function Wanted() {
   const [searchingBookId, setSearchingBookId] = createSignal<number | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
 
-  const searchAll = async () => {
+  const searchAll = action(async function* () {
     setSearchingAll(true);
     setActionError(null);
     try {
       await searchWantedAll();
+      yield;
       revalidate(getWanted.key);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
       setSearchingAll(false);
     }
-  };
+  });
 
-  const searchBook = async (id: number) => {
+  const searchBook = action(async function* (id: number) {
     setSearchingBookId(id);
     setActionError(null);
     try {
       await searchWantedBook(id);
+      yield;
       revalidate(getWanted.key);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
       setSearchingBookId(null);
     }
-  };
+  });
 
   return (
     <div>

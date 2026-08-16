@@ -19,3 +19,6 @@ export const searchBooks = (q: string) =>
 
 export const addBook = (book: { foreign_id: string; author_id: number; title: string }) =>
   api.post<{ book: Book; already_exists: boolean }>("/books", book);
+
+export const updateBookMonitored = (id: number, monitored: boolean) =>
+  api.put<{ success: boolean }>(`/books/${id}`, { monitored });
