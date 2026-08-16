@@ -146,17 +146,19 @@ export default function DownloadClientsTab() {
 
   const configurableClients = () => clients.download_clients.filter((c) => !isBuiltinClient(c));
 
-  createEffect(() => {
-    const row = builtinClient();
-    if (row && !builtinFormInitialized()) {
-      const s = parseClientSettings(row.settings);
-      setBuiltinDir(s.download_dir || "./downloads");
-      setBuiltinRateKb(s.rate_limit ? String(Math.round(s.rate_limit / 1024)) : "");
-      setBuiltinConcurrent(String(s.concurrent_downloads ?? 2));
-      setBuiltinEnabled(row.enabled);
-      setBuiltinFormInitialized(true);
-    }
-  });
+  createEffect(
+    () => builtinClient(),
+    (row) => {
+      if (row && !builtinFormInitialized()) {
+        const s = parseClientSettings(row.settings);
+        setBuiltinDir(s.download_dir || "./downloads");
+        setBuiltinRateKb(s.rate_limit ? String(Math.round(s.rate_limit / 1024)) : "");
+        setBuiltinConcurrent(String(s.concurrent_downloads ?? 2));
+        setBuiltinEnabled(row.enabled);
+        setBuiltinFormInitialized(true);
+      }
+    },
+  );
 
   const removeClient = action(function* (client: DownloadClient) {
     setClients((s) => {
