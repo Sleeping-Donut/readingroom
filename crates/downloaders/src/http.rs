@@ -71,7 +71,11 @@ impl DownloadClient for HttpDownloadClient {
         let ext = Self::ext_from_url(&release.download_url);
         let title = Self::sanitize_title(&release.title);
         let filename = format!("{title}.{ext}");
-        let dest = self.download_dir.join(&filename);
+        // One subdirectory per download so the import step can scan it like a
+        // torrent client's completed download folder.
+        let dir = self.download_dir.join(&title);
+        std::fs::create_dir_all(&dir)?;
+        let dest = dir.join(&filename);
 
         let resp = self
             .client
@@ -93,12 +97,12 @@ impl DownloadClient for HttpDownloadClient {
         std::fs::write(&dest, bytes)?;
 
         tracing::info!(client = %self.name, file = %filename, "File downloaded via direct HTTP");
-        Ok(DownloadId(filename))
+        Ok(DownloadId(title))
     }
 
     async fn remove_download(&self, id: &DownloadId) -> Result<()> {
         let path = self.download_dir.join(&id.0);
-        match std::fs::remove_file(&path) {
+        match std::fs::remove_dir_all(&path) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e.into()),
@@ -106,7 +110,8 @@ impl DownloadClient for HttpDownloadClient {
     }
 
     async fn get_status(&self, id: &DownloadId) -> Result<DownloadStatus> {
-        if self.download_dir.join(&id.0).exists() {
+        let dir = self.download_dir.join(&id.0);
+        if dir.is_dir() && std::fs::read_dir(&dir).map(|mut d| d.next().is_some()).unwrap_or(false) {
             Ok(DownloadStatus::Completed)
         } else {
             Ok(DownloadStatus::Failed("File not found".into()))
@@ -198,9 +203,9 @@ mod tests {
         };
 
         let id = client.add_release(&release).await.unwrap();
-        assert_eq!(id.0, "Some Title With Symbols.epub");
+        assert_eq!(id.0, "Some Title With Symbols");
 
-        let path = temp.join(&id.0);
+        let path = temp.join(&id.0).join("Some Title With Symbols.epub");
         assert_eq!(std::fs::read(&path).unwrap(), body);
         assert!(matches!(
             client.get_status(&id).await.unwrap(),
