@@ -10,6 +10,7 @@ mod authors;
 mod books;
 mod calendar;
 mod history;
+mod indexers_api;
 pub mod middleware;
 mod notifications;
 mod queue;
@@ -40,9 +41,13 @@ pub fn router(state: Arc<AppState>) -> Router<Arc<AppState>> {
             middleware::require_auth,
         ));
 
+    // Arr-compatible indexer API: handles its own auth (Bearer or X-Api-Key).
+    let indexer = Router::<Arc<AppState>>::new().nest("/indexer", indexers_api::router());
+
     Router::<Arc<AppState>>::new()
         .merge(public)
         .merge(protected)
+        .merge(indexer)
         .fallback(static_handler)
 }
 

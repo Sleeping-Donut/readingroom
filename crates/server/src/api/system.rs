@@ -29,6 +29,7 @@ fn sanitize_path(user_path: &str, data_dir: &Path) -> Result<PathBuf, String> {
 
 async fn status(State(state): State<Arc<AppState>>) -> Json<Value> {
     Json(json!({
+        "appName": "Readarr",
         "version": env!("CARGO_PKG_VERSION"),
         "name": "readingroom",
         "startup_path": state.config.server.data_dir,

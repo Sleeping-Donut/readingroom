@@ -54,6 +54,7 @@ pub struct AppState {
     pub import_list_manager: Arc<crate::import_list::ImportListManager>,
     pub auth_enabled: bool,
     pub jwt_secret: String,
+    pub api_key: Option<String>,
 }
 
 #[tokio::main]
@@ -143,6 +144,11 @@ async fn main() -> readingroom_core::error::Result<()> {
         }
     }
 
+    // API key for arr-compatible clients (Prowlarr app-sync via X-Api-Key).
+    let api_key = std::env::var("READINGROOM_API_KEY")
+        .ok()
+        .filter(|k| !k.is_empty());
+
     // Create metadata source (with caching)
     let metadata: Box<dyn MetadataSource> = Box::new(crate::cache::CachedMetadataSource::new(
         Box::new(readingroom_metadata::openlibrary::OpenLibrarySource::new()),
@@ -229,6 +235,7 @@ async fn main() -> readingroom_core::error::Result<()> {
         import_list_manager: import_list_manager.clone(),
         auth_enabled,
         jwt_secret,
+        api_key,
     });
 
     // Start background scheduler
