@@ -79,7 +79,7 @@ export const Layout: Component<ParentProps> = (props) => {
         {/* Mobile menu */}
         <Show when={open()}>
           <div
-            class="fixed inset-0 z-40 bg-black/60 md:hidden"
+            class="fixed inset-0 z-40 bg-black/70 md:hidden"
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
