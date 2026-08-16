@@ -279,9 +279,13 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
           </div>
 
           <div class="mt-4">
-            <label class="block text-sm text-gray-400 mb-1">Dump URL</label>
+            <label for="metadata-dump-url" class="block text-sm text-gray-400 mb-1">
+              Dump URL
+            </label>
             <div class="flex flex-col sm:flex-row gap-2">
               <input
+                id="metadata-dump-url"
+                name="dump_url"
                 type="text"
                 value={dumpUrl()}
                 onInput={(e) => setDumpUrl(e.currentTarget.value)}
