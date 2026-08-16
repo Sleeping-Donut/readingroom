@@ -155,9 +155,15 @@ async fn main() -> readingroom_core::error::Result<()> {
     ));
     tracing::info!("Metadata source: {}", metadata.name());
 
-    // Initialize indexers from config
-    let indexers: Vec<Box<dyn Indexer>> = config
-        .indexers
+    // Initialize indexers: DB-managed (settings API / Prowlarr) first, then config.toml.
+    let mut indexer_configs: Vec<readingroom_core::config::IndexerConfig> =
+        crate::db::list_indexer_configs(&db).await.unwrap_or_default();
+    for c in &config.indexers {
+        if !indexer_configs.iter().any(|existing| existing.name == c.name) {
+            indexer_configs.push(c.clone());
+        }
+    }
+    let indexers: Vec<Box<dyn Indexer>> = indexer_configs
         .iter()
         .filter(|c| c.enabled)
         .filter_map(|c| {

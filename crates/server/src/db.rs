@@ -378,6 +378,48 @@ pub async fn list_download_client_configs(
     Ok(configs)
 }
 
+/// Load indexer configs from the DB `indexers` table so indexers managed via
+/// the settings API (or pushed by Prowlarr) are used at runtime, not just
+/// config.toml.
+pub async fn list_indexer_configs(
+    db: &SqlitePool,
+) -> Result<Vec<readingroom_core::config::IndexerConfig>> {
+    #[derive(serde::Deserialize)]
+    struct SettingsRow {
+        #[serde(default)]
+        url: String,
+        api_key: Option<String>,
+    }
+
+    let rows = sqlx::query_as::<_, (String, String, String, bool, bool, i64)>(
+        "SELECT name, implementation, settings, enable_rss, enable_search, priority
+         FROM indexers ORDER BY priority, name",
+    )
+    .fetch_all(db)
+    .await?;
+
+    let mut configs = Vec::new();
+    for (name, implementation, settings, enable_rss, enable_search, priority) in rows {
+        let settings: SettingsRow = match serde_json::from_str(&settings) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        configs.push(readingroom_core::config::IndexerConfig {
+            name,
+            implementation,
+            url: settings.url,
+            api_key: settings.api_key,
+            enabled: true,
+            rss_enabled: enable_rss,
+            search_enabled: enable_search,
+            categories: vec![],
+            priority: priority as i32,
+            tags: vec![],
+        });
+    }
+    Ok(configs)
+}
+
 /// Update a book's monitored flag
 pub async fn update_book_monitored(
     db: &SqlitePool,
