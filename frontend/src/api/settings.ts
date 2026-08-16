@@ -26,6 +26,7 @@ export interface DownloadClientInput {
   password: string;
   url_base: string;
   category: string;
+  download_dir?: string;
   priority?: number;
 }
 
@@ -62,6 +63,7 @@ function buildClientSettings(input: DownloadClientInput): string {
     ...(input.password ? { password: input.password } : {}),
     ...(input.url_base.trim() ? { url_base: input.url_base.trim() } : {}),
     ...(input.category.trim() ? { category: input.category.trim() } : {}),
+    ...(input.download_dir?.trim() ? { download_dir: input.download_dir.trim() } : {}),
   });
 }
 

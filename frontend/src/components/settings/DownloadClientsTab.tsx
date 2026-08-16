@@ -29,6 +29,7 @@ interface ClientEditForm {
   password: string;
   url_base: string;
   category: string;
+  download_dir: string;
   priority: number;
 }
 
@@ -39,6 +40,7 @@ interface ClientSettings {
   password: string;
   url_base: string;
   category: string;
+  download_dir: string;
 }
 
 function parseClientSettings(settings: string): ClientSettings {
@@ -50,6 +52,7 @@ function parseClientSettings(settings: string): ClientSettings {
       password?: string;
       url_base?: string;
       category?: string;
+      download_dir?: string;
     };
     return {
       host: parsed.host ?? "",
@@ -58,9 +61,18 @@ function parseClientSettings(settings: string): ClientSettings {
       password: parsed.password ?? "",
       url_base: parsed.url_base ?? "",
       category: parsed.category ?? "",
+      download_dir: parsed.download_dir ?? "",
     };
   } catch {
-    return { host: "", port: 0, username: "", password: "", url_base: "", category: "" };
+    return {
+      host: "",
+      port: 0,
+      username: "",
+      password: "",
+      url_base: "",
+      category: "",
+      download_dir: "",
+    };
   }
 }
 
@@ -87,6 +99,7 @@ export default function DownloadClientsTab() {
   const [newPassword, setNewPassword] = createSignal("");
   const [newUrlBase, setNewUrlBase] = createSignal("");
   const [newCategory, setNewCategory] = createSignal("");
+  const [newDownloadDir, setNewDownloadDir] = createSignal("");
 
   const erroredClients: Record<number, DownloadClient> = {};
 
@@ -145,6 +158,7 @@ export default function DownloadClientsTab() {
         password: newPassword(),
         url_base: newUrlBase(),
         category: newCategory(),
+        download_dir: newDownloadDir(),
       });
       yield;
       refresh(clients);
@@ -157,6 +171,7 @@ export default function DownloadClientsTab() {
       setNewPassword("");
       setNewUrlBase("");
       setNewCategory("");
+      setNewDownloadDir("");
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -289,6 +304,7 @@ export default function DownloadClientsTab() {
                     <option value="transmission">Transmission</option>
                     <option value="qbittorrent">qBittorrent</option>
                     <option value="deluge">Deluge</option>
+                    <option value="http">HTTP (Direct)</option>
                   </select>
                 </div>
                 <div>
@@ -347,11 +363,20 @@ export default function DownloadClientsTab() {
                     placeholder="books"
                   />
                 </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Download Directory</label>
+                  <input
+                    value={newDownloadDir()}
+                    onInput={(e) => setNewDownloadDir(e.currentTarget.value)}
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                    placeholder="./downloads"
+                  />
+                </div>
               </div>
               <div class="flex gap-3 items-center mt-4">
                 <button
                   onClick={() => void addClient()}
-                  disabled={adding() || !newName() || !newHost().trim()}
+                  disabled={adding() || !newName() || (newImpl() !== "http" && !newHost().trim())}
                   class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
                 >
                   Save
@@ -362,7 +387,11 @@ export default function DownloadClientsTab() {
                 >
                   Cancel
                 </button>
-                <p class="text-xs text-gray-500">A host is required to connect.</p>
+                <p class="text-xs text-gray-500">
+                  {newImpl() === "http"
+                    ? "The download URL is fetched directly."
+                    : "A host is required to connect."}
+                </p>
               </div>
             </div>
           </Show>
@@ -388,12 +417,25 @@ export default function DownloadClientsTab() {
                           <p class="font-medium truncate">{client.name}</p>
                           <p class="text-xs text-gray-400">
                             {implementationLabel(client.implementation)}
-                            <Show when={parseClientSettings(client.settings).host}>
+                            <Show
+                              when={
+                                client.implementation === "http"
+                                  ? parseClientSettings(client.settings).download_dir
+                                  : parseClientSettings(client.settings).host
+                              }
+                            >
                               {" · "}
-                              {parseClientSettings(client.settings).host}
-                              <Show when={parseClientSettings(client.settings).port}>
-                                :{parseClientSettings(client.settings).port}
-                              </Show>
+                              <Switch>
+                                <Match when={client.implementation === "http"}>
+                                  {parseClientSettings(client.settings).download_dir}
+                                </Match>
+                                <Match when={client.implementation !== "http"}>
+                                  {parseClientSettings(client.settings).host}
+                                  <Show when={parseClientSettings(client.settings).port}>
+                                    :{parseClientSettings(client.settings).port}
+                                  </Show>
+                                </Match>
+                              </Switch>
                             </Show>
                             <Show when={clientTestResults[client.id]}>
                               <Switch>
@@ -508,6 +550,7 @@ export default function DownloadClientsTab() {
                             <option value="transmission">Transmission</option>
                             <option value="qbittorrent">qBittorrent</option>
                             <option value="deluge">Deluge</option>
+                            <option value="http">HTTP (Direct)</option>
                           </select>
                         </div>
                         <div>
@@ -586,6 +629,19 @@ export default function DownloadClientsTab() {
                             }
                             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
                             placeholder="books"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-gray-400 mb-1">Download Directory</label>
+                          <input
+                            value={clientEditForm()?.download_dir ?? ""}
+                            onInput={(e) =>
+                              setClientEditForm((prev) =>
+                                prev ? { ...prev, download_dir: e.currentTarget.value } : null,
+                              )
+                            }
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+                            placeholder="./downloads"
                           />
                         </div>
                       </div>

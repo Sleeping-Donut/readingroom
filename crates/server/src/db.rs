@@ -330,6 +330,54 @@ pub async fn set_config_value(db: &SqlitePool, key: &str, value: &str) -> Result
     Ok(())
 }
 
+/// Read all download clients from the DB as client configs so runtime clients
+/// reflect the Settings UI, not just config.toml. Rows with unparseable
+/// settings JSON are skipped.
+pub async fn list_download_client_configs(
+    db: &SqlitePool,
+) -> Result<Vec<readingroom_core::config::DownloadClientConfig>> {
+    #[derive(serde::Deserialize)]
+    struct SettingsRow {
+        #[serde(default)]
+        host: String,
+        #[serde(default)]
+        port: u16,
+        username: Option<String>,
+        password: Option<String>,
+        url_base: Option<String>,
+        category: Option<String>,
+        download_dir: Option<std::path::PathBuf>,
+    }
+
+    let rows = sqlx::query_as::<_, (String, String, String, i64)>(
+        "SELECT name, implementation, settings, priority FROM download_clients ORDER BY priority, name",
+    )
+    .fetch_all(db)
+    .await?;
+
+    let mut configs = Vec::new();
+    for (name, implementation, settings, priority) in rows {
+        let settings: SettingsRow = match serde_json::from_str(&settings) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        configs.push(readingroom_core::config::DownloadClientConfig {
+            name,
+            implementation,
+            host: settings.host,
+            port: settings.port,
+            username: settings.username,
+            password: settings.password,
+            url_base: settings.url_base,
+            category: settings.category,
+            download_dir: settings.download_dir,
+            enabled: true,
+            priority: priority as i32,
+        });
+    }
+    Ok(configs)
+}
+
 /// Update a book's monitored flag
 pub async fn update_book_monitored(
     db: &SqlitePool,

@@ -171,9 +171,23 @@ async fn main() -> readingroom_core::error::Result<()> {
         .collect();
     tracing::info!(count = %indexers.len(), "Indexers initialized");
 
-    // Initialize download clients from config
-    let clients: Vec<Box<dyn DownloadClient>> = config
-        .download_clients
+    // Initialize download clients: DB-configured clients (Settings UI) take
+    // precedence, then config.toml clients, de-duplicated by name.
+    let mut client_configs: Vec<readingroom_core::config::DownloadClientConfig> = Vec::new();
+    match crate::db::list_download_client_configs(&db).await {
+        Ok(db_configs) => {
+            client_configs.extend(db_configs);
+            tracing::info!(count = %client_configs.len(), "Download clients loaded from DB");
+        }
+        Err(e) => tracing::warn!(error = %e, "Failed to load download clients from DB"),
+    }
+    for c in &config.download_clients {
+        if !client_configs.iter().any(|existing| existing.name == c.name) {
+            client_configs.push(c.clone());
+        }
+    }
+
+    let clients: Vec<Box<dyn DownloadClient>> = client_configs
         .iter()
         .filter(|c| c.enabled)
         .filter_map(|c| {

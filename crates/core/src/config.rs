@@ -100,6 +100,8 @@ pub struct DownloadClientConfig {
     pub password: Option<String>,
     pub url_base: Option<String>,
     pub category: Option<String>,
+    #[serde(default)]
+    pub download_dir: Option<PathBuf>,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]

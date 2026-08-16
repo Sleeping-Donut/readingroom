@@ -437,6 +437,7 @@ async fn health_check(State(state): State<Arc<AppState>>) -> Json<Value> {
             password: settings.password,
             url_base: settings.url_base,
             category: settings.category,
+            download_dir: settings.download_dir.map(std::path::PathBuf::from),
             enabled: true,
             priority: row.priority as i32,
         };
@@ -506,6 +507,7 @@ struct DownloadClientRow {
 
 #[derive(Deserialize)]
 struct DownloadClientSettings {
+    #[serde(default)]
     host: String,
     #[serde(default)]
     port: u16,
@@ -513,6 +515,8 @@ struct DownloadClientSettings {
     password: Option<String>,
     url_base: Option<String>,
     category: Option<String>,
+    #[serde(default)]
+    download_dir: Option<String>,
 }
 
 #[derive(Deserialize)]
