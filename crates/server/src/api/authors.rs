@@ -83,27 +83,19 @@ async fn get_author(State(state): State<Arc<AppState>>, Path(id): Path<String>) 
             return Json(json!(author));
         }
     }
-    // Bare OpenLibrary author id (e.g. "OL123A") -> tracked author, then metadata
-    if looks_like_ol_author_id(&id) {
-        if let Ok(Some(author)) = crate::db::find_author_by_ol_id(&state.db, &id).await {
-            return Json(json!(author));
-        }
+    // Non-numeric ids: exact foreign_id match (custom ids like "rr-hg-wells",
+    // "authors/OL123A" prefixes) and bare OpenLibrary author ids (e.g. "OL123A").
+    if let Ok(Some(author)) = crate::db::find_author_by_foreign_id(&state.db, &id).await {
+        return Json(json!(author));
+    }
+    if let Ok(Some(author)) = crate::db::find_author_by_ol_id(&state.db, &id).await {
+        return Json(json!(author));
     }
     // Fallback to metadata source by foreign_id
     match state.metadata.get_author(&id).await {
         Ok(author) => Json(json!(author)),
         Err(e) => Json(json!({ "error": e.to_string() })),
     }
-}
-
-/// OpenLibrary author ids look like "OL123A" (or prefixed with "authors/").
-fn looks_like_ol_author_id(id: &str) -> bool {
-    let bare = id.strip_prefix("authors/").unwrap_or(id);
-    let upper = bare.to_ascii_uppercase();
-    let Some(digits) = upper.strip_prefix("OL") else {
-        return false;
-    };
-    digits.len() >= 1 && digits.ends_with('A') && digits[..digits.len() - 1].chars().all(|c| c.is_ascii_digit())
 }
 
 pub(crate) async fn resolve_author_id(
@@ -116,13 +108,13 @@ pub(crate) async fn resolve_author_id(
         }
         return Err(format!("Author {id} not found").into());
     }
-    if looks_like_ol_author_id(id) {
-        if let Ok(Some(author)) = crate::db::find_author_by_ol_id(&state.db, id).await {
-            return Ok(author.id);
-        }
-        return Err(format!("Author {id} not found in library").into());
+    if let Ok(Some(author)) = crate::db::find_author_by_foreign_id(&state.db, id).await {
+        return Ok(author.id);
     }
-    Err(format!("Invalid author id: {id}").into())
+    if let Ok(Some(author)) = crate::db::find_author_by_ol_id(&state.db, id).await {
+        return Ok(author.id);
+    }
+    Err(format!("Author {id} not found in library").into())
 }
 
 async fn get_author_books(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Json<Value> {
