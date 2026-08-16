@@ -208,7 +208,7 @@ export default function AuthorDetail() {
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
           <Title>{author().name} · ReadingRoom</Title>
-          <div class="flex gap-8 mb-6">
+          <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 mb-6">
             <Show when={author().image_url}>
               {(img) => (
                 <img
@@ -219,7 +219,7 @@ export default function AuthorDetail() {
               )}
             </Show>
             <div class="flex-1">
-              <div class="flex items-start justify-between">
+              <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 class="text-3xl font-bold mb-2">{author().name}</h2>
                   <div class="flex gap-4 text-sm text-gray-400 mb-4">

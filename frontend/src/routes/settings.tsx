@@ -16,7 +16,7 @@ export default function Settings() {
       <Title>Settings · ReadingRoom</Title>
       <h2 class="text-2xl font-bold mb-6">Settings</h2>
 
-      <div class="flex gap-4 mb-6 border-b border-gray-800 pb-4">
+      <div class="flex flex-wrap gap-3 mb-6 border-b border-gray-800 pb-4">
         <button
           onClick={() => setActiveTab("indexers")}
           class={[

@@ -16,7 +16,7 @@ export const Layout: Component<ParentProps> = (props) => {
 
   return (
     <div class="min-h-screen bg-gray-950 text-gray-100">
-      <nav class="border-b border-gray-800 px-6 py-3 flex items-center gap-6">
+      <nav class="border-b border-gray-800 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 class="text-lg font-bold text-indigo-400">ReadingRoom</h1>
         <a href={paths()} class="text-sm hover:text-indigo-300">
           Dashboard
