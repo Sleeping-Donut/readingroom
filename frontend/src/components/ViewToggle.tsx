@@ -1,4 +1,4 @@
-import { createEffect, createSignal, type Accessor, type Setter } from "solid-js";
+import { createSignal, type Accessor, type Setter } from "solid-js";
 
 export type ViewMode = "grid" | "list";
 
@@ -25,12 +25,14 @@ function writeStored(key: string, view: ViewMode) {
 export function createViewPreference(key: string): [Accessor<ViewMode>, Setter<ViewMode>] {
   const [view, setView] = createSignal<ViewMode>(readStored(key) === "list" ? "list" : "grid");
 
-  createEffect(
-    () => view(),
-    (v) => writeStored(key, v),
-  );
+  const setViewPersisted: Setter<ViewMode> = (value) => {
+    const next =
+      typeof value === "function" ? (value as (prev: ViewMode) => ViewMode)(view()) : value;
+    writeStored(key, next);
+    return setView(next);
+  };
 
-  return [view, setView];
+  return [view, setViewPersisted];
 }
 
 export function ViewToggle(props: { view: ViewMode; onChange: (view: ViewMode) => void }) {

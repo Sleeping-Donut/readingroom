@@ -1,8 +1,11 @@
 import { Title } from "@solidjs/meta";
-import { useLocation } from "@solidjs/router";
-import { For, type ParentProps } from "solid-js";
+import { useRouteMatches, type RouteProps } from "@solidjs/router";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { For } from "solid-js";
 
 import { paths } from "../router";
+
+export const route = defineFileRoute("/settings", {});
 
 const TABS = [
   { slug: "library", label: "Library", href: () => paths.settings.library() },
@@ -13,12 +16,17 @@ const TABS = [
   { slug: "integrations", label: "Integrations", href: () => paths.settings.integrations() },
 ];
 
-export default function SettingsLayout(props: ParentProps) {
-  const location = useLocation();
+export default function SettingsLayout(props: RouteProps<typeof route>) {
+  const matches = useRouteMatches();
 
-  const isActive = (slug: string) =>
-    location.pathname === `/settings/${slug}` ||
-    (location.pathname === "/settings" && slug === "indexers");
+  const activeSlug = () => {
+    const chain = matches();
+    const path = chain[chain.length - 1]?.route.originalPath ?? "";
+    if (path === "/settings/" || path === "/settings") return "indexers";
+    return path.replace(/^\/settings\//, "");
+  };
+
+  const activeLabel = () => matches()[matches().length - 1]?.route.info?.label;
 
   return (
     <div>
@@ -27,19 +35,22 @@ export default function SettingsLayout(props: ParentProps) {
 
       <div class="flex flex-wrap gap-3 mb-6 border-b border-gray-800 pb-4">
         <For each={TABS}>
-          {(tab) => (
-            <a
-              href={tab.href()}
-              class={[
-                "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive(tab.slug)
-                  ? "bg-indigo-600 text-white"
-                  : "text-gray-400 hover:text-gray-200",
-              ]}
-            >
-              {tab.label}
-            </a>
-          )}
+          {(tab) => {
+            const isActive = () => activeSlug() === tab.slug;
+            const label = isActive() ? (activeLabel() ?? tab.label) : tab.label;
+            return (
+              <a
+                href={tab.href()}
+                aria-current={isActive() ? "page" : undefined}
+                class={[
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  isActive() ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200",
+                ]}
+              >
+                {label}
+              </a>
+            );
+          }}
         </For>
       </div>
 

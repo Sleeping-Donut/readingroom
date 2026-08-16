@@ -1,7 +1,8 @@
 import { Title } from "@solidjs/meta";
-import { revalidate } from "@solidjs/router";
+import { revalidate, useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import * as v from "valibot";
 
 import { addBook as createBook, getBooks, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
@@ -10,6 +11,7 @@ import { ViewToggle, createViewPreference } from "../../components/ViewToggle";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/books", {
+  search: v.object({ q: v.optional(v.string()) }),
   preload: () => getBooks(),
 });
 
@@ -21,13 +23,15 @@ const listSubtitle = (book: { author_name?: string; genres: string[]; publish_da
   return year ? `${base} · ${year}` : base;
 };
 
-export default function Books() {
+export default function Books(_props: RouteProps<typeof route>) {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showSearch, setShowSearch] = createSignal(false);
   const [addingId, setAddingId] = createSignal<string | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [view, setView] = createViewPreference("books");
-  const [filterQuery, setFilterQuery] = createSignal("");
+  const [search, setSearch] = useSearchParams(paths.books);
+
+  const filterQuery = () => search.q ?? "";
 
   const books = createMemo(() => getBooks());
 
@@ -192,7 +196,7 @@ export default function Books() {
                 type="text"
                 placeholder="Filter tracked books by title or author..."
                 value={filterQuery()}
-                onInput={(e) => setFilterQuery(e.currentTarget.value)}
+                onInput={(e) => setSearch({ q: e.currentTarget.value })}
                 class="w-full sm:w-72 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>

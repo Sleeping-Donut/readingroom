@@ -78,7 +78,7 @@ declare module "virtual:file-routes" {
       path: "/settings";
       page: true;
       $component: FileRouteLazyRef<typeof import("./routes/settings")>;
-      $$route?: undefined;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings")>;
     },
     {
       path: "/wanted";
@@ -260,7 +260,7 @@ declare module "virtual:file-routes" {
       id: "/settings";
       page: true;
       $component: FileRouteLazyRef<typeof import("./routes/settings")>;
-      $$route?: undefined;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings")>;
       children: readonly [
         {
           path: "/";

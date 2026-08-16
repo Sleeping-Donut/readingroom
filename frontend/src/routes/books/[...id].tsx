@@ -1,11 +1,9 @@
 import { Title } from "@solidjs/meta";
-import { revalidate, useParams } from "@solidjs/router";
+import { revalidate, useNavigate, useParams } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, onSettled, Show } from "solid-js";
 
-import type { Release } from "../../types";
-
-import { getBook } from "../../api/books";
+import { addBook, getBook } from "../../api/books";
 import { getQueue } from "../../api/queue";
 import {
   downloadIndexerRelease,
@@ -49,35 +47,46 @@ function ReleaseRow(props: {
   downloading: boolean;
   onDownload: () => void;
 }) {
+  const sizeMb = () =>
+    props.result.release.size > 0
+      ? `${(props.result.release.size / 1_000_000).toFixed(0)} MB`
+      : "—";
+  const seeders = () => (props.result.release.seeders != null ? props.result.release.seeders : "—");
+
   return (
-    <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
-      <div class="flex-1 min-w-0">
-        <p class="font-medium truncate">{props.result.release.title}</p>
-        <p class="text-xs text-gray-400">
-          {props.result.release.indexer}
-          {props.result.release.seeders != null && ` · ${props.result.release.seeders} seeders`}
-          {props.result.release.size > 0 &&
-            ` · ${(props.result.release.size / 1_000_000).toFixed(0)} MB`}
-        </p>
-        <p class="text-xs text-gray-500">
-          Score: {props.result.score.toFixed(0)}
-          {props.result.reasons.length > 0 && ` · ${props.result.reasons.slice(0, 2).join(", ")}`}
-        </p>
-      </div>
-      <span class="text-xs text-indigo-400 mr-2">{props.result.release.download_type}</span>
-      <button
-        onClick={props.onDownload}
-        disabled={props.downloading}
-        class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
-      >
-        {props.downloading ? "..." : "Download"}
-      </button>
-    </div>
+    <tr class="border-b border-gray-800/50 hover:bg-gray-900/50">
+      <td class="py-3 pr-4">
+        <p class="font-medium truncate max-w-xs">{props.result.release.title}</p>
+      </td>
+      <td class="py-3 pr-4 text-gray-400">{props.result.release.indexer}</td>
+      <td class="py-3 pr-4 text-gray-400 whitespace-nowrap">{sizeMb()}</td>
+      <td class="py-3 pr-4 text-gray-400 whitespace-nowrap">{seeders()}</td>
+      <td class="py-3 pr-4 whitespace-nowrap">
+        <span class="px-2 py-0.5 bg-indigo-900/40 text-indigo-300 border border-indigo-800 rounded text-xs font-semibold">
+          {props.result.score.toFixed(0)}
+        </span>
+      </td>
+      <td class="py-3 pr-4 whitespace-nowrap">
+        <span class="px-2 py-0.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs">
+          {props.result.release.download_type}
+        </span>
+      </td>
+      <td class="py-3 whitespace-nowrap text-right">
+        <button
+          onClick={props.onDownload}
+          disabled={props.downloading}
+          class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+        >
+          {props.downloading ? "..." : "Download"}
+        </button>
+      </td>
+    </tr>
   );
 }
 
 export default function BookDetail() {
   const params = useParams(paths.books);
+  const navigate = useNavigate();
 
   const book = createMemo(() => getBook(params.id));
 
@@ -91,12 +100,14 @@ export default function BookDetail() {
     book().status === "have" ? getLibrarySettings().catch(() => null) : null,
   );
 
+  const [searchOpen, setSearchOpen] = createSignal(false);
   const [indexerResults, setIndexerResults] = createSignal<{
     results: ScoredRelease[];
     total: number;
   } | null>(null);
   const [searching, setSearching] = createSignal(false);
   const [downloadingId, setDownloadingId] = createSignal<number | null>(null);
+  const [adding, setAdding] = createSignal(false);
   const [actionError, setActionError] = createSignal<string | null>(null);
 
   onSettled(() => {
@@ -124,16 +135,40 @@ export default function BookDetail() {
     }
   });
 
-  const downloadRelease = action(async function* (release: Release, index: number) {
+  const openSearch = () => {
+    setSearchOpen(true);
+    void indexerSearch();
+  };
+
+  const downloadRelease = action(async function* (result: ScoredRelease, index: number) {
     setDownloadingId(index);
     setActionError(null);
     try {
-      await downloadIndexerRelease(release, book().id);
+      const bookId = result.matched_book_id ?? (book().id > 0 ? book().id : undefined);
+      await downloadIndexerRelease(result.release, bookId);
       yield;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
       setDownloadingId(null);
+    }
+  });
+
+  const addToLibrary = action(async function* () {
+    setAdding(true);
+    setActionError(null);
+    try {
+      const created = await addBook({
+        foreign_id: book().foreign_id,
+        author_id: book().author_id,
+        title: book().title,
+      });
+      yield;
+      navigate(paths.books(created.book.id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setAdding(false);
     }
   });
 
@@ -178,27 +213,38 @@ export default function BookDetail() {
                     </a>
                   </Show>
                 </div>
-                <button
-                  onClick={() => void indexerSearch()}
-                  disabled={searching()}
-                  class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={openSearch}
+                    disabled={searching()}
+                    class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                  {searching() ? "Searching..." : "Search Indexers"}
-                </button>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    {searching() ? "Searching..." : "Search Indexers"}
+                  </button>
+                  <Show when={book().id === 0}>
+                    <button
+                      onClick={() => void addToLibrary()}
+                      disabled={adding()}
+                      class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {adding() ? "Adding..." : "Add to Library"}
+                    </button>
+                  </Show>
+                </div>
               </div>
 
               <div class="mt-4 max-w-md">
@@ -227,6 +273,73 @@ export default function BookDetail() {
           </div>
         </Loading>
       </Errored>
+
+      <Show when={actionError()}>
+        <p class="text-sm text-red-400 mt-4">{actionError()}</p>
+      </Show>
+
+      <Show when={searchOpen()}>
+        <section class="mt-8">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 class="text-xl font-bold">Interactive Search</h3>
+              <p class="text-xs text-gray-500 mt-0.5">
+                {book().title}
+                <Show when={indexerResults()}>{(r) => ` · ${r().total} results`}</Show>
+              </p>
+            </div>
+            <button
+              onClick={() => void indexerSearch()}
+              disabled={searching()}
+              class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-sm font-medium transition-colors"
+            >
+              {searching() ? "Searching..." : "Search again"}
+            </button>
+          </div>
+          <Show
+            when={indexerResults()}
+            fallback={
+              <p class="text-sm text-gray-500">
+                {searching() ? "Searching indexers..." : "Click Search Indexers to find releases."}
+              </p>
+            }
+          >
+            {(r) => (
+              <Show
+                when={r().results.length > 0}
+                fallback={<p class="text-sm text-gray-500">No releases found.</p>}
+              >
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="text-left text-gray-400 border-b border-gray-800">
+                        <th class="pb-3 pr-4">Title</th>
+                        <th class="pb-3 pr-4">Indexer</th>
+                        <th class="pb-3 pr-4">Size</th>
+                        <th class="pb-3 pr-4">Seeders</th>
+                        <th class="pb-3 pr-4">Score</th>
+                        <th class="pb-3 pr-4">Type</th>
+                        <th class="pb-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <For each={r().results}>
+                        {(result, index) => (
+                          <ReleaseRow
+                            result={result}
+                            downloading={downloadingId() === index()}
+                            onDownload={() => void downloadRelease(result, index())}
+                          />
+                        )}
+                      </For>
+                    </tbody>
+                  </table>
+                </div>
+              </Show>
+            )}
+          </Show>
+        </section>
+      </Show>
 
       <Errored fallback={null}>
         <Loading fallback={null}>
@@ -290,34 +403,6 @@ export default function BookDetail() {
           </Show>
         </Loading>
       </Errored>
-
-      <Show when={actionError()}>
-        <p class="text-sm text-red-400 mt-2 mb-4">{actionError()}</p>
-      </Show>
-
-      <Show when={indexerResults()}>
-        {(r) => (
-          <div class="mt-8">
-            <h3 class="text-xl font-bold mb-4">Search Results ({r().total} releases found)</h3>
-            <Show
-              when={r().results.length > 0}
-              fallback={<p class="text-sm text-gray-500">No releases found.</p>}
-            >
-              <div class="space-y-2">
-                <For each={r().results}>
-                  {(result, index) => (
-                    <ReleaseRow
-                      result={result}
-                      downloading={downloadingId() === index()}
-                      onDownload={() => void downloadRelease(result.release, index())}
-                    />
-                  )}
-                </For>
-              </div>
-            </Show>
-          </div>
-        )}
-      </Show>
     </div>
   );
 }

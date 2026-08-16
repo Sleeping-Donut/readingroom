@@ -1,7 +1,8 @@
 import { Title } from "@solidjs/meta";
-import { revalidate } from "@solidjs/router";
+import { revalidate, useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import * as v from "valibot";
 
 import type { Author } from "../../types";
 
@@ -12,6 +13,7 @@ import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors", {
+  search: v.object({ q: v.optional(v.string()) }),
   preload: () => getAuthors(),
 });
 
@@ -26,13 +28,15 @@ const rowSubtitle = (author: Author) => {
   return `${dates}${genres}`;
 };
 
-export default function Authors() {
+export default function Authors(_props: RouteProps<typeof route>) {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showSearch, setShowSearch] = createSignal(false);
   const [addingId, setAddingId] = createSignal<string | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
-  const [filterQuery, setFilterQuery] = createSignal("");
   const [view, setView] = createViewPreference("authors");
+  const [search, setSearch] = useSearchParams(paths.authors);
+
+  const filterQuery = () => search.q ?? "";
 
   const authors = createMemo(() => getAuthors());
 
@@ -188,7 +192,7 @@ export default function Authors() {
                 type="text"
                 placeholder="Filter authors by name, alias, or genre..."
                 value={filterQuery()}
-                onInput={(e) => setFilterQuery(e.currentTarget.value)}
+                onInput={(e) => setSearch({ q: e.currentTarget.value })}
                 class="w-full max-w-md px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>

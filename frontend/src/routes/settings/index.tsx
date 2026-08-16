@@ -1,15 +1,13 @@
-import { Title } from "@solidjs/meta";
+import type { RouteProps } from "@solidjs/router";
+
 import { defineFileRoute } from "@solidjs/router/fs";
 
-import IndexersTab from "../../components/settings/IndexersTab";
+import SettingsIndexers from "./indexers";
 
-export const route = defineFileRoute("/settings", {});
+export const route = defineFileRoute("/settings", {
+  info: { label: "Indexers" },
+});
 
-export default function SettingsIndex() {
-  return (
-    <div>
-      <Title>Indexers · Settings · ReadingRoom</Title>
-      <IndexersTab />
-    </div>
-  );
+export default function SettingsIndex(_props: RouteProps<typeof route>) {
+  return <SettingsIndexers {...({} as Parameters<typeof SettingsIndexers>[0])} />;
 }

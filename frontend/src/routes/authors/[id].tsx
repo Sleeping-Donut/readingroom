@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { useParams, revalidate } from "@solidjs/router";
+import { int, revalidate, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 
@@ -18,6 +18,7 @@ import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors/:id", {
+  matchFilters: { id: int },
   preload: ({ params }) => getAuthor(params.id),
 });
 
@@ -140,10 +141,8 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
   );
 }
 
-export default function AuthorDetail() {
-  const params = useParams(paths.authors);
-
-  const author = createMemo(() => getAuthor(params.id));
+export default function AuthorDetail(props: RouteProps<typeof route>) {
+  const author = createMemo(() => getAuthor(props.params.id));
 
   const metadataBooks = createMemo(async () => {
     const name = author().name;
@@ -152,8 +151,8 @@ export default function AuthorDetail() {
   });
 
   const trackedBooks = createMemo(() =>
-    Number.isInteger(Number(params.id))
-      ? getAuthorBooks(Number(params.id)).catch(() => ({ books: [] }))
+    Number.isInteger(Number(props.params.id))
+      ? getAuthorBooks(Number(props.params.id)).catch(() => ({ books: [] }))
       : { books: [] },
   );
 
@@ -197,7 +196,7 @@ export default function AuthorDetail() {
     try {
       await createBook(book);
       yield;
-      revalidate(getAuthorBooks.keyFor(Number(params.id)));
+      revalidate(getAuthorBooks.keyFor(Number(props.params.id)));
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -209,7 +208,7 @@ export default function AuthorDetail() {
     setSearching(true);
     setActionError(null);
     try {
-      const res = await searchIndexersForAuthor(params.id);
+      const res = await searchIndexersForAuthor(props.params.id);
       yield;
       setIndexerResults(res);
     } catch (err) {

@@ -18,4 +18,4 @@ export const searchBooks = (q: string) =>
   api.get<{ books: Book[]; total: number }>(`/books/search?q=${encodeURIComponent(q)}`);
 
 export const addBook = (book: { foreign_id: string; author_id: number; title: string }) =>
-  api.post("/books", book);
+  api.post<{ book: Book; already_exists: boolean }>("/books", book);
