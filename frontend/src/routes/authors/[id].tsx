@@ -304,9 +304,9 @@ export default function AuthorDetail() {
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
           <Show when={(metadataBooks()?.books.length ?? 0) > 0}>
-            <div class="flex items-center justify-between gap-4 mb-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 class="text-xl font-bold">Books by {author()?.name} (from metadata)</h3>
-              <div class="flex items-center gap-3">
+              <div class="flex flex-wrap items-center gap-3">
                 <input
                   type="text"
                   value={filter()}
