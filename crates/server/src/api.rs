@@ -12,6 +12,7 @@ mod calendar;
 mod history;
 mod indexers_api;
 pub mod middleware;
+mod metadata_settings;
 mod notifications;
 mod queue;
 mod search;

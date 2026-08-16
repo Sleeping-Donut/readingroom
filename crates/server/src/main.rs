@@ -23,6 +23,8 @@ mod calibre;
 mod converter;
 mod import;
 mod import_list;
+mod local_cache;
+mod metadata;
 mod notifications;
 mod scheduler;
 mod ws;
@@ -46,7 +48,8 @@ struct Args {
 pub struct AppState {
     pub config: readingroom_core::config::Config,
     pub db: sqlx::SqlitePool,
-    pub metadata: Box<dyn MetadataSource>,
+    pub metadata: Arc<crate::metadata::MetadataDispatcher>,
+    pub local_cache: Arc<crate::local_cache::LocalCacheManager>,
     pub search_engine: Arc<crate::search::SearchEngine>,
     pub download_manager: Arc<crate::downloads::DownloadManager>,
     pub notification_manager: Arc<tokio::sync::Mutex<crate::notifications::NotificationManager>>,
@@ -149,11 +152,22 @@ async fn main() -> readingroom_core::error::Result<()> {
         .ok()
         .filter(|k| !k.is_empty());
 
-    // Create metadata source (with caching)
-    let metadata: Box<dyn MetadataSource> = Box::new(crate::cache::CachedMetadataSource::new(
-        Box::new(readingroom_metadata::openlibrary::OpenLibrarySource::new()),
+    // Create metadata dispatcher: online OpenLibrary API by default, with the
+    // offline dump cache source available and switchable at runtime.
+    let local_cache = crate::local_cache::LocalCacheManager::new(db.clone(), &config.server.data_dir).await?;
+    let metadata_settings = crate::local_cache::load_settings(&db).await;
+    let metadata = Arc::new(crate::metadata::MetadataDispatcher::new(
+        crate::cache::CachedMetadataSource::new(Box::new(
+            readingroom_metadata::openlibrary::OpenLibrarySource::new(),
+        )),
+        crate::cache::CachedMetadataSource::new(Box::new(local_cache.source())),
     ));
-    tracing::info!("Metadata source: {}", metadata.name());
+    metadata.set_offline_mode(metadata_settings.mode == "offline");
+    tracing::info!(
+        mode = %metadata_settings.mode,
+        "Metadata source: {}",
+        metadata.name()
+    );
 
     // Initialize indexers: DB-managed (settings API / Prowlarr) first, then config.toml.
     let mut indexer_configs: Vec<readingroom_core::config::IndexerConfig> =
@@ -268,7 +282,8 @@ async fn main() -> readingroom_core::error::Result<()> {
     let state = Arc::new(AppState {
         config: config.clone(),
         db: db.clone(),
-        metadata,
+        metadata: metadata.clone(),
+        local_cache: local_cache.clone(),
         search_engine: search_engine.clone(),
         download_manager: download_manager.clone(),
         notification_manager: notification_manager.clone(),
@@ -279,12 +294,19 @@ async fn main() -> readingroom_core::error::Result<()> {
         api_key,
     });
 
+    // In offline mode, start the initial dump download/import in the background
+    // when the cache is empty.
+    if metadata_settings.mode == "offline" {
+        state.local_cache.ensure_downloaded().await;
+    }
+
     // Start background scheduler
     let scheduler = crate::scheduler::Scheduler::new(
         db.clone(),
         download_manager.clone(),
         search_engine.clone(),
         import_list_manager.clone(),
+        local_cache.clone(),
     );
     scheduler.start().await?;
 

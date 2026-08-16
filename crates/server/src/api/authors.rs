@@ -8,6 +8,8 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use readingroom_core::traits::MetadataSource;
+
 use crate::AppState;
 
 #[derive(Deserialize)]

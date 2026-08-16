@@ -13,3 +13,7 @@ tracing.workspace = true
 async-trait.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+flate2.workspace = true
+futures-util.workspace = true

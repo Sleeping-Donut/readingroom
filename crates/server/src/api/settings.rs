@@ -525,4 +525,5 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/downloadclients/:id/test", post(test_download_client))
         .route("/library", get(get_library_settings).put(update_library_settings))
         .route("/integration", get(get_integration_settings))
+        .merge(super::metadata_settings::router())
 }

@@ -1786,11 +1786,15 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "flate2",
+ "futures-util",
  "readingroom-core",
  "reqwest",
  "serde",
  "serde_json",
+ "sqlx",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
 ]
 

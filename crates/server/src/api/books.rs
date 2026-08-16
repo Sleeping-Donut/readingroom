@@ -10,6 +10,8 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use sqlx::Row;
 
+use readingroom_core::traits::MetadataSource;
+
 use crate::AppState;
 
 #[derive(Deserialize)]

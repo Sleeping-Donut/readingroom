@@ -14,6 +14,7 @@ const TABS = [
   { slug: "notifications", label: "Notifications", href: () => paths.settings.notifications() },
   { slug: "account", label: "Account", href: () => paths.settings.account() },
   { slug: "integrations", label: "Integrations", href: () => paths.settings.integrations() },
+  { slug: "metadata", label: "Metadata", href: () => paths.settings.metadata() },
 ];
 
 export default function SettingsLayout(props: RouteProps<typeof route>) {

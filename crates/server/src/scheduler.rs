@@ -121,9 +121,11 @@ pub struct Scheduler {
     download_manager: Arc<DownloadManager>,
     search_engine: Arc<SearchEngine>,
     import_list_manager: Arc<ImportListManager>,
+    local_cache: Arc<crate::local_cache::LocalCacheManager>,
     poll_job: TypedJob<Idle>,
     search_missing_job: TypedJob<Idle>,
     import_list_job: TypedJob<Idle>,
+    ol_dump_job: TypedJob<Idle>,
 }
 
 impl Scheduler {
@@ -132,15 +134,18 @@ impl Scheduler {
         download_manager: Arc<DownloadManager>,
         search_engine: Arc<SearchEngine>,
         import_list_manager: Arc<ImportListManager>,
+        local_cache: Arc<crate::local_cache::LocalCacheManager>,
     ) -> Self {
         Self {
             poll_job: TypedJob::new("poll_downloads", "1/30 * * * * *"),
             search_missing_job: TypedJob::new("search_missing", "0 0 * * * *"),
             import_list_job: TypedJob::new("import_list_sync", "0 0 * * * *"),
+            ol_dump_job: TypedJob::new("ol_dump_check", "0 0 * * * *"),
             db,
             download_manager,
             search_engine,
             import_list_manager,
+            local_cache,
         }
     }
 
@@ -227,6 +232,38 @@ impl Scheduler {
         sched.add(import_cron).await.map_err(|e| {
             readingroom_core::error::AppError::Other(format!(
                 "Failed to add import_list_sync job: {e}"
+            ))
+        })?;
+
+        // Check the OpenLibrary dump for updates every hour (only re-imports
+        // when offline mode is enabled and a newer dump exists).
+        let cache_idle = self.ol_dump_job.shared();
+        let lc = self.local_cache.clone();
+        let ol_dump_cron = Job::new_async("0 0 * * * *", move |_uuid, _lock| {
+            let cache_idle = cache_idle.shared();
+            let lc = lc.clone();
+            Box::pin(async move {
+                let settings = crate::local_cache::load_settings(lc.pool()).await;
+                if settings.mode != "offline" || !settings.auto_update {
+                    return;
+                }
+                let Some(running) = cache_idle.try_start() else { return };
+                if let Err(e) = lc.check_for_updates().await {
+                    tracing::error!(error = %e, "Scheduled ol_dump check failed");
+                    let _ = running.fail(e.to_string());
+                } else {
+                    let _ = running.complete();
+                }
+            })
+        })
+        .map_err(|e| {
+            readingroom_core::error::AppError::Other(format!(
+                "Failed to create ol_dump check job: {e}"
+            ))
+        })?;
+        sched.add(ol_dump_cron).await.map_err(|e| {
+            readingroom_core::error::AppError::Other(format!(
+                "Failed to add ol_dump check job: {e}"
             ))
         })?;
 

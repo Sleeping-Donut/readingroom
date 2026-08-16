@@ -178,3 +178,52 @@ export function updateLibrarySettings(settings: Partial<LibrarySettings>) {
 export function getIntegrationSettings() {
   return api.get<{ api_key: string }>("/settings/integration");
 }
+
+export interface ImportCounts {
+  works: number;
+  editions: number;
+  authors: number;
+  redirects: number;
+}
+
+export interface MetadataStatus {
+  state: string;
+  bytes_downloaded: number;
+  total_bytes: number | null;
+  rows: number;
+  counts: ImportCounts;
+  started_at: string | null;
+}
+
+export interface MetadataSettingsResponse {
+  success: boolean;
+  mode: "online" | "offline";
+  auto_update: boolean;
+  dump_url: string;
+  offline_ready: boolean;
+  status: MetadataStatus;
+  stats: { counts: ImportCounts; dump_imported_at: string | null } | null;
+}
+
+export function getMetadataSettings() {
+  return api.get<MetadataSettingsResponse>("/settings/metadata");
+}
+
+export function updateMetadataSettings(body: {
+  mode?: "online" | "offline";
+  auto_update?: boolean;
+  dump_url?: string;
+}) {
+  return api.put<MetadataSettingsResponse>("/settings/metadata", body);
+}
+
+export function triggerMetadataDownload() {
+  return api.post<{ success: boolean; started: boolean }>("/settings/metadata/download");
+}
+
+export function checkMetadataUpdates() {
+  return api.post<{
+    success: boolean;
+    check: { newer: boolean; last_modified: string | null; started: boolean };
+  }>("/settings/metadata/check");
+}

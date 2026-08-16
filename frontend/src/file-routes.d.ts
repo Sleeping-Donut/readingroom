@@ -147,6 +147,12 @@ declare module "virtual:file-routes" {
       $$route: FileRouteEagerRef<typeof import("./routes/settings/library")>;
     },
     {
+      path: "/settings/metadata";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./routes/settings/metadata")>;
+      $$route: FileRouteEagerRef<typeof import("./routes/settings/metadata")>;
+    },
+    {
       path: "/settings/notifications";
       page: true;
       $component: FileRouteLazyRef<typeof import("./routes/settings/notifications")>;
@@ -300,6 +306,14 @@ declare module "virtual:file-routes" {
           page: true;
           $component: FileRouteLazyRef<typeof import("./routes/settings/indexers")>;
           $$route: FileRouteEagerRef<typeof import("./routes/settings/indexers")>;
+          children?: undefined;
+        },
+        {
+          path: "/metadata";
+          id: "/metadata";
+          page: true;
+          $component: FileRouteLazyRef<typeof import("./routes/settings/metadata")>;
+          $$route: FileRouteEagerRef<typeof import("./routes/settings/metadata")>;
           children?: undefined;
         },
         {

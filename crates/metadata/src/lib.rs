@@ -2,6 +2,12 @@ pub mod openlibrary;
 pub mod google_books;
 pub mod goodreads;
 pub mod audible;
+pub mod ol_dump;
+
+pub use ol_dump::{
+    DEFAULT_DUMP_URL, OlCacheSource, ImportHandle, ImportProgress, ImportState, ImportCounts,
+    download_and_import,
+};
 
 use readingroom_core::traits::MetadataSource;
 use readingroom_core::config::MetadataConfig;
