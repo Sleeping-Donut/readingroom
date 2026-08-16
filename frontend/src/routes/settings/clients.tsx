@@ -124,19 +124,6 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
   const [newRateLimit, setNewRateLimit] = createSignal("");
   const [newConcurrent, setNewConcurrent] = createSignal("");
 
-  const [builtinForm, setBuiltinForm] = createStore(
-    () => {
-      const s = parseClientSettings(builtinClient() ? builtinClient()!.settings : "{}");
-      const row = builtinClient();
-      return {
-        download_dir: s.download_dir || "./downloads",
-        rate_limit_kb: s.rate_limit ? String(Math.round(s.rate_limit / 1024)) : "",
-        concurrent: String(s.concurrent_downloads ?? 2),
-        enabled: row ? row.enabled : true,
-      };
-    },
-    { download_dir: "./downloads", rate_limit_kb: "", concurrent: "2", enabled: true },
-  );
   const [builtinTestResult, setBuiltinTestResult] = createSignal<TestResult | undefined>(undefined);
   const [savingBuiltin, setSavingBuiltin] = createSignal(false);
 
@@ -157,6 +144,20 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
   );
 
   const builtinClient = () => clients.download_clients.find((c) => isBuiltinClient(c));
+
+  const [builtinForm, setBuiltinForm] = createStore(
+    () => {
+      const s = parseClientSettings(builtinClient() ? builtinClient()!.settings : "{}");
+      const row = builtinClient();
+      return {
+        download_dir: s.download_dir || "./downloads",
+        rate_limit_kb: s.rate_limit ? String(Math.round(s.rate_limit / 1024)) : "",
+        concurrent: String(s.concurrent_downloads ?? 2),
+        enabled: row ? row.enabled : true,
+      };
+    },
+    { download_dir: "./downloads", rate_limit_kb: "", concurrent: "2", enabled: true },
+  );
 
   const configurableClients = () => clients.download_clients.filter((c) => !isBuiltinClient(c));
 

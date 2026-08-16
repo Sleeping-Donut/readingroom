@@ -41,12 +41,16 @@ export interface Book {
 export interface Edition {
   id: number;
   book_id: number;
+  foreign_edition_id?: string;
+  isbn13?: string;
   title: string;
+  language?: string;
   format: string;
   quality?: string;
   publisher?: string;
   pages?: number;
   release_date?: string;
+  image_url?: string;
   monitored: boolean;
 }
 

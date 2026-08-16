@@ -156,10 +156,22 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
       : { books: [] },
   );
 
+  const dedupedBooks = createMemo(() => {
+    const seen = new Set<string>();
+    const out: Book[] = [];
+    for (const b of metadataBooks()?.books ?? []) {
+      const key = b.foreign_id || b.title;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(b);
+    }
+    return out;
+  });
+
   const filteredBooks = createMemo(() => {
     const q = filter().trim().toLowerCase();
-    if (!q) return metadataBooks()?.books ?? [];
-    return (metadataBooks()?.books ?? []).filter((b) => b.title.toLowerCase().includes(q));
+    if (!q) return dedupedBooks();
+    return dedupedBooks().filter((b) => b.title.toLowerCase().includes(q));
   });
 
   const trackedByForeignId = createMemo(() => {
@@ -190,6 +202,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
     foreign_id: string;
     author_id: number;
     title: string;
+    author_name?: string;
   }) {
     setAddingId(book.foreign_id);
     setActionError(null);
@@ -347,6 +360,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
                                   foreign_id: book.foreign_id,
                                   author_id: book.author_id,
                                   title: book.title,
+                                  author_name: book.author_name,
                                 })
                               }
                             />

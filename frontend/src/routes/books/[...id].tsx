@@ -13,7 +13,9 @@ import {
   Show,
 } from "solid-js";
 
-import { addBook, getBook, updateBookMonitored } from "../../api/books";
+import type { Edition } from "../../types";
+
+import { addBook, getBook, getBookEditions, updateBookMonitored } from "../../api/books";
 import { getQueue } from "../../api/queue";
 import {
   downloadIndexerRelease,
@@ -41,6 +43,51 @@ const QUEUE_LABELS: Record<string, string> = {
   imported: "Imported",
   removed: "Removed",
 };
+
+const FORMAT_LABELS: Record<string, string> = {
+  EBook: "E-book",
+  AudioBook: "Audiobook",
+  Physical: "Physical",
+};
+
+function EditionRow(props: {
+  edition: Edition;
+  showAdd: boolean;
+  adding: boolean;
+  onAdd: () => void;
+}) {
+  const format = () => FORMAT_LABELS[props.edition.format] ?? props.edition.format;
+  const meta = () =>
+    [
+      format(),
+      props.edition.publisher,
+      props.edition.pages ? `${props.edition.pages} pages` : "",
+      props.edition.release_date,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+  return (
+    <div class="flex items-center gap-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">{props.edition.title}</p>
+        <p class="text-xs text-gray-400">{meta()}</p>
+        <Show when={props.edition.isbn13}>
+          <p class="text-xs text-gray-500">ISBN: {props.edition.isbn13}</p>
+        </Show>
+      </div>
+      <Show when={props.showAdd}>
+        <button
+          onClick={props.onAdd}
+          disabled={props.adding}
+          class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors shrink-0"
+        >
+          {props.adding ? "Adding..." : "Add"}
+        </button>
+      </Show>
+    </div>
+  );
+}
 
 function InfoRow(props: { label: string; value?: string | number }) {
   return (
@@ -99,9 +146,16 @@ export default function BookDetail() {
   const params = useParams(paths.books);
   const navigate = useNavigate();
 
+  const back = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate(paths.books, { replace: true });
+  };
+
   const book = createMemo(() => getBook(params.id));
 
   const queue = createMemo(() => getQueue());
+
+  const editions = createMemo(() => getBookEditions(params.id));
 
   const queueEntry = createMemo(() =>
     book().id > 0 ? queue()?.queue.find((e) => e.book_id === book().id) : undefined,
@@ -122,6 +176,8 @@ export default function BookDetail() {
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [autoSearching, setAutoSearching] = createSignal(false);
   const [savingMonitored, setSavingMonitored] = createSignal(false);
+  const [showAllTags, setShowAllTags] = createSignal(false);
+  const [addingEditionId, setAddingEditionId] = createSignal<string | null>(null);
 
   // Optimistic view of the book's monitored flag: mirrors the server value
   // from getBook(), but writes made inside an action show immediately and
@@ -180,6 +236,7 @@ export default function BookDetail() {
         foreign_id: book().foreign_id,
         author_id: book().author_id,
         title: book().title,
+        author_name: book().author_name,
       });
       yield;
       navigate(paths.books(created.book.id));
@@ -187,6 +244,25 @@ export default function BookDetail() {
       setActionError(err instanceof Error ? err.message : "Request failed");
     } finally {
       setAdding(false);
+    }
+  });
+
+  const addEdition = action(async function* (edition: Edition) {
+    setAddingEditionId(edition.foreign_edition_id ?? edition.title);
+    setActionError(null);
+    try {
+      const created = await addBook({
+        foreign_id: edition.foreign_edition_id ?? book().foreign_id,
+        author_id: book().author_id,
+        title: edition.title,
+        author_name: book().author_name,
+      });
+      yield;
+      navigate(paths.books(created.book.id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setAddingEditionId(null);
     }
   });
 
@@ -224,9 +300,12 @@ export default function BookDetail() {
 
   return (
     <div>
-      <a href="/books" class="text-sm text-indigo-400 hover:text-indigo-300 mb-4 inline-block">
-        &larr; Back to Books
-      </a>
+      <button
+        onClick={back}
+        class="text-sm text-indigo-400 hover:text-indigo-300 mb-4 inline-block"
+      >
+        &larr; Back
+      </button>
 
       <Errored
         fallback={(err, reset) => (
@@ -275,14 +354,29 @@ export default function BookDetail() {
                     <button
                       onClick={() => void toggleMonitored()}
                       disabled={savingMonitored()}
+                      title={monitored() ? "Unmonitored" : "Monitored"}
                       class={[
-                        "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                        "flex items-center justify-center w-10 h-10 rounded-lg transition-colors",
                         monitored()
                           ? "bg-green-700 hover:bg-green-600 text-white"
                           : "bg-gray-700 hover:bg-gray-600 text-gray-300",
                       ]}
                     >
-                      {monitored() ? "Monitored" : "Unmonitored"}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill={monitored() ? "currentColor" : "none"}
+                        stroke="currentColor"
+                        stroke-width="2"
+                        class="w-5 h-5"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z"
+                        />
+                      </svg>
+                      <span class="sr-only">{monitored() ? "Unmonitored" : "Monitored"}</span>
                     </button>
                   </Show>
                   <button
@@ -328,13 +422,27 @@ export default function BookDetail() {
               </div>
 
               <Show when={book().genres.length > 0}>
-                <div class="mt-4 flex gap-2 flex-wrap">
+                <div
+                  class={
+                    showAllTags()
+                      ? "mt-4 flex gap-2 flex-wrap"
+                      : "mt-4 flex gap-2 flex-wrap max-h-[2.5rem] overflow-hidden"
+                  }
+                >
                   <For each={book().genres}>
                     {(g) => (
                       <span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">{g}</span>
                     )}
                   </For>
                 </div>
+                <Show when={book().genres.length > 6}>
+                  <button
+                    onClick={() => setShowAllTags((v) => !v)}
+                    class="text-xs text-indigo-400 hover:text-indigo-300 mt-1"
+                  >
+                    {showAllTags() ? "Show less" : `Show all (${book().genres.length})`}
+                  </button>
+                </Show>
               </Show>
 
               <Show when={book().description}>
@@ -342,6 +450,45 @@ export default function BookDetail() {
               </Show>
             </div>
           </div>
+        </Loading>
+      </Errored>
+
+      <Errored fallback={null}>
+        <Loading fallback={null}>
+          <Show when={editions()}>
+            {(list) => (
+              <Show when={list().editions.length > 0}>
+                <section class="mt-8 max-w-3xl">
+                  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 class="text-xl font-bold">Editions</h3>
+                      <p class="text-xs text-gray-500 mt-0.5">
+                        {book().title}
+                        <Show when={book().id === 0}>
+                          {" · add a specific edition to your library"}
+                        </Show>
+                      </p>
+                    </div>
+                    <span class="text-xs text-gray-500">{list().editions.length} total</span>
+                  </div>
+                  <div class="space-y-2">
+                    <For each={list().editions}>
+                      {(edition) => (
+                        <EditionRow
+                          edition={edition}
+                          showAdd={book().id === 0}
+                          adding={
+                            addingEditionId() === (edition.foreign_edition_id ?? edition.title)
+                          }
+                          onAdd={() => void addEdition(edition)}
+                        />
+                      )}
+                    </For>
+                  </div>
+                </section>
+              </Show>
+            )}
+          </Show>
         </Loading>
       </Errored>
 

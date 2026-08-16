@@ -23,6 +23,29 @@ pub struct AddBookBody {
     pub foreign_id: String,
     pub author_id: i64,
     pub title: String,
+    pub author_name: Option<String>,
+}
+
+fn slugify(s: &str) -> String {
+    let mut result = String::new();
+    for c in s.to_lowercase().chars() {
+        if c.is_alphanumeric() {
+            result.push(c);
+        } else if !result.ends_with('-') {
+            result.push('-');
+        }
+    }
+    result.trim_matches('-').to_string()
+}
+
+/// Resolve an author by name, reusing an existing row or creating a new one
+/// keyed on the slugified name. Returns the author's DB id.
+async fn resolve_author(db: &sqlx::SqlitePool, name: &str) -> Result<i64, readingroom_core::error::AppError> {
+    if let Some(author) = crate::db::find_author_by_name(db, name).await? {
+        return Ok(author.id);
+    }
+    let foreign_id = format!("rr-{}", slugify(name));
+    crate::db::insert_author(db, &foreign_id, name).await
 }
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -44,22 +67,41 @@ async fn list_books(State(state): State<Arc<AppState>>) -> Json<Value> {
 async fn add_book(
     State(state): State<Arc<AppState>>,
     Json(body): Json<AddBookBody>,
-) -> Json<Value> {
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     if let Ok(Some(existing)) =
         crate::db::find_book_by_foreign_id(&state.db, &body.foreign_id).await
     {
-        return Json(json!({ "book": existing, "already_exists": true }));
+        return Ok(Json(json!({ "book": existing, "already_exists": true })));
     }
+
+    let author_id = if body.author_id > 0 {
+        body.author_id
+    } else if let Some(name) = body.author_name.as_deref() {
+        match resolve_author(&state.db, name).await {
+            Ok(id) => id,
+            Err(e) => {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": format!("Failed to create author: {e}") })),
+                ));
+            }
+        }
+    } else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "author_id or author_name is required" })),
+        ));
+    };
 
     let title = body.title;
     let clean_title = title.to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != ' ', "");
-    match crate::db::insert_book(&state.db, &body.foreign_id, body.author_id, &title, &clean_title).await {
+    match crate::db::insert_book(&state.db, &body.foreign_id, author_id, &title, &clean_title).await {
         Ok(id) => {
             let book = readingroom_core::models::Book {
                 id,
                 foreign_id: body.foreign_id,
-                author_id: body.author_id,
-                author_name: None,
+                author_id,
+                author_name: body.author_name,
                 title,
                 clean_title,
                 description: None,
@@ -78,9 +120,12 @@ async fn add_book(
                 added_at: chrono::Utc::now(),
                 last_search_at: None,
             };
-            Json(json!({ "book": book, "already_exists": false }))
+            Ok(Json(json!({ "book": book, "already_exists": false })))
         }
-        Err(e) => Json(json!({ "error": e.to_string() })),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e.to_string() })),
+        )),
     }
 }
 

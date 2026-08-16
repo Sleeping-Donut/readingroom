@@ -21,6 +21,25 @@ impl OpenLibrarySource {
                 .expect("Failed to build HTTP client"),
         }
     }
+
+    /// Resolve an author name for a work. Some work payloads carry the name
+    /// directly on the author entry; OpenLibrary usually only exposes the
+    /// author key, so fall back to fetching the author record.
+    async fn resolve_work_author_name(&self, entry: &WorkEntry) -> Option<String> {
+        if let Some(name) = author_name_from_work(entry) {
+            return Some(name);
+        }
+        let author_key = entry.authors.as_ref()?.first()?.author.as_ref()?.key.as_str();
+        let stripped = author_key.trim_start_matches('/');
+        let ol_key = stripped.strip_prefix("authors/").unwrap_or(stripped);
+        let url = format!("{BASE}/authors/{ol_key}.json");
+        let resp = self.client.get(&url).send().await.ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        let details: AuthorDetails = resp.json().await.ok()?;
+        Some(details.name)
+    }
 }
 
 // -- OpenLibrary API response types --
@@ -78,6 +97,18 @@ struct WorkEntry {
     subjects: Option<Vec<String>>,
     first_publish_date: Option<String>,
     covers: Option<Vec<i64>>,
+    authors: Option<Vec<WorkAuthor>>,
+}
+
+#[derive(serde::Deserialize)]
+struct WorkAuthor {
+    name: Option<String>,
+    author: Option<WorkAuthorRef>,
+}
+
+#[derive(serde::Deserialize)]
+struct WorkAuthorRef {
+    key: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -138,7 +169,12 @@ fn cover_url(cover_id: i64, size: &str) -> Option<String> {
     Some(format!("https://covers.openlibrary.org/b/id/{cover_id}-{size}.jpg"))
 }
 
-fn parse_date(s: &str) -> Option<chrono::NaiveDate> {
+fn author_name_from_work(entry: &WorkEntry) -> Option<String> {
+    entry
+        .authors
+        .as_ref()
+        .and_then(|authors| authors.iter().find_map(|a| a.name.clone()))
+}fn parse_date(s: &str) -> Option<chrono::NaiveDate> {
     // OpenLibrary dates can be "2000", "2000-01", or "2000-01-01"
     if s.len() == 4 {
         chrono::NaiveDate::from_ymd_opt(s.parse().ok()?, 1, 1)
@@ -239,6 +275,7 @@ impl MetadataSource for OpenLibrarySource {
             .entries
             .into_iter()
             .map(|e| {
+                let author_name = author_name_from_work(&e);
                 let description = e.description.as_ref().and_then(|d| match d {
                     serde_json::Value::String(s) => Some(s.clone()),
                     serde_json::Value::Object(o) => o.get("value").and_then(|v| v.as_str().map(String::from)),
@@ -249,7 +286,7 @@ impl MetadataSource for OpenLibrarySource {
                     id: 0,
                     foreign_id: ol_id_from_key(&e.key),
                     author_id: 0,
-                    author_name: None,
+                    author_name,
                     title: title_w.clone(),
                     clean_title: title_w.to_lowercase(),
                     description,
@@ -297,7 +334,7 @@ impl MetadataSource for OpenLibrarySource {
                     id: 0,
                     foreign_id: ol_id_from_key(&d.key),
                     author_id: 0,
-                    author_name: None,
+                    author_name: d.author_name.and_then(|a| a.into_iter().next()),
                     title: title.clone(),
                     clean_title: title.to_lowercase(),
                     description: None,
@@ -344,6 +381,8 @@ impl MetadataSource for OpenLibrarySource {
         }
         let entry: WorkEntry = resp.json().await?;
 
+        let author_name = self.resolve_work_author_name(&entry).await;
+
         let description = entry.description.as_ref().and_then(|d| match d {
             serde_json::Value::String(s) => Some(s.clone()),
             serde_json::Value::Object(o) => o.get("value").and_then(|v| v.as_str().map(String::from)),
@@ -355,7 +394,7 @@ impl MetadataSource for OpenLibrarySource {
             id: 0,
             foreign_id: ol_id_from_key(&entry.key),
             author_id: 0,
-            author_name: None,
+            author_name,
             title: title.clone(),
             clean_title: title.to_lowercase(),
             description,
@@ -380,7 +419,13 @@ impl MetadataSource for OpenLibrarySource {
     }
 
     async fn get_book_editions(&self, foreign_id: &str) -> Result<Vec<Edition>> {
-        let url = format!("{BASE}/works/{foreign_id}/editions.json?limit=50");
+        // Normalize the key: the same prefixes `get_book` understands
+        // ("works/OL123W", "books/OL456M", or bare keys) may be passed in.
+        let key = foreign_id
+            .strip_prefix("works/")
+            .or_else(|| foreign_id.strip_prefix("books/"))
+            .unwrap_or(foreign_id);
+        let url = format!("{BASE}/works/{key}/editions.json?limit=50");
         let resp = self.client.get(&url).send().await?;
         if !resp.status().is_success() {
             return Err(AppError::Provider(format!("OpenLibrary returned {}", resp.status())));

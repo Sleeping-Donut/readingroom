@@ -71,6 +71,24 @@ pub async fn get_author_by_id(
     Ok(row.map(|r| r.into_domain()))
 }
 
+/// Find an author by exact name, case-insensitively.
+pub async fn find_author_by_name(
+    db: &SqlitePool,
+    name: &str,
+) -> Result<Option<readingroom_core::models::Author>> {
+    let row = sqlx::query_as::<_, AuthorRow>(
+        "SELECT id, foreign_id, name, sort_name, biography, image_url,
+                birth_date, death_date, genres, aliases, links,
+                monitored, added_at, tags
+         FROM authors WHERE LOWER(name) = LOWER(?1)",
+    )
+    .bind(name)
+    .fetch_optional(db)
+    .await?;
+
+    Ok(row.map(|r| r.into_domain()))
+}
+
 /// Update an author's monitored flag
 pub async fn update_author_monitored(
     db: &SqlitePool,
