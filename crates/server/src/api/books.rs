@@ -171,22 +171,55 @@ async fn update_book(
     Ok(Json(json!({ "success": true })))
 }
 
-async fn get_book(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Json<Value> {
-    if let Ok(id64) = id.parse::<i64>() {
-        if let Ok(Some(book)) = crate::db::get_book_by_id(&state.db, id64).await {
-            // Lazy-fill metadata (cover, description, publish date) from the
-            // same source as the author page, and persist it to the DB so it
-            // can be reused across the UI.
-            if book.image_url.is_none() || book.description.is_none() || book.publish_date.is_none() {
-                if let Ok(meta) = state.metadata.get_book(&book.foreign_id).await {
-                    let enriched = enrich_book(book, meta);
-                    let _ = crate::db::update_book_metadata(&state.db, &enriched).await;
-                    return Json(json!(enriched));
-                }
-            }
-            return Json(json!(book));
+/// True for a bare OpenLibrary id like "OL46125W" (work) or "OL61647182M" (edition).
+fn looks_like_ol_id(id: &str) -> bool {
+    let upper = id.to_ascii_uppercase();
+    let Some(rest) = upper.strip_prefix("OL") else {
+        return false;
+    };
+    let len = rest.len();
+    len > 1
+        && (rest.ends_with('W') || rest.ends_with('M'))
+        && rest[..len - 1].chars().all(|c| c.is_ascii_digit())
+}
+
+/// Lazy-fill missing metadata (cover/description/publish date) and persist it.
+async fn enriched_book(
+    state: &AppState,
+    book: readingroom_core::models::Book,
+) -> readingroom_core::models::Book {
+    if book.image_url.is_none() || book.description.is_none() || book.publish_date.is_none() {
+        if let Ok(meta) = state.metadata.get_book(&book.foreign_id).await {
+            let enriched = enrich_book(book, meta);
+            let _ = crate::db::update_book_metadata(&state.db, &enriched).await;
+            return enriched;
         }
     }
+    book
+}
+
+async fn get_book(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Json<Value> {
+    // 1. Numeric DB id
+    if let Ok(id64) = id.parse::<i64>() {
+        if let Ok(Some(book)) = crate::db::get_book_by_id(&state.db, id64).await {
+            return Json(json!(enriched_book(&state, book).await));
+        }
+    }
+    // 2. Bare OpenLibrary id -> tracked DB book first, else metadata
+    if looks_like_ol_id(&id) {
+        if let Ok(Some(book)) = crate::db::find_book_by_ol_id(&state.db, &id).await {
+            return Json(json!(enriched_book(&state, book).await));
+        }
+    } else if id.starts_with("works/") || id.starts_with("books/") {
+        // 3. Prefixed foreign key -> tracked DB book first, else metadata
+        if let Ok(Some(book)) = crate::db::find_book_by_foreign_id(&state.db, &id).await {
+            return Json(json!(enriched_book(&state, book).await));
+        }
+    } else if let Ok(Some(book)) = crate::db::find_book_by_isbn(&state.db, &id).await {
+        // 4. ISBN/ASIN -> tracked DB book, else metadata
+        return Json(json!(enriched_book(&state, book).await));
+    }
+
     match state.metadata.get_book(&id).await {
         Ok(book) => Json(json!(book)),
         Err(e) => Json(json!({ "error": e.to_string() })),

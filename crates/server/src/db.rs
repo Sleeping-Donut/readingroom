@@ -181,13 +181,43 @@ pub async fn find_book_by_foreign_id(
     foreign_id: &str,
 ) -> Result<Option<readingroom_core::models::Book>> {
     let row = sqlx::query_as::<_, BookRow>(
-        "SELECT id, foreign_id, author_id, title, clean_title, description,
-                isbn, isbn13, asin, pages, publisher, publish_date,
-                image_url, genres, ratings, language, monitored,
-                status, last_search_at, added_at
-         FROM books WHERE foreign_id = ?1",
+        "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
+                b.title, b.clean_title, b.description,
+                b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.status, b.last_search_at, b.added_at
+         FROM books b LEFT JOIN authors a ON a.id = b.author_id WHERE b.foreign_id = ?1",
     )
     .bind(foreign_id)
+    .fetch_optional(db)
+    .await?;
+
+    Ok(row.map(|r| r.into_domain()))
+}
+
+/// Find a tracked book by a bare OpenLibrary id (e.g. "OL46125W" for a work,
+/// "OL61647182M" for an edition). Matches the exact foreign_id or the
+/// `works/`/`books/`-prefixed form, preferring the exact match.
+pub async fn find_book_by_ol_id(
+    db: &SqlitePool,
+    ol_id: &str,
+) -> Result<Option<readingroom_core::models::Book>> {
+    let row = sqlx::query_as::<_, BookRow>(
+        "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
+                b.title, b.clean_title, b.description,
+                b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.status, b.last_search_at, b.added_at
+         FROM books b LEFT JOIN authors a ON a.id = b.author_id
+         WHERE b.foreign_id = ?1 OR b.foreign_id = 'works/' || ?1 OR b.foreign_id = 'books/' || ?1
+         ORDER BY CASE
+           WHEN b.foreign_id = ?1 THEN 0
+           WHEN b.foreign_id = 'works/' || ?1 THEN 1
+           ELSE 2
+         END
+         LIMIT 1",
+    )
+    .bind(ol_id)
     .fetch_optional(db)
     .await?;
 
@@ -228,6 +258,33 @@ pub async fn get_book_by_id(
                 b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id WHERE b.id = ?1",
     )
+    .bind(id)
+    .fetch_optional(db)
+    .await?;
+
+    Ok(row.map(|r| r.into_domain()))
+}
+
+/// Find a tracked book by ISBN or ASIN. Matches the `isbn`, `isbn13`, and
+/// `asin` columns; the input has hyphens/spaces stripped so a linked
+/// `978-0-553-38257-0` resolves against a row stored as `9780553382570`.
+pub async fn find_book_by_isbn(
+    db: &SqlitePool,
+    id: &str,
+) -> Result<Option<readingroom_core::models::Book>> {
+    let normalized: String = id.chars().filter(|c| *c != '-' && *c != ' ').collect();
+    let row = sqlx::query_as::<_, BookRow>(
+        "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
+                b.title, b.clean_title, b.description,
+                b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.status, b.last_search_at, b.added_at
+         FROM books b LEFT JOIN authors a ON a.id = b.author_id
+         WHERE REPLACE(REPLACE(COALESCE(b.isbn, ''), '-', ''), ' ', '') = ?1
+            OR REPLACE(REPLACE(COALESCE(b.isbn13, ''), '-', ''), ' ', '') = ?1
+            OR LOWER(b.asin) = LOWER(?2)",
+    )
+    .bind(&normalized)
     .bind(id)
     .fetch_optional(db)
     .await?;
@@ -878,5 +935,42 @@ impl AuthorRow {
                 .filter_map(|t| t.parse().ok())
                 .collect(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn find_book_by_isbn_matches_isbn_isbn13_and_asin() {
+        let pool = readingroom_db::connect_test().await.unwrap();
+        let author_id = insert_author(&pool, "OL123A", "Isaac Asimov")
+            .await
+            .unwrap();
+        let book_id = insert_book(&pool, "OL123W", author_id, "Foundation", "foundation")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "UPDATE books SET isbn = '055338257X', isbn13 = '9780553382570', asin = 'B00ABC123' WHERE id = ?1",
+        )
+        .bind(book_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        for probe in [
+            "9780553382570",
+            "978-0-553-38257-0",
+            "055338257X",
+            "B00ABC123",
+        ] {
+            let book = find_book_by_isbn(&pool, probe).await.unwrap().unwrap();
+            assert_eq!(book.id, book_id, "probe {probe} should match");
+            assert_eq!(book.title, "Foundation");
+        }
+
+        assert!(find_book_by_isbn(&pool, "0000000000000").await.unwrap().is_none());
     }
 }

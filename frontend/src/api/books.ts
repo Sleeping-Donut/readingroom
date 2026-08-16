@@ -4,6 +4,26 @@ import type { Book, Edition } from "../types";
 
 import { api } from "./client";
 
+/**
+ * Universal id used for book detail routes: first non-empty of isbn13, isbn,
+ * asin, foreign_id, falling back to the numeric DB id. Kept as-is — the router
+ * encoding handles slashes for foreign ids.
+ */
+export function bookId(book: {
+  id: number;
+  isbn13?: string | null;
+  isbn?: string | null;
+  asin?: string | null;
+  foreign_id?: string | null;
+}): string {
+  // Canonical id = the OpenLibrary work/edition id (bare, no works//books/
+  // prefix). ISBN/ASIN remain resolvable as input aliases via the backend,
+  // but links key off the stable OL id.
+  const foreign = book.foreign_id ?? "";
+  if (foreign) return foreign.replace(/^(works|books)\//, "");
+  return String(book.id);
+}
+
 export const getBooks = query(
   async () => api.get<{ books: Book[]; total: number }>("/books"),
   "books",
