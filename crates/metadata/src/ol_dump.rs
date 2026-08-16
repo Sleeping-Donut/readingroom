@@ -35,6 +35,9 @@ pub struct ImportProgress {
     pub state: ImportState,
     pub bytes_downloaded: u64,
     pub total_bytes: Option<u64>,
+    /// Compressed bytes consumed during the import phase (of the same file),
+    /// so the UI can show a real percentage while parsing rows.
+    pub import_bytes: u64,
     pub rows: u64,
     pub counts: ImportCounts,
     pub started_at: Option<chrono::DateTime<chrono::Utc>>,
@@ -54,6 +57,7 @@ impl ImportHandle {
                 state: ImportState::Idle,
                 bytes_downloaded: 0,
                 total_bytes: None,
+                import_bytes: 0,
                 rows: 0,
                 counts: ImportCounts::default(),
                 started_at: None,
@@ -67,6 +71,7 @@ impl ImportHandle {
                 state: ImportState::Idle,
                 bytes_downloaded: 0,
                 total_bytes: None,
+                import_bytes: 0,
                 rows: 0,
                 counts: ImportCounts::default(),
                 started_at: None,
@@ -79,6 +84,15 @@ impl ImportHandle {
             f(&mut p);
         }
     }
+}
+
+/// Persisted result of the last import attempt, so status survives restarts.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct CacheMeta {
+    pub imported_at: Option<String>,
+    pub last_status: Option<String>,
+    pub last_error: Option<String>,
+    pub last_attempt: Option<String>,
 }
 
 /// SQLite-backed read-only metadata source over an imported dump.
@@ -106,19 +120,30 @@ impl OlCacheSource {
         &self.db
     }
 
-    /// Row counts per table + dump timestamp, for status display.
-    pub async fn stats(&self) -> Result<(ImportCounts, Option<String>)> {
+    async fn meta_value(&self, key: &str) -> Option<String> {
+        sqlx::query_scalar("SELECT value FROM meta WHERE key = ?")
+            .bind(key)
+            .fetch_optional(&self.db)
+            .await
+            .ok()
+            .flatten()
+    }
+
+    /// Row counts + persisted result of the last import attempt.
+    pub async fn stats(&self) -> Result<(ImportCounts, CacheMeta)> {
         let counts = ImportCounts {
             works: count_rows(&self.db, "works").await?,
             editions: count_rows(&self.db, "editions").await?,
             authors: count_rows(&self.db, "authors").await?,
             redirects: count_rows(&self.db, "redirects").await?,
         };
-        let ts: Option<String> =
-            sqlx::query_scalar("SELECT value FROM meta WHERE key = 'dump_imported_at'")
-                .fetch_optional(&self.db)
-                .await?;
-        Ok((counts, ts))
+        let meta = CacheMeta {
+            imported_at: self.meta_value("dump_imported_at").await,
+            last_status: self.meta_value("dump_last_status").await,
+            last_error: self.meta_value("dump_last_error").await,
+            last_attempt: self.meta_value("dump_last_attempt").await,
+        };
+        Ok((counts, meta))
     }
 }
 
@@ -242,6 +267,8 @@ struct ImportBatch {
 
 enum Batch {
     Data(ImportBatch),
+    /// Compressed bytes consumed so far during the import phase.
+    Progress(u64),
     Done,
 }
 
@@ -302,6 +329,7 @@ pub async fn download_and_import(
         p.started_at = Some(started);
         p.bytes_downloaded = 0;
         p.total_bytes = None;
+        p.import_bytes = 0;
         p.rows = 0;
         p.counts = ImportCounts::default();
     });
@@ -323,14 +351,20 @@ pub async fn download_and_import(
 
         let _ = tokio::fs::remove_file(&tmp).await;
         let now = Utc::now().to_rfc3339();
-        sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES ('dump_imported_at', ?)")
-            .bind(&now)
-            .execute(db)
-            .await?;
-        sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES ('dump_source', ?)")
-            .bind(url)
-            .execute(db)
-            .await?;
+        let writes: [(&str, String); 5] = [
+            ("dump_imported_at", now.clone()),
+            ("dump_source", url.to_string()),
+            ("dump_last_status", "success".to_string()),
+            ("dump_last_error", String::new()),
+            ("dump_last_attempt", now),
+        ];
+        for (key, value) in writes {
+            sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+                .bind(key)
+                .bind(value)
+                .execute(db)
+                .await?;
+        }
         Ok::<_, AppError>(counts)
     }
     .await;
@@ -342,6 +376,22 @@ pub async fn download_and_import(
         }
         Err(e) => {
             let _ = tokio::fs::remove_file(&tmp).await;
+            let now = Utc::now().to_rfc3339();
+            let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+                .bind("dump_last_status")
+                .bind("failed")
+                .execute(db)
+                .await;
+            let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+                .bind("dump_last_error")
+                .bind(e.to_string())
+                .execute(db)
+                .await;
+            let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+                .bind("dump_last_attempt")
+                .bind(now)
+                .execute(db)
+                .await;
             handle.set(|p| p.state = ImportState::Failed(e.to_string()));
             Err(e)
         }
@@ -409,6 +459,9 @@ async fn import_dump_file(
     while let Some(batch) = rx.recv().await {
         match batch {
             Batch::Done => break,
+            Batch::Progress(bytes) => {
+                handle.set(|p| p.import_bytes = bytes);
+            }
             Batch::Data(b) => {
                 if txn.is_none() {
                     txn = Some(db.begin().await?);
@@ -508,10 +561,28 @@ fn send_batch(tx: &tokio::sync::mpsc::Sender<Batch>, batch: &mut ImportBatch) ->
     Ok(())
 }
 
+/// Counts raw (compressed) bytes read from the underlying file so the import
+/// phase can report progress against the downloaded file size.
+struct CountingReader<R> {
+    inner: R,
+    bytes: u64,
+}
+
+impl<R: std::io::Read> std::io::Read for CountingReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.bytes += n as u64;
+        Ok(n)
+    }
+}
+
 fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Result<()> {
     let file = std::fs::File::open(path)?;
-    let reader = std::io::BufReader::with_capacity(1 << 20, file);
-    let decoder = flate2::bufread::GzDecoder::new(reader);
+    let counting = CountingReader {
+        inner: file,
+        bytes: 0,
+    };
+    let decoder = flate2::read::GzDecoder::new(counting);
     let mut reader = std::io::BufReader::with_capacity(1 << 20, decoder);
     let mut line = Vec::with_capacity(4096);
     let mut batch = ImportBatch {
@@ -521,6 +592,7 @@ fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Re
         redirects: Vec::new(),
     };
     let mut pending = 0usize;
+    let mut last_progress = 0u64;
 
     loop {
         line.clear();
@@ -611,8 +683,18 @@ fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Re
             send_batch(tx, &mut batch)?;
             pending = 0;
         }
+        // Report compressed progress roughly every 4 MiB.
+        let compressed = reader.get_ref().get_ref().bytes;
+        if compressed - last_progress >= 4 << 20 {
+            last_progress = compressed;
+            tx.blocking_send(Batch::Progress(compressed))
+                .map_err(|_| std::io::Error::new(std::io::ErrorKind::BrokenPipe, "import channel closed"))?;
+        }
     }
     send_batch(tx, &mut batch)?;
+    tx.blocking_send(Batch::Progress(last_progress)).map_err(|_| {
+        std::io::Error::new(std::io::ErrorKind::BrokenPipe, "import channel closed")
+    })?;
     Ok(())
 }
 

@@ -190,9 +190,17 @@ export interface MetadataStatus {
   state: string;
   bytes_downloaded: number;
   total_bytes: number | null;
+  import_bytes: number;
   rows: number;
   counts: ImportCounts;
   started_at: string | null;
+}
+
+export interface CacheMeta {
+  imported_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  last_attempt: string | null;
 }
 
 export interface MetadataSettingsResponse {
@@ -202,7 +210,7 @@ export interface MetadataSettingsResponse {
   dump_url: string;
   offline_ready: boolean;
   status: MetadataStatus;
-  stats: { counts: ImportCounts; dump_imported_at: string | null } | null;
+  stats: { counts: ImportCounts; meta: CacheMeta } | null;
 }
 
 export function getMetadataSettings() {

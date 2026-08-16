@@ -33,7 +33,7 @@ async fn settings_response(state: &Arc<AppState>) -> Value {
         "offline_ready": !state.local_cache.is_running()
             && stats.as_ref().map(|(c, _)| c.works > 0 || c.editions > 0).unwrap_or(false),
         "status": status,
-        "stats": stats.map(|(counts, imported_at)| json!({ "counts": counts, "dump_imported_at": imported_at })),
+        "stats": stats.map(|(counts, meta)| json!({ "counts": counts, "meta": meta })),
     })
 }
 

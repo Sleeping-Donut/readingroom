@@ -5,7 +5,8 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use readingroom_core::error::Result;
 use readingroom_metadata::ol_dump::{
-    ImportCounts, ImportHandle, ImportProgress, OlCacheSource, download_and_import, DEFAULT_DUMP_URL,
+    CacheMeta, ImportCounts, ImportHandle, ImportProgress, OlCacheSource, download_and_import,
+    DEFAULT_DUMP_URL,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -107,7 +108,7 @@ impl LocalCacheManager {
         self.handle.snapshot()
     }
 
-    pub async fn stats(&self) -> Result<(ImportCounts, Option<String>)> {
+    pub async fn stats(&self) -> Result<(ImportCounts, CacheMeta)> {
         self.source.stats().await
     }
 
@@ -171,7 +172,7 @@ impl LocalCacheManager {
             .stats()
             .await
             .ok()
-            .and_then(|(_, ts)| ts)
+            .and_then(|(_, meta)| meta.imported_at)
             .and_then(|ts| DateTime::parse_from_rfc3339(&ts).ok().map(|d| d.with_timezone(&Utc)));
 
         let newer = match (remote, local) {

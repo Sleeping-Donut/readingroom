@@ -2,7 +2,7 @@ import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { Errored, Show, createMemo, createSignal, onSettled } from "solid-js";
 
-import type { ImportCounts, MetadataStatus } from "../../api/settings";
+import type { CacheMeta, ImportCounts, MetadataStatus } from "../../api/settings";
 
 import * as settingsApi from "../../api/settings";
 
@@ -22,11 +22,15 @@ const DEFAULT_RESPONSE: settingsApi.MetadataSettingsResponse = {
     state: "Idle",
     bytes_downloaded: 0,
     total_bytes: null,
+    import_bytes: 0,
     rows: 0,
     counts: { works: 0, editions: 0, authors: 0, redirects: 0 },
     started_at: null,
   },
-  stats: null,
+  stats: {
+    counts: { works: 0, editions: 0, authors: 0, redirects: 0 },
+    meta: { imported_at: null, last_status: null, last_error: null, last_attempt: null },
+  },
 };
 
 function fmtBytes(bytes: number): string {
@@ -48,71 +52,76 @@ function fmtDate(iso: string | null): string {
   return d.toLocaleString();
 }
 
-const STATE_LABEL: Record<string, string> = {
-  Idle: "Idle",
-  Downloading: "Downloading dump",
-  Importing: "Importing dump",
-  Done: "Complete",
-};
-
 function StatusCard(props: {
   status: MetadataStatus;
-  ready: boolean;
-  importedAt: string | null;
+  meta: CacheMeta | null;
   counts: ImportCounts | null;
+  ready: boolean;
 }) {
-  const running = () => props.status.state === "Downloading" || props.status.state === "Importing";
-  const failed = () => props.status.state.startsWith("Failed");
-  const pct = () =>
-    props.status.total_bytes && props.status.total_bytes > 0
-      ? Math.min(100, Math.round((props.status.bytes_downloaded / props.status.total_bytes) * 100))
-      : 0;
+  const state = () => props.status.state;
+  const running = () => state() === "Downloading" || state() === "Importing";
+  const liveFailed = () => state().startsWith("Failed");
+  const persistedFailed = () => !running() && !liveFailed() && props.meta?.last_status === "failed";
+  const hasData = () => (props.counts?.works ?? 0) + (props.counts?.editions ?? 0) > 0;
+
+  const phaseBytes = () =>
+    state() === "Importing" ? props.status.import_bytes : props.status.bytes_downloaded;
+  const pct = () => {
+    const total = props.status.total_bytes ?? 0;
+    if (total <= 0) return 0;
+    return Math.min(100, Math.round((phaseBytes() / total) * 100));
+  };
+  const failed = () => liveFailed() || persistedFailed();
+
+  const label = () => {
+    if (failed()) return "Failed";
+    if (state() === "Downloading") return "Fetching dump";
+    if (state() === "Importing") return "Importing dump";
+    if (state() === "Done" || hasData()) return "Ready";
+    return "Not downloaded yet";
+  };
+
+  const badgeClass = () => {
+    if (failed()) return "bg-red-900/40 text-red-400 border border-red-800";
+    if (running()) return "bg-indigo-900/40 text-indigo-300 border border-indigo-800";
+    if (state() === "Done" || hasData())
+      return "bg-green-900/40 text-green-400 border border-green-800";
+    return "bg-gray-800 text-gray-400 border border-gray-700";
+  };
+
+  const errorMessage = () => (liveFailed() ? state() : (props.meta?.last_error ?? "Import failed"));
 
   return (
     <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
       <div class="flex items-center justify-between mb-3">
         <h4 class="font-semibold text-gray-200">Local dump cache</h4>
-        <Show
-          when={failed() || running() || props.status.state === "Idle"}
-          fallback={
-            <span class="px-2 py-1 bg-green-900/40 text-green-400 border border-green-800 rounded text-xs font-medium">
-              Ready
-            </span>
-          }
-        >
-          <span
-            class={[
-              "px-2 py-1 rounded text-xs font-medium",
-              failed()
-                ? "bg-red-900/40 text-red-400 border border-red-800"
-                : "bg-indigo-900/40 text-indigo-300 border border-indigo-800",
-            ]}
-          >
-            {failed() ? "Failed" : (STATE_LABEL[props.status.state] ?? props.status.state)}
-          </span>
-        </Show>
+        <span class={["px-2 py-1 rounded text-xs font-medium", badgeClass()]}>{label()}</span>
       </div>
 
       <Show when={failed()}>
-        <p class="text-sm text-red-400 mb-2 break-all">{props.status.state}</p>
+        <p class="text-sm text-red-400 mb-2 break-all">{errorMessage()}</p>
+        <Show when={persistedFailed() && props.meta?.last_attempt}>
+          <p class="text-xs text-gray-500 mb-2">
+            Last attempt: {fmtDate(props.meta?.last_attempt ?? null)}
+          </p>
+        </Show>
       </Show>
 
       <Show when={running()}>
         <div class="mb-3">
           <div class="flex justify-between text-xs text-gray-400 mb-1">
             <span>
-              {fmtBytes(props.status.bytes_downloaded)}
+              {fmtBytes(phaseBytes())}
               {props.status.total_bytes
                 ? ` / ${fmtBytes(props.status.total_bytes)} (${pct()}%)`
                 : ""}
             </span>
-            <span>{props.status.rows.toLocaleString()} rows</span>
+            <Show when={state() === "Importing"}>
+              <span>{props.status.rows.toLocaleString()} rows</span>
+            </Show>
           </div>
           <div class="w-full bg-gray-800 rounded h-2">
-            <div
-              class="bg-indigo-500 h-2 rounded transition-all"
-              style={{ width: `${props.status.state === "Importing" ? 100 : pct()}%` }}
-            />
+            <div class="bg-indigo-500 h-2 rounded transition-all" style={{ width: `${pct()}%` }} />
           </div>
         </div>
       </Show>
@@ -137,7 +146,7 @@ function StatusCard(props: {
       </dl>
 
       <div class="mt-3 text-xs text-gray-500">
-        Dump imported: {fmtDate(props.importedAt)}
+        Dump imported: {fmtDate(props.meta?.imported_at ?? null)}
         {props.ready && !running() ? " · Offline lookups available" : ""}
       </div>
     </div>
@@ -304,9 +313,9 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 
         <StatusCard
           status={data().status}
-          ready={data().offline_ready}
-          importedAt={data().stats?.dump_imported_at ?? null}
+          meta={data().stats?.meta ?? null}
           counts={data().stats?.counts ?? null}
+          ready={data().offline_ready}
         />
 
         <Show when={error()}>
