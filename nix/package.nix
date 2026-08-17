@@ -43,12 +43,14 @@ let
 
   # ── Backend: Rust binary (crane) ───────────────────────────────────────────
   # Filter source to Cargo-relevant files only to avoid unnecessary rebuilds.
-  # Also keep .sql migrations (embedded by sqlx::migrate!).
+  # Also keep .sql migrations (embedded by sqlx::migrate!) and .lua plugins
+  # (embedded by include_str! in tests).
   src = lib.cleanSourceWith {
     src = ../.;
     filter = path: type:
       (craneLib.filterCargoSources path type)
-      || (type == "regular" && lib.hasSuffix ".sql" path);
+      || (type == "regular" && lib.hasSuffix ".sql" path)
+      || (type == "regular" && lib.hasSuffix ".lua" path);
   };
 
   commonArgs = {
