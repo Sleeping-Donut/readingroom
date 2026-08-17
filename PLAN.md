@@ -24,7 +24,7 @@ files land as `LIBRARY/AUTHOR_NAME/TITLE (AUTHOR).ext`.
 | Book state | ❌ none | Books table has `monitored` only. "Have" is implied by existence of `book_files`; "getting" is implied by an active `queue` row. No explicit lifecycle state surfaced to the UI. |
 | Download locations | ◐ toml only | `library.root_folder` / `audiobook_folder` in `config.toml`. Not editable from Settings. No per-format (ebook/audio) separation configured in UI. |
 | Download client test | ❌ flaky | `POST /settings/downloadclients/:id/test` calls `client.get_config()`. Users report the same client Radarr uses failing — host/url parsing is fragile (see §2). |
-| Indexers for books | ◐ | `torznab` (works), `newznab`, `rss`. No dedicated book-tracker guidance/impl. Users don't know what to add (§3). |
+| Indexers for books | ◐ | `torznab`, `newznab`, `rss` hardcoded; `anna` hardcoded (working, scrapes current `/books/<id>-<slug>` HTML). Plan: move `anna` → Lua plugin, keep core three hardcoded (§7). |
 | Naming format | ◐ | Rename patterns exist but lack `{author_name}` and a Settings UI; no Radarr-style "path/to/AUTHOR/TITLE (AUTHOR).ext" preset. |
 
 ---
@@ -196,6 +196,144 @@ Add a tab in Settings (next to Indexers/Clients/Notifications/Account):
 6. Verify: `cargo check`/`cargo test`, `vp check`/`vp test`, deploy to `zwei`, end-to-end test
    (add book → grab → import → Have; test client against the real Radarr client).
 
+## §7 Lua plugin indexers
+
+Replace the "every indexer is a hardcoded Rust impl" model with a split: the core
+protocol indexers (Torznab, Newznab, RSS) stay hardcoded; everything else (Anna's
+Archive today, more later) becomes a **Lua plugin** loaded from a directory at
+startup. A plugin defines its manifest, its configurable params (so the WebUI can
+build a form for it), and its `search`/`rss_sync` logic.
+
+### 7.1 Loading
+
+- CLI flag `--plugin-dir <path>` (repeatable) + env `READINGROOM_PLUGIN_DIR`.
+  Each occurrence adds a directory scanned for `*.lua` files, one plugin per file.
+  Default: `$data_dir/plugins` if the directory exists.
+- A `PluginManager` loads each file with a Lua runtime (`mlua`, `vendored` feature,
+  no system-lua dependency), reads the plugin's manifest table, and registers it by
+  its `name` (implementation id). Duplicate names → warn + skip (later files lose).
+- Failure to load a plugin logs an error and skips that file; a broken plugin never
+  takes down the server.
+
+### 7.2 Plugin structure (one `.lua` file per plugin)
+
+A plugin is a Lua file that returns a table:
+
+```lua
+return {
+  name = "annas-archive",                       -- implementation id (indexers.settings.implementation)
+  label = "Anna's Archive",
+  version = "1",
+  supports_search = true,
+  supports_rss = false,
+
+  -- Config form the WebUI renders for instances of this plugin.
+  params = {
+    { name = "url",      label = "Base URL", type = "string",  required = true,
+      default = "https://annas-archive.is" },
+    { name = "api_key",  label = "API Key",  type = "password", required = false },
+    { name = "language", label = "Language", type = "select",
+      options = { "any", "en", "de" }, default = "any" },
+  },
+
+  -- criteria: { query, author, title, isbn, limit } (strings/numbers or nil)
+  -- returns a list of releases:
+  --   { title, info_url, download_url, size (bytes), download_type, categories = {...} }
+  search = function(self, criteria)
+    local q = criteria.query or (criteria.author .. " " .. (criteria.title or ""))
+    local html = host.http_get("https://" .. self.url .. "/search?q=" .. host.url_encode(q))
+    -- ... parse with host string helpers or embed a tiny html/table parser ...
+    return { { title = "Example - Book [epub]", info_url = "...",
+               download_url = "...", size = 1234, download_type = "Direct" } }
+  end,
+
+  -- optional
+  rss_sync = function(self) return {} end,
+}
+```
+
+Supported param `type`s: `string`, `password`, `number`, `boolean`, `select`
+(`options` + `default`). `required` gates the WebUI Save button.
+
+### 7.3 Host API exposed to plugins
+
+Plugins get a global `host` table (pure functions, no network surprise):
+
+| function | behavior |
+|----------|----------|
+| `host.http_get(url)` | blocking GET with a timeout; returns body string or `nil, err` |
+| `host.http_get_json(url)` | convenience: `http_get` + JSON decode |
+| `host.url_encode(s)` / `host.url_decode(s)` | percent-encode/decode |
+| `host.json_decode(s)` / `host.json_encode(v)` | JSON <-> Lua table (serde-backed) |
+| `host.log(level, msg)` | level `"info"`/`"warn"`/`"error"`; routed to `tracing` |
+
+### 7.4 `LuaIndexer` adapter
+
+- `crates/providers/src/lua.rs` implements `readingroom_core::traits::Indexer`
+  (async_trait) over a loaded plugin. Each instance owns its `mlua::Lua` state
+  (`Lua` is `!Send`, so a per-instance state + `spawn_blocking` keeps the async
+  runtime clear of blocking HTTP).
+- `search(criteria)` → `spawn_blocking`: set `self` + `criteria`, call the plugin's
+  `search`, decode the returned release tables into `Release`, map Lua `size`
+  units/`download_type` strings to the domain model.
+- `name()` returns the plugin label; `supports_search`/`supports_rss` from the manifest.
+- Plugin config values come from `IndexerConfig.settings` (JSON keyed by param
+  `name`, same table the WebUI already writes).
+
+### 7.5 Wiring
+
+- `from_config` consults the `PluginManager` first; unknown implementations fall
+  back to the hardcoded `torznab`/`newznab`/`rss` match. `main.rs` builds the
+  `PluginManager` from `--plugin-dir` and passes it where indexers are constructed
+  (same place the search-engine indexer list is built today).
+- `create_indexer`/`update_indexer` validate a plugin instance's `settings` against
+  the plugin's `params` (required present, type-correct) and reject otherwise.
+- New endpoint `GET /settings/indexers/implementations` returns the merged list
+  (hardcoded + loaded plugins) with `{ id, label, supports_search, supports_rss,
+  params }` so the WebUI can render the add-flow step-1 picker and step-2 form
+  without hardcoding plugin knowledge in the frontend.
+
+### 7.6 WebUI
+
+- Settings → Indexers → Add: step 1 lists hardcoded types **plus** loaded plugins
+  (from `/settings/indexers/implementations`). Step 2 for a plugin renders fields
+  from its `params` (text/password/number/checkbox/select) instead of the fixed
+  Name/URL/API-key fields; `enable_search`/`enable_rss` toggles still apply when
+  the manifest advertises them.
+- Edit reopens that param form pre-filled (same pattern as today).
+- `implementationLabel`/`implementationHint` in `shared.ts` stay as the static
+  fallback for the three core types; plugin labels come from the API.
+
+### 7.7 Acceptance: Lua Anna's vs hardcoded Anna's
+
+The refactor is proven by a **hermetic side-by-side test**:
+
+1. Ship `crates/providers/lua_plugins/annas-archive.lua` — a faithful Lua port of
+   the current Rust `AnnaIndexer` search (same selectors via host string helpers,
+   same `/books/<id>-<slug>` parsing).
+2. Test spins up a local mock HTTP server serving a canned Anna's search HTML
+   fixture. It configures both the Rust `AnnaIndexer` and the `LuaIndexer`
+   (plugin `annas-archive`, url = mock server) and runs the same query.
+3. Assert the two produce equivalent results: same release titles, `info_url`s,
+   `download_url`s, sizes, and formats. This also guards against site HTML drift —
+   if the fixture matches the live site, a change that breaks parsing fails the
+   comparison.
+4. Manual E2E on `zwei`: add an Anna's plugin indexer in the WebUI (form built from
+   `params`), run interactive search on a tracked book, confirm results match the
+   hardcoded indexer's output.
+
+Then remove the hardcoded `annas.rs` from `from_config` (keep the Rust impl as a
+reference fixture until the test passes).
+
+### 7.8 Rollout order
+
+1. `mlua` dep + `PluginManager` (load dir, manifest + params parse, registry) + CLI flag. (Agent A)
+2. `LuaIndexer` adapter + host API (`http_get`/`json`/`url_encode`/`log`) + `from_config` wiring. (Agent A)
+3. `settings/indexers/implementations` endpoint + settings validation against params. (Agent A)
+4. `annas-archive.lua` port + hermetic comparison test vs Rust `AnnaIndexer`. (Agent B)
+5. Frontend: plugin params in the add/edit flow + implementation labels from API. (Agent C)
+6. Remove hardcoded `anna` from `from_config`; deploy; E2E on `zwei`. (all)
+
 ## Ownership / delegation
 
 - **Agent A (backend lifecycle + import + settings)**: `003_book_status.sql`, `db.rs` (status set/recompute, author-name query), `downloads.rs` (status on grab), `import.rs` (`{author_name}`, per-format roots, merged config), `settings.rs` (library GET/PUT), `main.rs` (merged library config), `wanted.rs`/`books.rs` (status in responses).
@@ -212,3 +350,4 @@ Add a tab in Settings (next to Indexers/Clients/Notifications/Account):
 | §4 Download locations settings | ▢ |
 | §5 Naming format + `{author_name}` | ▢ |
 | §6 E2E verification on remote | ▢ |
+| §7 Lua plugin indexers (PluginManager + LuaIndexer + Lua Anna's vs hardcoded) | ▢ |
