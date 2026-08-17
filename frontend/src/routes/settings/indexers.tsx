@@ -57,8 +57,128 @@ const INDEXER_SETTINGS_SCHEMA = v.object({
   api_key: v.optional(v.string()),
 });
 
+const IMPLEMENTATIONS = [
+  { id: "torznab", label: "Torznab (torrent)", hint: implementationHint("torznab") },
+  { id: "newznab", label: "Newznab (usenet)", hint: implementationHint("newznab") },
+  { id: "rss", label: "RSS", hint: implementationHint("rss") },
+  { id: "anna", label: "Anna's Archive (books)", hint: implementationHint("anna") },
+];
+
+interface IndexerFormValues {
+  name: string;
+  implementation: string;
+  url: string;
+  api_key: string;
+  enable_rss: boolean;
+  enable_search: boolean;
+  priority: number;
+}
+
+/// Fields for one indexer config, driven by the chosen implementation. Used by
+/// both the add flow (step 2) and the edit form.
+function IndexerConfigFields(props: {
+  get: () => IndexerFormValues;
+  patch: (v: Partial<IndexerFormValues>) => void;
+  showPriority?: boolean;
+}) {
+  const impl = () => props.get().implementation;
+  const wantsApiKey = () => impl() !== "rss";
+  const wantsRss = () => impl() !== "anna";
+
+  return (
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Name</label>
+        <input
+          value={props.get().name}
+          onInput={(e) => props.patch({ name: e.currentTarget.value })}
+          class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+          placeholder="My Indexer"
+        />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Type</label>
+        <p class="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-300">
+          {implementationLabel(impl())}
+        </p>
+        <p class="mt-1 text-xs text-gray-500">{implementationHint(impl())}</p>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-xs text-gray-400 mb-1">URL</label>
+        <input
+          value={props.get().url}
+          onInput={(e) => props.patch({ url: e.currentTarget.value })}
+          class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+          placeholder={
+            impl() === "anna" ? "https://annas-archive.org" : "https://indexer.example.com"
+          }
+        />
+      </div>
+      <Show when={wantsApiKey()}>
+        <div class="sm:col-span-2">
+          <label class="block text-xs text-gray-400 mb-1">API Key</label>
+          <input
+            type="password"
+            value={props.get().api_key}
+            onInput={(e) => props.patch({ api_key: e.currentTarget.value })}
+            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+            placeholder="Optional"
+          />
+        </div>
+      </Show>
+      <Show when={props.showPriority}>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Priority</label>
+          <input
+            type="number"
+            value={props.get().priority}
+            onInput={(e) => props.patch({ priority: Number(e.currentTarget.value) })}
+            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
+          />
+        </div>
+      </Show>
+      <Show when={wantsRss()}>
+        <div class="flex items-end gap-6">
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={props.get().enable_rss}
+              onChange={(e) => props.patch({ enable_rss: e.currentTarget.checked })}
+              class="rounded bg-gray-800 border-gray-700"
+            />
+            Enable RSS
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={props.get().enable_search}
+              onChange={(e) => props.patch({ enable_search: e.currentTarget.checked })}
+              class="rounded bg-gray-800 border-gray-700"
+            />
+            Enable Search
+          </label>
+        </div>
+      </Show>
+      <Show when={!wantsRss()}>
+        <div class="flex items-end gap-6">
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={props.get().enable_search}
+              onChange={(e) => props.patch({ enable_search: e.currentTarget.checked })}
+              class="rounded bg-gray-800 border-gray-700"
+            />
+            Enable Search
+          </label>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
 export default function IndexersTab(_props: RouteProps<typeof route>) {
-  const [showAdd, setShowAdd] = createSignal(false);
+  // Add flow: 0 = closed, 1 = pick implementation, 2 = configure.
+  const [addStep, setAddStep] = createSignal<0 | 1 | 2>(0);
   const [editingId, setEditingId] = createSignal<number | null>(null);
   const [editForm, setEditForm] = createSignal<EditForm | null>(null);
   useBeforeLeave((event) => {
@@ -80,6 +200,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
     api_key: "",
     enable_rss: true,
     enable_search: true,
+    priority: 0,
   });
   const resetNewIndexer = () =>
     setNewIndexer((s) => {
@@ -89,6 +210,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
       s.api_key = "";
       s.enable_rss = true;
       s.enable_search = true;
+      s.priority = 0;
     });
 
   const erroredIndexers: Record<number, Indexer> = {};
@@ -159,7 +281,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
       });
       yield;
       refresh(indexers);
-      setShowAdd(false);
+      setAddStep(0);
       resetNewIndexer();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
@@ -252,10 +374,10 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                 </button>
               </Show>
               <button
-                onClick={() => setShowAdd(!showAdd())}
+                onClick={() => setAddStep(addStep() === 0 ? 1 : 0)}
                 class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition-colors"
               >
-                {showAdd() ? "Cancel" : "Add Indexer"}
+                {addStep() !== 0 ? "Cancel" : "Add Indexer"}
               </button>
             </div>
           </div>
@@ -264,114 +386,65 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
             <p class="text-sm text-red-400 mt-2">{actionError()}</p>
           </Show>
 
-          <Show when={showAdd()}>
+          <Show when={addStep() !== 0}>
             <div class="mb-4 p-4 bg-gray-900 rounded-lg border border-gray-800">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Name</label>
-                  <input
-                    value={newIndexer.name}
-                    onInput={(e) =>
-                      setNewIndexer((s) => {
-                        s.name = e.currentTarget.value;
-                      })
-                    }
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="My Indexer"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Type</label>
-                  <select
-                    value={newIndexer.implementation}
-                    onChange={(e) =>
-                      setNewIndexer((s) => {
-                        s.implementation = e.currentTarget.value;
-                      })
-                    }
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                  >
-                    <option value="torznab">Torznab (torrent)</option>
-                    <option value="newznab">Newznab (usenet)</option>
-                    <option value="rss">RSS</option>
-                    <option value="anna">Anna's Archive (books)</option>
-                  </select>
-                  <p class="mt-1 text-xs text-gray-500">
-                    {implementationHint(newIndexer.implementation)}
-                  </p>
-                </div>
-                <div class="sm:col-span-2">
-                  <label class="block text-xs text-gray-400 mb-1">URL</label>
-                  <input
-                    value={newIndexer.url}
-                    onInput={(e) =>
-                      setNewIndexer((s) => {
-                        s.url = e.currentTarget.value;
-                      })
-                    }
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="https://indexer.example.com"
-                  />
-                </div>
-                <div class="sm:col-span-2">
-                  <label class="block text-xs text-gray-400 mb-1">API Key</label>
-                  <input
-                    type="password"
-                    value={newIndexer.api_key}
-                    onInput={(e) =>
-                      setNewIndexer((s) => {
-                        s.api_key = e.currentTarget.value;
-                      })
-                    }
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                    placeholder="Optional"
-                  />
-                </div>
-                <div class="flex items-end gap-6">
-                  <label class="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={newIndexer.enable_rss}
-                      onChange={(e) =>
+              <Show
+                when={addStep() === 1}
+                fallback={
+                  <>
+                    <IndexerConfigFields
+                      get={() => newIndexer}
+                      patch={(v) =>
                         setNewIndexer((s) => {
-                          s.enable_rss = e.currentTarget.checked;
+                          Object.assign(s, v);
                         })
                       }
-                      class="rounded bg-gray-800 border-gray-700"
                     />
-                    Enable RSS
-                  </label>
-                  <label class="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={newIndexer.enable_search}
-                      onChange={(e) =>
-                        setNewIndexer((s) => {
-                          s.enable_search = e.currentTarget.checked;
-                        })
-                      }
-                      class="rounded bg-gray-800 border-gray-700"
-                    />
-                    Enable Search
-                  </label>
+                    <div class="flex gap-3 items-center mt-4">
+                      <button
+                        onClick={() => setAddStep(1)}
+                        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={() => void addIndexer()}
+                        disabled={adding() || !newIndexer.name || !newIndexer.url.trim()}
+                        class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setAddStep(0)}
+                        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <p class="text-xs text-gray-500">A URL is required to connect.</p>
+                    </div>
+                  </>
+                }
+              >
+                <h4 class="text-sm font-semibold text-gray-300 mb-3">Indexer type</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <For each={IMPLEMENTATIONS}>
+                    {(impl) => (
+                      <button
+                        onClick={() => {
+                          setNewIndexer((s) => {
+                            s.implementation = impl.id;
+                          });
+                          setAddStep(2);
+                        }}
+                        class="p-4 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-indigo-600 rounded-lg text-left transition-colors"
+                      >
+                        <p class="font-medium">{impl.label}</p>
+                        <p class="text-xs text-gray-500 mt-1">{impl.hint}</p>
+                      </button>
+                    )}
+                  </For>
                 </div>
-              </div>
-              <div class="flex gap-3 items-center mt-4">
-                <button
-                  onClick={() => void addIndexer()}
-                  disabled={adding() || !newIndexer.name || !newIndexer.url.trim()}
-                  class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setShowAdd(false)}
-                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
-                >
-                  Cancel
-                </button>
-                <p class="text-xs text-gray-500">A URL is required to connect.</p>
-              </div>
+              </Show>
             </div>
           </Show>
 
@@ -504,107 +577,11 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                     }
                   >
                     <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Name</label>
-                          <input
-                            value={editForm()?.name ?? ""}
-                            onInput={(e) =>
-                              setEditForm((prev) =>
-                                prev ? { ...prev, name: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Type</label>
-                          <select
-                            value={editForm()?.implementation ?? "torznab"}
-                            onChange={(e) =>
-                              setEditForm((prev) =>
-                                prev ? { ...prev, implementation: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                          >
-                            <option value="torznab">Torznab (torrent)</option>
-                            <option value="newznab">Newznab (usenet)</option>
-                            <option value="rss">RSS</option>
-                          </select>
-                          <p class="mt-1 text-xs text-gray-500">
-                            {implementationHint(editForm()?.implementation ?? "torznab")}
-                          </p>
-                        </div>
-                        <div class="sm:col-span-2">
-                          <label class="block text-xs text-gray-400 mb-1">URL</label>
-                          <input
-                            value={editForm()?.url ?? ""}
-                            onInput={(e) =>
-                              setEditForm((prev) =>
-                                prev ? { ...prev, url: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                            placeholder="https://indexer.example.com"
-                          />
-                        </div>
-                        <div class="sm:col-span-2">
-                          <label class="block text-xs text-gray-400 mb-1">API Key</label>
-                          <input
-                            type="password"
-                            value={editForm()?.api_key ?? ""}
-                            onInput={(e) =>
-                              setEditForm((prev) =>
-                                prev ? { ...prev, api_key: e.currentTarget.value } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-400 mb-1">Priority</label>
-                          <input
-                            type="number"
-                            value={editForm()?.priority ?? 0}
-                            onInput={(e) =>
-                              setEditForm((prev) =>
-                                prev ? { ...prev, priority: Number(e.currentTarget.value) } : null,
-                              )
-                            }
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-                          />
-                        </div>
-                        <div class="flex items-end gap-6">
-                          <label class="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={editForm()?.enable_rss ?? false}
-                              onChange={(e) =>
-                                setEditForm((prev) =>
-                                  prev ? { ...prev, enable_rss: e.currentTarget.checked } : null,
-                                )
-                              }
-                              class="rounded bg-gray-800 border-gray-700"
-                            />
-                            Enable RSS
-                          </label>
-                          <label class="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={editForm()?.enable_search ?? false}
-                              onChange={(e) =>
-                                setEditForm((prev) =>
-                                  prev ? { ...prev, enable_search: e.currentTarget.checked } : null,
-                                )
-                              }
-                              class="rounded bg-gray-800 border-gray-700"
-                            />
-                            Enable Search
-                          </label>
-                        </div>
-                      </div>
+                      <IndexerConfigFields
+                        get={() => editForm()!}
+                        patch={(v) => setEditForm((prev) => (prev ? { ...prev, ...v } : prev))}
+                        showPriority
+                      />
                       <div class="flex gap-2 mt-3 justify-end">
                         <button
                           onClick={() => {
