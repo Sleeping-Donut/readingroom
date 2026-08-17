@@ -684,7 +684,7 @@ fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Re
         };
 
         match rec_type {
-            "work" => {
+            "work" | "/type/work" => {
                 if let Ok(w) = serde_json::from_str::<DumpWork>(json) {
                     let author_keys: Vec<String> = w
                         .authors
@@ -702,7 +702,7 @@ fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Re
                     pending += 1;
                 }
             }
-            "edition" => {
+            "edition" | "/type/edition" => {
                 if let Ok(e) = serde_json::from_str::<DumpEdition>(json) {
                     let mut seen = std::collections::HashSet::new();
                     let isbn = e
@@ -724,7 +724,7 @@ fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Re
                     pending += 1;
                 }
             }
-            "author" => {
+            "author" | "/type/author" => {
                 if let Ok(a) = serde_json::from_str::<DumpAuthor>(json) {
                     batch.authors.push(AuthorRow {
                         key: a.key,
@@ -734,7 +734,7 @@ fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Re
                     pending += 1;
                 }
             }
-            "redirect" => {
+            "redirect" | "/type/redirect" => {
                 if let Ok(r) = serde_json::from_str::<DumpRedirect>(json) {
                     if let Some(to) = r.location.or(r.to) {
                         batch.redirects.push((r.key, to));
@@ -1430,6 +1430,7 @@ mod tests {
             "author\t/authors/OL1A\t1\t2000-01-01T00:00:00Z\t{\"key\":\"/authors/OL1A\",\"name\":\"Ada Writer\"}",
             "edition\t/books/OL1M\t1\t2000-01-01T00:00:00Z\t{\"key\":\"/books/OL1M\",\"title\":\"Imported Book (1st)\",\"works\":[{\"key\":\"/works/OL1W\"}],\"isbn_13\":[\"9781111111111\"],\"number_of_pages\":200}",
             "redirect\t/works/OLOLD\t1\t2000-01-01T00:00:00Z\t{\"key\":\"/works/OLOLD\",\"location\":\"/works/OL1W\"}",
+            "/type/author\t/authors/OL2A\t1\t2000-01-01T00:00:00Z\t{\"type\":{\"key\":\"/type/author\"},\"key\":\"/authors/OL2A\",\"name\":\"Typed Author\"}",
         ]
         .join("\n");
 
@@ -1454,7 +1455,7 @@ mod tests {
 
         let _ = std::fs::remove_file(&gz_path);
         assert_eq!(counts.works, 1);
-        assert_eq!(counts.authors, 1);
+        assert_eq!(counts.authors, 2);
         assert_eq!(counts.editions, 1);
         assert_eq!(counts.redirects, 1);
 
