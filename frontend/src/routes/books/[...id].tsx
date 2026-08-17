@@ -13,9 +13,16 @@ import {
   Show,
 } from "solid-js";
 
-import type { Edition } from "../../types";
+import type { Book, Edition } from "../../types";
 
-import { addBook, getBook, getBookEditions, updateBookMonitored } from "../../api/books";
+import {
+  addBook,
+  bookId,
+  getBook,
+  getBookEditions,
+  getBooks,
+  updateBookMonitored,
+} from "../../api/books";
 import { getQueue } from "../../api/queue";
 import {
   downloadIndexerRelease,
@@ -31,7 +38,10 @@ import { StatusBadge } from "../../components/books/StatusBadge";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/books/*id", {
-  preload: ({ params }) => getBook(params.id),
+  preload: ({ params }) => {
+    void getBook(params.id);
+    void getBooks();
+  },
 });
 
 const QUEUE_LABELS: Record<string, string> = {
@@ -163,6 +173,22 @@ export default function BookDetail() {
   };
 
   const book = createMemo(() => getBook(params.id));
+
+  // The tracked book from the local books list, so the stored title/status
+  // render immediately instead of blanking the whole page on the detail load.
+  const booksList = createMemo(() => getBooks(), {
+    loadingValue: null as { books: Book[]; total: number } | null,
+  });
+  const storedBook = createMemo(() => {
+    const list = booksList()?.books ?? [];
+    const p = params.id;
+    return (
+      list.find((b) => String(b.id) === p) ??
+      list.find((b) => bookId(b) === p) ??
+      list.find((b) => b.foreign_id === p) ??
+      null
+    );
+  });
 
   const queue = createMemo(() => getQueue());
 
@@ -340,6 +366,23 @@ export default function BookDetail() {
         &larr; Back
       </button>
 
+      <Show when={storedBook()}>
+        {(stored) => (
+          <div class="flex flex-wrap items-center gap-3 mb-1">
+            <h2 class="text-3xl font-bold">{stored().title}</h2>
+            <StatusBadge status={stored().status} />
+            <Show when={stored().author_name}>
+              <a
+                href={paths.authors(stored().author_foreign_id ?? stored().author_id)}
+                class="text-lg text-indigo-400 hover:text-indigo-300"
+              >
+                {stored().author_name}
+              </a>
+            </Show>
+          </div>
+        )}
+      </Show>
+
       <Errored
         fallback={(err, reset) => (
           <p class="text-sm text-red-400 mt-2">
@@ -361,20 +404,22 @@ export default function BookDetail() {
             />
             <div class="flex-1 min-w-0">
               <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <div class="flex flex-wrap items-center gap-3 mb-1">
-                    <h2 class="text-3xl font-bold">{book().title}</h2>
-                    <StatusBadge status={book().status} />
+                <Show when={!storedBook()}>
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-3 mb-1">
+                      <h2 class="text-3xl font-bold">{book().title}</h2>
+                      <StatusBadge status={book().status} />
+                    </div>
+                    <Show when={book().author_name}>
+                      <a
+                        href={paths.authors(book().author_foreign_id ?? book().author_id)}
+                        class="text-lg text-indigo-400 hover:text-indigo-300"
+                      >
+                        {book().author_name}
+                      </a>
+                    </Show>
                   </div>
-                  <Show when={book().author_name}>
-                    <a
-                      href={paths.authors(book().author_foreign_id ?? book().author_id)}
-                      class="text-lg text-indigo-400 hover:text-indigo-300"
-                    >
-                      {book().author_name}
-                    </a>
-                  </Show>
-                </div>
+                </Show>
                 <div class="flex flex-wrap items-center gap-2">
                   <Show when={book().id > 0}>
                     <button
