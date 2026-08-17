@@ -78,6 +78,61 @@ impl HttpDownloadClient {
             .collect();
         sanitized.trim().to_string()
     }
+
+    /// Whether the URL looks like a JSON envelope endpoint (e.g. Anna's Archive
+    /// `fast_download.json`) whose response must be resolved to a real file URL
+    /// before the download can start.
+    fn needs_envelope_resolution(url: &str) -> bool {
+        let path = url.split(['?', '#']).next().unwrap_or(url).to_ascii_lowercase();
+        path.contains("/api/") || path.ends_with(".json")
+    }
+
+    /// Resolve a JSON envelope (e.g. `{"download_url": "..."}`) to the real file
+    /// URL. Returns the URL to stream plus the file extension from the resolved
+    /// URL when one is available. Non-envelope responses are returned unchanged
+    /// (the caller re-fetches them).
+    async fn resolve_envelope(&self, url: &str) -> Result<(String, Option<String>)> {
+        let resp = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| AppError::Provider(format!("Resolve request: {e}")))?;
+        if !resp.status().is_success() {
+            return Err(AppError::Provider(format!(
+                "Download API returned {}",
+                resp.status()
+            )));
+        }
+        let is_json = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .map(|ct| ct.to_ascii_lowercase().contains("json"))
+            .unwrap_or(false);
+        if !is_json {
+            return Ok((url.to_string(), None));
+        }
+
+        let text = resp.text().await.map_err(|e| {
+            AppError::Provider(format!("Resolve read: {e}"))
+        })?;
+        let value: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|_| AppError::Provider("Download API returned invalid JSON".into()))?;
+
+        if let Some(dl) = value
+            .get("download_url")
+            .and_then(|d| d.as_str())
+            .filter(|s| s.starts_with("http"))
+        {
+            let ext = Self::ext_from_url(dl);
+            return Ok((dl.to_string(), Some(ext)));
+        }
+        if let Some(err) = value.get("error").and_then(|e| e.as_str()) {
+            return Err(AppError::Provider(format!("Download API error: {err}")));
+        }
+        Ok((url.to_string(), None))
+    }
 }
 
 /// Whether the download directory contains a finished (non-`.part`) file.
@@ -168,7 +223,15 @@ impl DownloadClient for HttpDownloadClient {
     }
 
     async fn add_release(&self, release: &Release) -> Result<DownloadId> {
-        let ext = Self::ext_from_url(&release.download_url);
+        // Resolve JSON envelope endpoints (e.g. Anna's Archive fast_download)
+        // to the real file URL before naming the file.
+        let download_url = release.download_url.clone();
+        let (url, resolved_ext) = if Self::needs_envelope_resolution(&download_url) {
+            self.resolve_envelope(&download_url).await?
+        } else {
+            (download_url, None)
+        };
+        let ext = resolved_ext.unwrap_or_else(|| Self::ext_from_url(&url));
         let title = Self::sanitize_title(&release.title);
         let id = DownloadId(title.clone());
 
@@ -195,7 +258,6 @@ impl DownloadClient for HttpDownloadClient {
         }
 
         let client = self.client.clone();
-        let url = release.download_url.clone();
         let semaphore = self.concurrency.clone();
         let active_map = self.active.clone();
         let rate_limit = self.rate_limit;
@@ -414,6 +476,95 @@ mod tests {
 
         client.remove_download(&id).await.unwrap();
         assert!(!path.exists());
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    /// Serves a JSON envelope on `/fast_download.json` pointing at `/book.epub`.
+    fn spawn_envelope_server() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf).unwrap();
+                let request = String::from_utf8_lossy(&buf[..buf.iter().position(|b| *b == b'\r').unwrap_or(buf.len())]);
+                let body: String = if request.contains("fast_download.json") {
+                    format!(
+                        r#"{{"download_url":"http://{addr}/book.epub","account_fast_download_info":{{"downloads_per_day":100,"downloads_left":99}}}}"#
+                    )
+                } else {
+                    "fake epub bytes".to_string()
+                };
+                let head = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    if request.contains("fast_download.json") { "application/json" } else { "application/epub+zip" },
+                    body.len()
+                );
+                let _ = stream.write_all(head.as_bytes());
+                let _ = stream.write_all(body.as_bytes());
+                let _ = stream.flush();
+            }
+        });
+        format!("http://{addr}/dyn/api/fast_download.json?md5=abc123")
+    }
+
+    #[tokio::test]
+    async fn resolves_envelope_before_download() {
+        let url = spawn_envelope_server();
+        let temp = std::env::temp_dir().join(format!("rr_http_env_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp);
+
+        let config = DownloadClientConfig {
+            name: "http".into(),
+            implementation: "http".into(),
+            host: String::new(),
+            port: 0,
+            username: None,
+            password: None,
+            url_base: None,
+            category: None,
+            download_dir: Some(temp.clone()),
+            enabled: true,
+            rate_limit: None,
+            concurrent_downloads: None,
+            priority: 0,
+        };
+
+        let client = HttpDownloadClient::new(&config).unwrap();
+        let release = Release {
+            title: "Envelope Book".into(),
+            info_url: String::new(),
+            download_url: url,
+            size: 15,
+            pub_date: Utc::now(),
+            indexer: "anna".into(),
+            download_type: DownloadType::Direct,
+            seeders: None,
+            peers: None,
+            grabs: None,
+            categories: vec![],
+        };
+
+        let id = client.add_release(&release).await.unwrap();
+
+        let mut completed = false;
+        for _ in 0..200 {
+            if matches!(
+                client.get_status(&id).await.unwrap(),
+                DownloadStatus::Completed
+            ) {
+                completed = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert!(completed, "download did not complete in time");
+
+        // The extension comes from the resolved URL, not fast_download.json.
+        let path = temp.join(&id.0).join("Envelope Book.epub");
+        assert_eq!(std::fs::read(&path).unwrap(), b"fake epub bytes");
 
         let _ = std::fs::remove_dir_all(&temp);
     }
