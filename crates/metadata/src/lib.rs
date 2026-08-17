@@ -6,7 +6,7 @@ pub mod ol_dump;
 
 pub use ol_dump::{
     DEFAULT_DUMP_URL, OlCacheSource, ImportHandle, ImportProgress, ImportState, ImportCounts,
-    download_and_import,
+    download_and_import, import_dump_from_file,
 };
 
 use readingroom_core::traits::MetadataSource;

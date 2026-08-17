@@ -365,21 +365,7 @@ pub async fn download_and_import(
         let counts = import_dump_file(db, &tmp, handle).await?;
 
         let _ = tokio::fs::remove_file(&tmp).await;
-        let now = Utc::now().to_rfc3339();
-        let writes: [(&str, String); 5] = [
-            ("dump_imported_at", now.clone()),
-            ("dump_source", url.to_string()),
-            ("dump_last_status", "success".to_string()),
-            ("dump_last_error", String::new()),
-            ("dump_last_attempt", now),
-        ];
-        for (key, value) in writes {
-            sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
-                .bind(key)
-                .bind(value)
-                .execute(db)
-                .await?;
-        }
+        record_success(db, url).await?;
         Ok::<_, AppError>(counts)
     }
     .await;
@@ -391,26 +377,91 @@ pub async fn download_and_import(
         }
         Err(e) => {
             let _ = tokio::fs::remove_file(&tmp).await;
-            let now = Utc::now().to_rfc3339();
-            let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
-                .bind("dump_last_status")
-                .bind("failed")
-                .execute(db)
-                .await;
-            let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
-                .bind("dump_last_error")
-                .bind(e.to_string())
-                .execute(db)
-                .await;
-            let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
-                .bind("dump_last_attempt")
-                .bind(now)
-                .execute(db)
-                .await;
+            record_failure(db, &e).await;
             handle.set(|p| p.state = ImportState::Failed(e.to_string()));
             Err(e)
         }
     }
+}
+
+/// Import a local gzip dump file into the cache DB and record the result. Used
+/// by the `--import-dump` CLI flag to seed the cache from a file downloaded
+/// out-of-band (e.g. with curl). Updates `handle` throughout.
+pub async fn import_dump_from_file(
+    db: &sqlx::SqlitePool,
+    path: &Path,
+    handle: &ImportHandle,
+) -> Result<ImportCounts> {
+    let started = Utc::now();
+    handle.set(|p| {
+        p.state = ImportState::Importing;
+        p.started_at = Some(started);
+        p.bytes_downloaded = 0;
+        p.total_bytes = None;
+        p.import_bytes = 0;
+        p.rows = 0;
+        p.counts = ImportCounts::default();
+    });
+
+    let result = async {
+        sqlx::query("PRAGMA synchronous=OFF").execute(db).await?;
+        sqlx::query("PRAGMA cache_size=-200000").execute(db).await?;
+        sqlx::query("PRAGMA temp_store=MEMORY").execute(db).await?;
+        let counts = import_dump_file(db, path, handle).await?;
+        record_success(db, &path.to_string_lossy()).await?;
+        Ok::<_, AppError>(counts)
+    }
+    .await;
+
+    match result {
+        Ok(counts) => {
+            handle.set(|p| p.state = ImportState::Done);
+            Ok(counts)
+        }
+        Err(e) => {
+            record_failure(db, &e).await;
+            handle.set(|p| p.state = ImportState::Failed(e.to_string()));
+            Err(e)
+        }
+    }
+}
+
+async fn record_success(db: &sqlx::SqlitePool, source: &str) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    let writes: [(&str, String); 5] = [
+        ("dump_imported_at", now.clone()),
+        ("dump_source", source.to_string()),
+        ("dump_last_status", "success".to_string()),
+        ("dump_last_error", String::new()),
+        ("dump_last_attempt", now),
+    ];
+    for (key, value) in writes {
+        sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+            .bind(key)
+            .bind(value)
+            .execute(db)
+            .await?;
+    }
+    Ok(())
+}
+
+async fn record_failure(db: &sqlx::SqlitePool, error: &AppError) {
+    let now = Utc::now().to_rfc3339();
+    let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+        .bind("dump_last_status")
+        .bind("failed")
+        .execute(db)
+        .await;
+    let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+        .bind("dump_last_error")
+        .bind(error.to_string())
+        .execute(db)
+        .await;
+    let _ = sqlx::query("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)")
+        .bind("dump_last_attempt")
+        .bind(now)
+        .execute(db)
+        .await;
 }
 
 async fn download_to_file(

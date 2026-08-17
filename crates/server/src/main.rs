@@ -47,6 +47,11 @@ struct Args {
     /// Directory containing Lua indexer plugins (repeatable; one .lua per plugin)
     #[arg(long = "plugin-dir", env = "READINGROOM_PLUGIN_DIR")]
     plugin_dirs: Vec<PathBuf>,
+
+    /// Import a local OpenLibrary dump file (gzipped) into the offline cache DB
+    /// and exit. Useful for seeding the cache from a file downloaded with curl.
+    #[arg(long = "import-dump")]
+    import_dump: Option<PathBuf>,
 }
 
 pub struct AppState {
@@ -160,6 +165,34 @@ async fn main() -> readingroom_core::error::Result<()> {
     // Create metadata dispatcher: online OpenLibrary API by default, with the
     // offline dump cache source available and switchable at runtime.
     let local_cache = crate::local_cache::LocalCacheManager::new(db.clone(), &config.server.data_dir).await?;
+
+    // `--import-dump <file>`: seed the offline cache DB from a local dump file
+    // (downloaded out-of-band, e.g. with curl) and exit.
+    if let Some(dump_path) = args.import_dump {
+        if !dump_path.exists() {
+            return Err(readingroom_core::error::AppError::Config(format!(
+                "Import dump file not found: {}",
+                dump_path.display()
+            )));
+        }
+        tracing::info!(path = %dump_path.display(), "Importing OpenLibrary dump into cache");
+        let handle = local_cache.handle().clone();
+        let counts = readingroom_metadata::import_dump_from_file(
+            local_cache.source().pool(),
+            &dump_path,
+            &handle,
+        )
+        .await?;
+        tracing::info!(
+            works = counts.works,
+            editions = counts.editions,
+            authors = counts.authors,
+            redirects = counts.redirects,
+            "Dump import complete"
+        );
+        return Ok(());
+    }
+
     let metadata_settings = crate::local_cache::load_settings(&db).await;
     let metadata = Arc::new(crate::metadata::MetadataDispatcher::new(
         crate::cache::CachedMetadataSource::new(Box::new(
