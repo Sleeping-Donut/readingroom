@@ -16,7 +16,8 @@ function getToken(): string | null {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const headers = new Headers();
-  headers.set("Content-Type", "application/json");
+  // Multipart uploads set their own Content-Type (with boundary).
+  if (!(init?.body instanceof FormData)) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init?.headers) {
     new Headers(init.headers).forEach((v, k) => headers.set(k, v));
@@ -46,4 +47,6 @@ export const api = {
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  upload: <T>(path: string, formData: FormData) =>
+    request<T>(path, { method: "POST", body: formData }),
 };

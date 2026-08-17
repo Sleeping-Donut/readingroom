@@ -229,6 +229,28 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
     }
   };
 
+  const [file, setFile] = createSignal<File | null>(null);
+  const [uploading, setUploading] = createSignal(false);
+
+  const runUpload = async () => {
+    const f = file();
+    if (!f) return;
+    setUploading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await settingsApi.uploadMetadataDump(f);
+      setFile(null);
+      refresh();
+      if (res.started) setNotice("Dump uploaded — importing in the background.");
+      else setError("A download/import is already running.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div class="space-y-6">
       <Errored
@@ -340,6 +362,30 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
           >
             Check for updates
           </button>
+        </div>
+
+        <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+          <h4 class="font-semibold text-gray-200 mb-1">Upload dump file</h4>
+          <p class="text-sm text-gray-500 mb-3">
+            Download the dump yourself (e.g.{" "}
+            <code class="text-gray-400">ol_dump_latest.txt.gz</code>) and upload it here to build
+            the local cache. Import runs in the background.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input
+              type="file"
+              accept=".gz,application/gzip"
+              onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)}
+              class="flex-1 text-sm text-gray-300 file:mr-3 file:px-3 file:py-1.5 file:bg-gray-800 file:border file:border-gray-700 file:rounded file:text-gray-200"
+            />
+            <button
+              onClick={() => void runUpload()}
+              disabled={uploading() || !file()}
+              class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+            >
+              {uploading() ? "Uploading..." : "Upload & Import"}
+            </button>
+          </div>
         </div>
       </Errored>
     </div>

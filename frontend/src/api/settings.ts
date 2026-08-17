@@ -263,3 +263,9 @@ export function checkMetadataUpdates() {
     check: { newer: boolean; last_modified: string | null; started: boolean };
   }>("/settings/metadata/check");
 }
+
+export function uploadMetadataDump(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return api.upload<{ success: boolean; started: boolean }>("/settings/metadata/upload", form);
+}

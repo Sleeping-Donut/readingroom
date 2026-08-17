@@ -2,11 +2,13 @@ use std::sync::Arc;
 
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Multipart, State},
     routing::{get, post, put},
 };
+use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use tokio::io::AsyncWriteExt;
 
 use crate::{AppState, local_cache};
 
@@ -90,9 +92,57 @@ async fn check_updates(State(state): State<Arc<AppState>>) -> Json<Value> {
     }
 }
 
+/// Upload a dump file from the WebUI and import it into the cache in the
+/// background. Streams the multipart body to disk so multi-GB files don't need
+/// to fit in memory.
+async fn upload_dump(
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+) -> Json<Value> {
+    if state.local_cache.is_running() {
+        return Json(json!({ "success": false, "started": false, "error": "A download/import is already running." }));
+    }
+    let path = state.local_cache.dump_upload_path();
+    let mut written = false;
+    while let Ok(Some(field)) = multipart.next_field().await {
+        if field.name() != Some("file") {
+            continue;
+        }
+        let mut file = match tokio::fs::File::create(&path).await {
+            Ok(f) => f,
+            Err(e) => return Json(json!({ "success": false, "error": format!("Cannot write upload: {e}") })),
+        };
+        let mut field = field;
+        while let Some(chunk) = field.next().await {
+            match chunk {
+                Ok(bytes) => {
+                    if let Err(e) = file.write_all(&bytes).await {
+                        return Json(json!({ "success": false, "error": format!("Upload write failed: {e}") }));
+                    }
+                }
+                Err(e) => return Json(json!({ "success": false, "error": format!("Upload failed: {e}") })),
+            }
+        }
+        if let Err(e) = file.flush().await {
+            return Json(json!({ "success": false, "error": format!("Upload flush failed: {e}") }));
+        }
+        written = true;
+        break;
+    }
+
+    if !written {
+        let _ = tokio::fs::remove_file(&path).await;
+        return Json(json!({ "success": false, "error": "No file field named 'file' in the upload." }));
+    }
+
+    let started = state.local_cache.request_import_from_file(path);
+    Json(json!({ "success": true, "started": started }))
+}
+
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/metadata", get(get_metadata_settings).put(update_metadata_settings))
         .route("/metadata/download", post(trigger_download))
         .route("/metadata/check", post(check_updates))
+        .route("/metadata/upload", post(upload_dump))
 }

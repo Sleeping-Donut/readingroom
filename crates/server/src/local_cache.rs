@@ -154,6 +154,39 @@ impl LocalCacheManager {
         true
     }
 
+    /// Temporary path for a dump file uploaded from the WebUI.
+    pub fn dump_upload_path(&self) -> PathBuf {
+        self.db_path.with_extension("upload.txt.gz")
+    }
+
+    /// Kick off a background import of a local dump file (e.g. uploaded through
+    /// the WebUI). The file is deleted when the import finishes. Returns true
+    /// if a task started, false if one is already running.
+    pub fn request_import_from_file(&self, path: PathBuf) -> bool {
+        if self.running.swap(true, Ordering::SeqCst) {
+            return false;
+        }
+        let pool = self.source.pool().clone();
+        let handle = self.handle.clone();
+        let running = self.running.clone();
+        tokio::spawn(async move {
+            let result = readingroom_metadata::import_dump_from_file(&pool, &path, &handle).await;
+            let _ = tokio::fs::remove_file(&path).await;
+            match result {
+                Ok(counts) => tracing::info!(
+                    works = counts.works,
+                    editions = counts.editions,
+                    authors = counts.authors,
+                    redirects = counts.redirects,
+                    "Uploaded dump import complete"
+                ),
+                Err(e) => tracing::error!(error = %e, "Uploaded dump import failed"),
+            }
+            running.store(false, Ordering::SeqCst);
+        });
+        true
+    }
+
     /// HEAD the dump URL and, when the remote dump is newer than the last
     /// import, trigger a re-import. Used by the periodic scheduler job.
     pub async fn check_for_updates(&self) -> Result<UpdateCheck> {
