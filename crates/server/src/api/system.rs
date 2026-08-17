@@ -378,7 +378,7 @@ async fn health_check(State(state): State<Arc<AppState>>) -> Json<Value> {
     let mut idx_err = 0usize;
     let mut idx_details: Vec<Value> = Vec::new();
     for ic in &state.config.indexers {
-        match readingroom_providers::from_config(ic) {
+        match readingroom_providers::from_config(ic, &state.plugins) {
             Ok(indexer) => {
                 let supported = if indexer.supports_search() {
                     "search"

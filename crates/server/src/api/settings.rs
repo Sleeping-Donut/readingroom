@@ -125,10 +125,66 @@ async fn list_indexers(State(state): State<Arc<AppState>>) -> Json<Value> {
     }
 }
 
+/// Available indexer implementations (hardcoded + loaded Lua plugins) so the
+/// WebUI can render the add-flow type picker and per-type config form.
+async fn list_implementations(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let mut all = readingroom_providers::core_implementations();
+    all.extend(state.plugins.implementations());
+    Json(json!({ "implementations": all }))
+}
+
+/// Validate a plugin indexer's settings JSON against its declared `params`.
+/// Core implementations skip validation here (they parse url/api_key).
+fn validate_plugin_settings(
+    plugins: &readingroom_providers::PluginManager,
+    implementation: &str,
+    settings: &str,
+) -> std::result::Result<(), String> {
+    let Some(def) = plugins.get(implementation) else {
+        return Ok(());
+    };
+    let value: serde_json::Value = serde_json::from_str(settings)
+        .map_err(|e| format!("Invalid settings JSON: {e}"))?;
+    let obj = value.as_object().ok_or("Settings must be a JSON object")?;
+
+    for p in &def.params {
+        let present = obj.get(&p.name);
+        match (present, p.required) {
+            (None, true) => {
+                return Err(format!("Missing required param: {}", p.name));
+            }
+            (None, false) => continue,
+            (Some(v), _) => {
+                let ok = match p.param_type.as_str() {
+                    "number" => v.is_number(),
+                    "boolean" => v.is_boolean(),
+                    "select" => v
+                        .as_str()
+                        .map(|s| p.options.is_empty() || p.options.iter().any(|o| o == s))
+                        .unwrap_or(false),
+                    // string / password
+                    _ => v.is_string(),
+                };
+                if !ok {
+                    return Err(format!("Param '{}' has the wrong type", p.name));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn create_indexer(
     State(state): State<Arc<AppState>>,
     Json(body): Json<CreateIndexerBody>,
 ) -> Json<Value> {
+    if let Err(e) = validate_plugin_settings(
+        &state.plugins,
+        &body.implementation,
+        body.settings.as_deref().unwrap_or("{}"),
+    ) {
+        return Json(json!({ "error": e, "success": false }));
+    }
     let result = sqlx::query(
         "INSERT INTO indexers (name, implementation, settings, enable_rss, enable_search, priority)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -193,6 +249,10 @@ async fn update_indexer(
     let enable_rss = body.enable_rss.unwrap_or(current.enable_rss);
     let enable_search = body.enable_search.unwrap_or(current.enable_search);
     let priority = body.priority.unwrap_or(current.priority);
+
+    if let Err(e) = validate_plugin_settings(&state.plugins, &implementation, &settings) {
+        return Json(json!({ "error": e, "success": false }));
+    }
 
     match sqlx::query(
         "UPDATE indexers SET name = ?1, implementation = ?2, settings = ?3,
@@ -428,6 +488,7 @@ async fn test_indexer(
         implementation: row.implementation,
         url: settings.url,
         api_key: settings.api_key,
+        settings: None,
         enabled: true,
         rss_enabled: row.enable_rss,
         search_enabled: row.enable_search,
@@ -436,7 +497,7 @@ async fn test_indexer(
         tags: vec![],
     };
 
-    let indexer = match readingroom_providers::from_config(&config) {
+    let indexer = match readingroom_providers::from_config(&config, &state.plugins) {
         Ok(i) => i,
         Err(e) => return Json(json!({ "success": false, "error": e.to_string() })),
     };
@@ -520,6 +581,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/indexers", get(list_indexers).post(create_indexer))
         .route("/indexers/:id", get(get_indexer).put(update_indexer).delete(delete_indexer))
         .route("/indexers/:id/test", post(test_indexer))
+        .route("/indexers/implementations", get(list_implementations))
         .route("/downloadclients", get(list_download_clients).post(create_download_client))
         .route("/downloadclients/:id", get(get_download_client).put(update_download_client).delete(delete_download_client))
         .route("/downloadclients/:id/test", post(test_download_client))

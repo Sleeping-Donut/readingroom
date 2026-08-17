@@ -76,6 +76,10 @@ pub struct IndexerConfig {
     pub implementation: String,
     pub url: String,
     pub api_key: Option<String>,
+    /// Raw plugin/param settings JSON (DB-configured indexers only). Core
+    /// indexers read the flattened `url`/`api_key`; Lua plugins read this.
+    #[serde(default)]
+    pub settings: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default = "default_true")]

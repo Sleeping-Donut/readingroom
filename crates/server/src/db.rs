@@ -501,8 +501,8 @@ pub async fn list_indexer_configs(
     .await?;
 
     let mut configs = Vec::new();
-    for (name, implementation, settings, enable_rss, enable_search, priority) in rows {
-        let settings: SettingsRow = match serde_json::from_str(&settings) {
+    for (name, implementation, settings_raw, enable_rss, enable_search, priority) in rows {
+        let settings: SettingsRow = match serde_json::from_str(&settings_raw) {
             Ok(s) => s,
             Err(_) => continue,
         };
@@ -511,6 +511,7 @@ pub async fn list_indexer_configs(
             implementation,
             url: settings.url,
             api_key: settings.api_key,
+            settings: Some(settings_raw),
             enabled: true,
             rss_enabled: enable_rss,
             search_enabled: enable_search,

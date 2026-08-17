@@ -43,11 +43,16 @@ struct Args {
     /// Override the listen host (default: from config or 127.0.0.1)
     #[arg(short = 'H', long = "host", env = "READINGROOM_HOST")]
     host: Option<String>,
+
+    /// Directory containing Lua indexer plugins (repeatable; one .lua per plugin)
+    #[arg(long = "plugin-dir", env = "READINGROOM_PLUGIN_DIR")]
+    plugin_dirs: Vec<PathBuf>,
 }
 
 pub struct AppState {
     pub config: readingroom_core::config::Config,
     pub db: sqlx::SqlitePool,
+    pub plugins: Arc<readingroom_providers::PluginManager>,
     pub metadata: Arc<crate::metadata::MetadataDispatcher>,
     pub local_cache: Arc<crate::local_cache::LocalCacheManager>,
     pub search_engine: Arc<crate::search::SearchEngine>,
@@ -169,6 +174,21 @@ async fn main() -> readingroom_core::error::Result<()> {
         metadata.name()
     );
 
+    // Load Lua indexer plugins (CLI --plugin-dir + default data-dir/plugins).
+    let mut plugin_dirs = args.plugin_dirs.clone();
+    let default_plugin_dir = config.server.data_dir.join("plugins");
+    if default_plugin_dir.exists() && !plugin_dirs.contains(&default_plugin_dir) {
+        plugin_dirs.push(default_plugin_dir);
+    }
+    let plugins = Arc::new(
+        readingroom_providers::PluginManager::load_dirs(&plugin_dirs)
+            .unwrap_or_else(|e| {
+                tracing::error!(error = %e, "Failed to scan plugin dirs");
+                readingroom_providers::PluginManager::default()
+            }),
+    );
+    tracing::info!(plugins = %plugins.len(), "Lua plugins loaded");
+
     // Initialize indexers: DB-managed (settings API / Prowlarr) first, then config.toml.
     let mut indexer_configs: Vec<readingroom_core::config::IndexerConfig> =
         crate::db::list_indexer_configs(&db).await.unwrap_or_default();
@@ -181,7 +201,7 @@ async fn main() -> readingroom_core::error::Result<()> {
         .iter()
         .filter(|c| c.enabled)
         .filter_map(|c| {
-            readingroom_providers::from_config(c)
+            readingroom_providers::from_config(c, &plugins)
                 .map_err(|e| {
                     tracing::warn!(name = %c.name, error = %e, "Failed to initialize indexer");
                     e
@@ -282,6 +302,7 @@ async fn main() -> readingroom_core::error::Result<()> {
     let state = Arc::new(AppState {
         config: config.clone(),
         db: db.clone(),
+        plugins: plugins.clone(),
         metadata: metadata.clone(),
         local_cache: local_cache.clone(),
         search_engine: search_engine.clone(),

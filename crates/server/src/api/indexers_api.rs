@@ -11,6 +11,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use readingroom_core::config::IndexerConfig;
+use readingroom_providers::PluginManager;
 
 use crate::AppState;
 use crate::api::settings::IndexerRow;
@@ -89,8 +90,8 @@ fn settings_from_fields(fields: &[Value]) -> String {
     serde_json::to_string(&settings).unwrap_or_else(|_| "{}".into())
 }
 
-fn validate_config(config: &IndexerConfig) -> Result<(), String> {
-    let indexer = readingroom_providers::from_config(config).map_err(|e| e.to_string())?;
+fn validate_config(config: &IndexerConfig, plugins: &PluginManager) -> Result<(), String> {
+    let indexer = readingroom_providers::from_config(config, plugins).map_err(|e| e.to_string())?;
     let supported = if indexer.supports_search() {
         "search"
     } else if indexer.supports_rss() {
@@ -308,6 +309,7 @@ async fn create_indexer(
             implementation: implementation.clone(),
             url: url.clone(),
             api_key: api_key.clone(),
+            settings: None,
             enabled: true,
             rss_enabled: enable_rss,
             search_enabled: enable_search,
@@ -315,7 +317,7 @@ async fn create_indexer(
             priority: priority as i32,
             tags: vec![],
         };
-        if let Err(e) = validate_config(&config) {
+        if let Err(e) = validate_config(&config, &state.plugins) {
             return (
                 StatusCode::BAD_REQUEST,
                 Json(json!({ "error": e })),
@@ -396,6 +398,7 @@ async fn test_indexer(
         implementation,
         url: field_value(fields, "baseUrl").unwrap_or("").to_string(),
         api_key: field_value(fields, "apiKey").map(|s| s.to_string()),
+        settings: None,
         enabled: true,
         rss_enabled: body.enable_rss.unwrap_or(true),
         search_enabled: body.enable_automatic_search.unwrap_or(true)
@@ -405,7 +408,7 @@ async fn test_indexer(
         tags: vec![],
     };
 
-    match validate_config(&config) {
+    match validate_config(&config, &state.plugins) {
         Ok(()) => Json(json!({})).into_response(),
         Err(e) => (
             StatusCode::BAD_REQUEST,

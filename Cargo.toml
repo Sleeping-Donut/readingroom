@@ -16,7 +16,7 @@ tokio = { version = "1", features = ["full"] }
 # HTTP
 axum = { version = "0.7", features = ["ws"] }
 tower-http = { version = "0.5", features = ["cors", "fs", "trace", "auth"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "blocking"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
