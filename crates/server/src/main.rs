@@ -201,7 +201,7 @@ async fn main() -> readingroom_core::error::Result<()> {
     // `--backfill-fts`: populate the offline cache FTS indexes from the
     // already-imported works/authors tables (one-time for pre-FTS caches).
     if args.backfill_fts {
-        let pool = local_cache.source().pool();
+        let pool = local_cache.pool();
         tracing::info!("Backfilling offline cache FTS indexes");
         let works = sqlx::query(
             "INSERT INTO works_fts (key, title) SELECT key, title FROM works",
