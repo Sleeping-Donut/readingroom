@@ -432,4 +432,51 @@ return {
             "https://annas-archive.is/dyn/api/fast_download.json?md5=5719046"
         );
     }
+
+    /// Feed the bundled libgen.lua a canned JSON payload via a stub host.
+    #[test]
+    fn libgen_plugin_parses_canned_json() {
+        let source = include_str!("../lua_plugins/libgen.lua");
+        let lua = Lua::new();
+        let host = lua.create_table().unwrap();
+        let payload = r#"
+            return function(url)
+              return { data = {
+                { id = 587, title = "Foundations of Reinforcement Learning with Applications in Finance",
+                  author = "Ashwin Rao, Tikhon Jelvis", extension = "epub", filesize = 29772674 },
+                { id = 28861096, title = "Foundation", author = "Isaac Asimov", extension = "EPUB", filesize = 123456 },
+              } }
+            end
+        "#;
+        host.set("http_get_json", lua.load(payload).eval::<mlua::Function>().unwrap())
+            .unwrap();
+        host.set("url_encode", lua.create_function(|_, s: String| Ok(s)).unwrap())
+            .unwrap();
+        host.set("log", lua.create_function(|_, _: (String, String)| Ok(())).unwrap())
+            .unwrap();
+        lua.globals().set("host", host).unwrap();
+
+        let table: Table = lua.load(source).set_name("plugin").eval().unwrap();
+        let search: mlua::Function = table.get("search").unwrap();
+        let self_table = lua.create_table().unwrap();
+        self_table.set("url", "https://libgen.vc").unwrap();
+        let crit = lua.create_table().unwrap();
+        crit.set("query", "Foundation").unwrap();
+        let result: Value = search.call((self_table, crit)).unwrap();
+
+        let releases = decode_releases("test", result).unwrap();
+        assert_eq!(releases.len(), 2);
+        assert_eq!(
+            releases[0].title,
+            "Ashwin Rao, Tikhon Jelvis - Foundations of Reinforcement Learning with Applications in Finance [epub]"
+        );
+        assert_eq!(releases[0].size, 29772674);
+        assert_eq!(
+            releases[0].download_url,
+            "https://libgen.vc/index.php/edition/587"
+        );
+        assert_eq!(releases[1].title, "Isaac Asimov - Foundation [epub]");
+        assert_eq!(releases[1].size, 123456);
+        assert_eq!(releases[1].categories, vec!["epub".to_string()]);
+    }
 }
