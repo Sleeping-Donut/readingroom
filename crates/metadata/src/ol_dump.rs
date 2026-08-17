@@ -307,6 +307,46 @@ async fn ensure_schema(db: &sqlx::SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Secondary (non-primary-key) indexes that are dropped for the duration of a
+/// big import — maintaining them per-insert is the main import bottleneck.
+const SECONDARY_INDEXES: &[(&str, &str)] = &[
+    ("idx_works_title", "CREATE INDEX IF NOT EXISTS idx_works_title ON works(title)"),
+    ("idx_editions_work", "CREATE INDEX IF NOT EXISTS idx_editions_work ON editions(work_key)"),
+    ("idx_editions_isbn", "CREATE INDEX IF NOT EXISTS idx_editions_isbn ON editions(isbn)"),
+    ("idx_authors_name", "CREATE INDEX IF NOT EXISTS idx_authors_name ON authors(name)"),
+];
+
+async fn drop_secondary_indexes(db: &sqlx::SqlitePool) -> Result<()> {
+    for (name, _) in SECONDARY_INDEXES {
+        sqlx::query(&format!("DROP INDEX IF EXISTS {name}"))
+            .execute(db)
+            .await?;
+    }
+    Ok(())
+}
+
+async fn rebuild_secondary_indexes(db: &sqlx::SqlitePool) -> Result<()> {
+    for (_, ddl) in SECONDARY_INDEXES {
+        sqlx::query(ddl).execute(db).await?;
+    }
+    Ok(())
+}
+
+/// Run the heavy import phase with secondary indexes dropped, then rebuild
+/// them. On failure the indexes are still rebuilt so lookups keep working.
+async fn import_with_indexes(
+    db: &sqlx::SqlitePool,
+    path: &Path,
+    handle: &ImportHandle,
+) -> Result<ImportCounts> {
+    drop_secondary_indexes(db).await?;
+    let result = import_dump_file(db, path, handle).await;
+    if let Err(e) = rebuild_secondary_indexes(db).await {
+        tracing::warn!(error = %e, "Failed to rebuild cache indexes");
+    }
+    result
+}
+
 async fn count_rows(db: &sqlx::SqlitePool, table: &str) -> Result<u64> {
     let q = format!("SELECT COUNT(*) FROM {table}");
     let n: i64 = sqlx::query_scalar(&q).fetch_one(db).await?;
@@ -362,7 +402,7 @@ pub async fn download_and_import(
         sqlx::query("PRAGMA cache_size=-200000").execute(db).await?;
         sqlx::query("PRAGMA temp_store=MEMORY").execute(db).await?;
 
-        let counts = import_dump_file(db, &tmp, handle).await?;
+        let counts = import_with_indexes(db, &tmp, handle).await?;
 
         let _ = tokio::fs::remove_file(&tmp).await;
         record_success(db, url).await?;
@@ -407,7 +447,7 @@ pub async fn import_dump_from_file(
         sqlx::query("PRAGMA synchronous=OFF").execute(db).await?;
         sqlx::query("PRAGMA cache_size=-200000").execute(db).await?;
         sqlx::query("PRAGMA temp_store=MEMORY").execute(db).await?;
-        let counts = import_dump_file(db, path, handle).await?;
+        let counts = import_with_indexes(db, path, handle).await?;
         record_success(db, &path.to_string_lossy()).await?;
         Ok::<_, AppError>(counts)
     }
