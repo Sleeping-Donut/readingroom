@@ -18,7 +18,6 @@ pub fn from_config(config: &IndexerConfig, plugins: &PluginManager) -> Result<Bo
         "torznab" => Ok(Box::new(torznab::TorznabIndexer::new(config)?)),
         "newznab" => Ok(Box::new(newznab::NewznabIndexer::new(config)?)),
         "rss" => Ok(Box::new(rss::RssIndexer::new(config)?)),
-        "anna" | "annas" | "annas-archive" => Ok(Box::new(annas::AnnaIndexer::new(config)?)),
         other => {
             if let Some(result) = plugins.build(config) {
                 return result;
@@ -58,15 +57,6 @@ pub fn core_implementations() -> Vec<ImplementationInfo> {
             hint: "RSS feed indexer — API key is not required.".into(),
             supports_search: false,
             supports_rss: true,
-            params: vec![],
-            plugin: false,
-        },
-        ImplementationInfo {
-            id: "anna".into(),
-            label: "Anna's Archive".into(),
-            hint: "Book search via Anna's Archive. The API key enables fast downloads.".into(),
-            supports_search: true,
-            supports_rss: false,
             params: vec![],
             plugin: false,
         },

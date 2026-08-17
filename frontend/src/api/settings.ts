@@ -15,6 +15,26 @@ export interface IndexerInput {
   enable_rss: boolean;
   enable_search: boolean;
   priority?: number;
+  pluginSettings?: Record<string, string | number | boolean>;
+}
+
+export interface IndexerParamDef {
+  name: string;
+  label: string;
+  type: "string" | "password" | "number" | "boolean" | "select";
+  required: boolean;
+  default?: string | number | boolean;
+  options: string[];
+}
+
+export interface ImplementationInfo {
+  id: string;
+  label: string;
+  hint: string;
+  supports_search: boolean;
+  supports_rss: boolean;
+  plugin: boolean;
+  params: IndexerParamDef[];
 }
 
 export interface DownloadClientInput {
@@ -52,6 +72,9 @@ export interface LibrarySettings {
 }
 
 function buildIndexerSettings(input: IndexerInput): string {
+  if (input.pluginSettings) {
+    return JSON.stringify(input.pluginSettings);
+  }
   return JSON.stringify({
     url: input.url.trim(),
     ...(input.api_key.trim() ? { api_key: input.api_key.trim() } : {}),
@@ -83,6 +106,10 @@ export function listIndexers() {
   return api.get<IndexersResponse>("/settings/indexers");
 }
 
+export function getIndexerImplementations() {
+  return api.get<{ implementations: ImplementationInfo[] }>("/settings/indexers/implementations");
+}
+
 export function addIndexer(input: IndexerInput) {
   return api.post("/settings/indexers", {
     name: input.name,
@@ -94,8 +121,9 @@ export function addIndexer(input: IndexerInput) {
 }
 
 export function updateIndexer(id: number, input: IndexerInput) {
+  const { pluginSettings: _pluginSettings, ...rest } = input;
   return api.put(`/settings/indexers/${id}`, {
-    ...input,
+    ...rest,
     settings: buildIndexerSettings(input),
   });
 }

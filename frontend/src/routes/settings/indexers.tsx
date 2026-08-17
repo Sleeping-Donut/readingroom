@@ -4,6 +4,7 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import {
   action,
   createEffect,
+  createMemo,
   createOptimistic,
   createOptimisticStore,
   createSignal,
@@ -18,6 +19,7 @@ import {
 } from "solid-js";
 import * as v from "valibot";
 
+import type { ImplementationInfo } from "../../api/settings";
 import type { Indexer, TestResult } from "../../types";
 
 import * as settingsApi from "../../api/settings";
@@ -40,12 +42,7 @@ interface EditForm {
 
 const NEW_INDEXER_SCHEMA = v.object({
   name: v.pipe(v.string(), v.trim(), v.minLength(1, "Name is required")),
-  implementation: v.union([
-    v.literal("torznab"),
-    v.literal("newznab"),
-    v.literal("rss"),
-    v.literal("anna"),
-  ]),
+  implementation: v.union([v.literal("torznab"), v.literal("newznab"), v.literal("rss")]),
   url: v.pipe(v.string(), v.trim(), v.minLength(1, "URL is required")),
   api_key: v.optional(v.string()),
   enable_rss: v.boolean(),
@@ -57,18 +54,98 @@ const INDEXER_SETTINGS_SCHEMA = v.object({
   api_key: v.optional(v.string()),
 });
 
-const IMPLEMENTATIONS = [
-  { id: "torznab", label: "Torznab (torrent)", hint: implementationHint("torznab") },
-  { id: "newznab", label: "Newznab (usenet)", hint: implementationHint("newznab") },
-  { id: "rss", label: "RSS", hint: implementationHint("rss") },
-  { id: "anna", label: "Anna's Archive (books)", hint: implementationHint("anna") },
+const CORE_IMPLEMENTATIONS: ImplementationInfo[] = [
+  {
+    id: "torznab",
+    label: "Torznab (torrent)",
+    hint: implementationHint("torznab"),
+    supports_search: true,
+    supports_rss: true,
+    plugin: false,
+    params: [],
+  },
+  {
+    id: "newznab",
+    label: "Newznab (usenet)",
+    hint: implementationHint("newznab"),
+    supports_search: true,
+    supports_rss: true,
+    plugin: false,
+    params: [],
+  },
+  {
+    id: "rss",
+    label: "RSS",
+    hint: implementationHint("rss"),
+    supports_search: false,
+    supports_rss: true,
+    plugin: false,
+    params: [],
+  },
 ];
+
+function pluginDefaults(
+  params: ImplementationInfo["params"],
+): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const p of params) {
+    if (p.default !== undefined) {
+      out[p.name] = p.default;
+    } else if (p.type === "select" && p.options.length > 0) {
+      out[p.name] = p.options[0];
+    } else if (p.type === "boolean") {
+      out[p.name] = false;
+    }
+  }
+  return out;
+}
+
+function buildPluginSettings(
+  params: ImplementationInfo["params"],
+  values: Record<string, string | number | boolean>,
+): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const p of params) {
+    const value = values[p.name];
+    if (value === undefined || value === "") continue;
+    if (p.type === "number") {
+      const n = Number(value);
+      out[p.name] = Number.isNaN(n) ? 0 : n;
+    } else if (p.type === "boolean") {
+      out[p.name] = Boolean(value);
+    } else {
+      out[p.name] = typeof value === "string" ? value.trim() : value;
+    }
+  }
+  return out;
+}
+
+function pluginComplete(
+  impl: ImplementationInfo | null,
+  values: Record<string, string | number | boolean>,
+): boolean {
+  if (!impl || !impl.plugin) return true;
+  return impl.params
+    .filter((p) => p.required)
+    .every((p) => {
+      const v = values[p.name];
+      return v !== undefined && v !== "";
+    });
+}
 
 interface IndexerFormValues {
   name: string;
   implementation: string;
   url: string;
   api_key: string;
+  enable_rss: boolean;
+  enable_search: boolean;
+  priority: number;
+}
+
+interface PluginFormValues {
+  name: string;
+  settings: Record<string, string | number | boolean>;
   enable_rss: boolean;
   enable_search: boolean;
   priority: number;
@@ -176,11 +253,150 @@ function IndexerConfigFields(props: {
   );
 }
 
+/// Fields generated from a Lua plugin's declared `params`. Values live in a
+/// dynamic settings map (not the fixed-shape `IndexerFormValues`).
+function PluginConfigFields(props: {
+  impl: () => ImplementationInfo | null;
+  get: () => PluginFormValues;
+  patch: (v: Partial<PluginFormValues>) => void;
+  showPriority?: boolean;
+}) {
+  const supportsRss = () => props.impl()?.supports_rss ?? true;
+  const supportsSearch = () => props.impl()?.supports_search ?? true;
+  const patchParam = (name: string, value: string | number | boolean) =>
+    props.patch({ settings: { ...props.get().settings, [name]: value } });
+  const inputClass = "w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm";
+
+  return (
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Name</label>
+        <input
+          value={props.get().name}
+          onInput={(e) => props.patch({ name: e.currentTarget.value })}
+          class={inputClass}
+          placeholder="My Indexer"
+        />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Type</label>
+        <p class="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-300">
+          {props.impl()?.label ?? ""}
+        </p>
+        <p class="mt-1 text-xs text-gray-500">{props.impl()?.hint ?? ""}</p>
+      </div>
+      <For each={props.impl()?.params ?? []}>
+        {(param) => (
+          <div class={param.type === "string" || param.type === "password" ? "sm:col-span-2" : ""}>
+            <Show
+              when={param.type === "boolean"}
+              fallback={
+                <>
+                  <label class="block text-xs text-gray-400 mb-1">
+                    {param.label || param.name}
+                    {param.required ? " *" : ""}
+                  </label>
+                  <Switch>
+                    <Match when={param.type === "password"}>
+                      <input
+                        type="password"
+                        value={String(props.get().settings[param.name] ?? "")}
+                        onInput={(e) => patchParam(param.name, e.currentTarget.value)}
+                        class={inputClass}
+                        placeholder="Optional"
+                      />
+                    </Match>
+                    <Match when={param.type === "number"}>
+                      <input
+                        type="number"
+                        value={String(props.get().settings[param.name] ?? "")}
+                        onInput={(e) => patchParam(param.name, e.currentTarget.value)}
+                        class={inputClass}
+                      />
+                    </Match>
+                    <Match when={param.type === "select"}>
+                      <select
+                        value={String(props.get().settings[param.name] ?? "")}
+                        onChange={(e) => patchParam(param.name, e.currentTarget.value)}
+                        class={inputClass}
+                      >
+                        <For each={param.options}>
+                          {(opt) => <option value={opt}>{opt}</option>}
+                        </For>
+                      </select>
+                    </Match>
+                    <Match when={param.type === "string"}>
+                      <input
+                        type="text"
+                        value={String(props.get().settings[param.name] ?? "")}
+                        onInput={(e) => patchParam(param.name, e.currentTarget.value)}
+                        class={inputClass}
+                      />
+                    </Match>
+                  </Switch>
+                </>
+              }
+            >
+              <label class="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(props.get().settings[param.name])}
+                  onChange={(e) => patchParam(param.name, e.currentTarget.checked)}
+                  class="rounded bg-gray-800 border-gray-700"
+                />
+                {param.label || param.name}
+              </label>
+            </Show>
+          </div>
+        )}
+      </For>
+      <Show when={props.showPriority}>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Priority</label>
+          <input
+            type="number"
+            value={props.get().priority}
+            onInput={(e) => props.patch({ priority: Number(e.currentTarget.value) })}
+            class={inputClass}
+          />
+        </div>
+      </Show>
+      <div class="sm:col-span-2 flex items-end gap-6">
+        <Show when={supportsRss()}>
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={props.get().enable_rss}
+              onChange={(e) => props.patch({ enable_rss: e.currentTarget.checked })}
+              class="rounded bg-gray-800 border-gray-700"
+            />
+            Enable RSS
+          </label>
+        </Show>
+        <Show when={supportsSearch()}>
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={props.get().enable_search}
+              onChange={(e) => props.patch({ enable_search: e.currentTarget.checked })}
+              class="rounded bg-gray-800 border-gray-700"
+            />
+            Enable Search
+          </label>
+        </Show>
+      </div>
+    </div>
+  );
+}
+
 export default function IndexersTab(_props: RouteProps<typeof route>) {
   // Add flow: 0 = closed, 1 = pick implementation, 2 = configure.
   const [addStep, setAddStep] = createSignal<0 | 1 | 2>(0);
   const [editingId, setEditingId] = createSignal<number | null>(null);
   const [editForm, setEditForm] = createSignal<EditForm | null>(null);
+  const [editPluginSettings, setEditPluginSettings] = createSignal<
+    Record<string, string | number | boolean>
+  >({});
   useBeforeLeave((event) => {
     if (!editForm()) return;
     event.preventDefault();
@@ -212,6 +428,39 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
       s.enable_search = true;
       s.priority = 0;
     });
+
+  const [pluginSettings, setPluginSettings] = createSignal<
+    Record<string, string | number | boolean>
+  >({});
+
+  const implementations = createMemo(
+    async () => {
+      try {
+        return await settingsApi.getIndexerImplementations();
+      } catch {
+        return null;
+      }
+    },
+    { loadingValue: null },
+  );
+
+  const implementationList = createMemo<ImplementationInfo[]>(() => {
+    const loaded = implementations()?.implementations;
+    return loaded && loaded.length > 0 ? loaded : CORE_IMPLEMENTATIONS;
+  });
+
+  const selectedImpl = createMemo<ImplementationInfo | null>(
+    () => implementationList().find((i) => i.id === newIndexer.implementation) ?? null,
+  );
+
+  const isPlugin = createMemo(() => selectedImpl()?.plugin ?? false);
+
+  const editingImpl = createMemo<ImplementationInfo | null>(
+    () => implementationList().find((i) => i.id === editForm()?.implementation) ?? null,
+  );
+
+  const labelFor = (id: string) =>
+    implementationList().find((i) => i.id === id)?.label ?? implementationLabel(id);
 
   const erroredIndexers: Record<number, Indexer> = {};
 
@@ -256,6 +505,32 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
   });
 
   const addIndexer = action(async function* () {
+    const impl = selectedImpl();
+    if (impl?.plugin) {
+      setAdding(true);
+      setActionError(null);
+      try {
+        await settingsApi.addIndexer({
+          name: newIndexer.name.trim(),
+          implementation: newIndexer.implementation,
+          url: "",
+          api_key: "",
+          enable_rss: newIndexer.enable_rss,
+          enable_search: newIndexer.enable_search,
+          pluginSettings: buildPluginSettings(impl.params, pluginSettings()),
+        });
+        yield;
+        refresh(indexers);
+        setAddStep(0);
+        resetNewIndexer();
+        setPluginSettings({});
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : "Request failed");
+      } finally {
+        setAdding(false);
+      }
+      return;
+    }
     const parsed = v.safeParse(NEW_INDEXER_SCHEMA, {
       name: newIndexer.name,
       implementation: newIndexer.implementation,
@@ -293,7 +568,11 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
   const updateIndexer = action(async function* (id: number, form: EditForm) {
     setSavingId(id);
     try {
-      await settingsApi.updateIndexer(id, form);
+      const impl = implementationList().find((i) => i.id === form.implementation) ?? null;
+      const pluginSettings = impl?.plugin
+        ? buildPluginSettings(impl.params, editPluginSettings())
+        : undefined;
+      await settingsApi.updateIndexer(id, { ...form, pluginSettings });
       yield;
       refresh(indexers);
       setEditingId(null);
@@ -392,14 +671,49 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                 when={addStep() === 1}
                 fallback={
                   <>
-                    <IndexerConfigFields
-                      get={() => newIndexer}
-                      patch={(v) =>
-                        setNewIndexer((s) => {
-                          Object.assign(s, v);
-                        })
+                    <Show
+                      when={isPlugin()}
+                      fallback={
+                        <IndexerConfigFields
+                          get={() => newIndexer}
+                          patch={(v) =>
+                            setNewIndexer((s) => {
+                              Object.assign(s, v);
+                            })
+                          }
+                        />
                       }
-                    />
+                    >
+                      <PluginConfigFields
+                        impl={() => selectedImpl()}
+                        get={() => ({
+                          name: newIndexer.name,
+                          settings: pluginSettings(),
+                          enable_rss: newIndexer.enable_rss,
+                          enable_search: newIndexer.enable_search,
+                          priority: newIndexer.priority,
+                        })}
+                        patch={(v) => {
+                          if (v.name !== undefined)
+                            setNewIndexer((s) => {
+                              s.name = v.name as string;
+                            });
+                          if (v.enable_rss !== undefined)
+                            setNewIndexer((s) => {
+                              s.enable_rss = v.enable_rss as boolean;
+                            });
+                          if (v.enable_search !== undefined)
+                            setNewIndexer((s) => {
+                              s.enable_search = v.enable_search as boolean;
+                            });
+                          if (v.priority !== undefined)
+                            setNewIndexer((s) => {
+                              s.priority = v.priority as number;
+                            });
+                          if (v.settings) setPluginSettings(v.settings);
+                        }}
+                      />
+                    </Show>
                     <div class="flex gap-3 items-center mt-4">
                       <button
                         onClick={() => setAddStep(1)}
@@ -409,7 +723,13 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                       </button>
                       <button
                         onClick={() => void addIndexer()}
-                        disabled={adding() || !newIndexer.name || !newIndexer.url.trim()}
+                        disabled={
+                          adding() ||
+                          !newIndexer.name ||
+                          (isPlugin()
+                            ? !pluginComplete(selectedImpl(), pluginSettings())
+                            : !newIndexer.url.trim())
+                        }
                         class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
                       >
                         Save
@@ -420,20 +740,27 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                       >
                         Cancel
                       </button>
-                      <p class="text-xs text-gray-500">A URL is required to connect.</p>
+                      <p class="text-xs text-gray-500">
+                        {isPlugin()
+                          ? "Fill in the required settings."
+                          : "A URL is required to connect."}
+                      </p>
                     </div>
                   </>
                 }
               >
                 <h4 class="text-sm font-semibold text-gray-300 mb-3">Indexer type</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <For each={IMPLEMENTATIONS}>
+                  <For each={implementationList()}>
                     {(impl) => (
                       <button
                         onClick={() => {
                           setNewIndexer((s) => {
                             s.implementation = impl.id;
                           });
+                          if (impl.plugin) {
+                            setPluginSettings(pluginDefaults(impl.params));
+                          }
                           setAddStep(2);
                         }}
                         class="p-4 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-indigo-600 rounded-lg text-left transition-colors"
@@ -469,7 +796,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                           <p class="font-medium truncate">{idx.name}</p>
                           <div class="flex flex-wrap gap-1.5 mt-1">
                             <span class="text-xs bg-indigo-900/40 text-indigo-400 border border-indigo-800 rounded px-1.5 py-0.5">
-                              {implementationLabel(idx.implementation)}
+                              {labelFor(idx.implementation)}
                             </span>
                             <Show when={idx.enable_rss}>
                               <span class="text-xs bg-green-900/40 text-green-400 border border-green-800 rounded px-1.5 py-0.5">
@@ -522,18 +849,18 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                           </button>
                           <button
                             onClick={() => {
+                              const impl =
+                                implementationList().find((i) => i.id === idx.implementation) ??
+                                null;
+                              let raw: unknown = null;
+                              try {
+                                raw = JSON.parse(idx.settings);
+                              } catch {
+                                raw = null;
+                              }
                               let url = "";
                               let api_key = "";
-                              const parsed = v.safeParse(
-                                INDEXER_SETTINGS_SCHEMA,
-                                (() => {
-                                  try {
-                                    return JSON.parse(idx.settings);
-                                  } catch {
-                                    return null;
-                                  }
-                                })(),
-                              );
+                              const parsed = v.safeParse(INDEXER_SETTINGS_SCHEMA, raw);
                               if (parsed.success) {
                                 url = parsed.output.url ?? "";
                                 api_key = parsed.output.api_key ?? "";
@@ -548,6 +875,27 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                                 enable_search: idx.enable_search,
                                 priority: idx.priority,
                               });
+                              if (impl?.plugin) {
+                                const settings: Record<string, string | number | boolean> = {};
+                                if (raw && typeof raw === "object") {
+                                  for (const p of impl.params) {
+                                    const val = (raw as Record<string, unknown>)[p.name];
+                                    if (
+                                      typeof val === "string" ||
+                                      typeof val === "number" ||
+                                      typeof val === "boolean"
+                                    ) {
+                                      settings[p.name] = val;
+                                    }
+                                  }
+                                }
+                                for (const [k, val] of Object.entries(
+                                  pluginDefaults(impl.params),
+                                )) {
+                                  if (settings[k] === undefined) settings[k] = val;
+                                }
+                                setEditPluginSettings(settings);
+                              }
                             }}
                             class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
                           >
@@ -577,11 +925,46 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                     }
                   >
                     <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
-                      <IndexerConfigFields
-                        get={() => editForm()!}
-                        patch={(v) => setEditForm((prev) => (prev ? { ...prev, ...v } : prev))}
-                        showPriority
-                      />
+                      <Show
+                        when={editingImpl()?.plugin}
+                        fallback={
+                          <IndexerConfigFields
+                            get={() => editForm()!}
+                            patch={(v) => setEditForm((prev) => (prev ? { ...prev, ...v } : prev))}
+                            showPriority
+                          />
+                        }
+                      >
+                        <PluginConfigFields
+                          impl={() => editingImpl()}
+                          get={() => ({
+                            name: editForm()?.name ?? "",
+                            settings: editPluginSettings(),
+                            enable_rss: editForm()?.enable_rss ?? true,
+                            enable_search: editForm()?.enable_search ?? true,
+                            priority: editForm()?.priority ?? 0,
+                          })}
+                          patch={(v) => {
+                            setEditForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    ...(v.name !== undefined ? { name: v.name } : {}),
+                                    ...(v.enable_rss !== undefined
+                                      ? { enable_rss: v.enable_rss }
+                                      : {}),
+                                    ...(v.enable_search !== undefined
+                                      ? { enable_search: v.enable_search }
+                                      : {}),
+                                    ...(v.priority !== undefined ? { priority: v.priority } : {}),
+                                  }
+                                : prev,
+                            );
+                            if (v.settings) setEditPluginSettings(v.settings);
+                          }}
+                          showPriority
+                        />
+                      </Show>
                       <div class="flex gap-2 mt-3 justify-end">
                         <button
                           onClick={() => {
@@ -598,7 +981,11 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                               void updateIndexer(idx.id, editForm()!);
                             }
                           }}
-                          disabled={savingId() === idx.id || !editForm()?.name}
+                          disabled={
+                            savingId() === idx.id ||
+                            !editForm()?.name ||
+                            !pluginComplete(editingImpl(), editPluginSettings())
+                          }
                           class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
                         >
                           Save
