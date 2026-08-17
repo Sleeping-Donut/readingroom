@@ -62,47 +62,56 @@ return {
 
     body = body:gsub("<!%-%-", ""):gsub("%-%->", "")
 
+    -- Pass 1: title anchors inside <h3> give the book id + title (per card).
+    local ids, titles = {}, {}
+    for href, title in body:gmatch('<h3[^>]*>%s*<a[^>]*href="([^"]+)"[^>]*>(.-)</a>') do
+      if href:find("/books/", 1, true) or href:find("/md5/", 1, true) then
+        local id = book_id(href)
+        if id then
+          ids[#ids + 1] = id
+          titles[#titles + 1] = trim(title)
+        end
+      end
+    end
+
+    -- Pass 2: metadata lines (div.text-sm containing "·") in document order.
+    local metas = {}
+    for m in body:gmatch('<div class="[^"]*text%-sm[^"]*"[^>]*>(.-)</div>') do
+      if m:find("·", 1, true) then metas[#metas + 1] = m end
+    end
+
     local results = {}
-    for card in body:gmatch('<div class="flex gap%-%[18px%] items%-start">(.-)</div>') do
-      local href, title
-      for h, t in card:gmatch('<a[^>]*href="([^"]+)"[^>]*>(.-)</a>') do
-        if h:find("/books/", 1, true) or h:find("/md5/", 1, true) then
-          href, title = h, t
-          break
-        end
+    for i = 1, #ids do
+      local id = ids[i]
+      local title = titles[i]
+      local meta = metas[i] or ""
+      local author = trim(meta:match("^(.-)·") or "")
+      local ext = extract_format(meta)
+      local size = extract_size(meta)
+
+      if author ~= "" and not title:lower():find(author:lower(), 1, true) then
+        title = author .. " - " .. title
       end
-      title = title and trim(title) or ""
-      local id = href and book_id(href) or nil
-      if id and title ~= "" then
-        local meta = card:match('<div class="[^"]*text%-sm[^"]*">([^<]+)') or ""
-        local author = trim(meta:match("^(.-)·") or "")
-        local ext = extract_format(meta)
-        local size = extract_size(meta)
-
-        if author ~= "" and not title:lower():find(author:lower(), 1, true) then
-          title = author .. " - " .. title
-        end
-        if ext then
-          title = title .. " [" .. ext .. "]"
-        end
-
-        local info = base .. "/books/" .. id
-        if #id == 32 then info = base .. "/md5/" .. id end
-        local download = base .. "/dyn/api/fast_download.json?md5=" .. id
-        if self.api_key then download = download .. "&key=" .. self.api_key end
-
-        local categories = {}
-        if ext then categories[1] = ext end
-
-        results[#results + 1] = {
-          title = title,
-          info_url = info,
-          download_url = download,
-          size = size,
-          download_type = "Direct",
-          categories = categories,
-        }
+      if ext then
+        title = title .. " [" .. ext .. "]"
       end
+
+      local info = base .. "/books/" .. id
+      if #id == 32 then info = base .. "/md5/" .. id end
+      local download = base .. "/dyn/api/fast_download.json?md5=" .. id
+      if self.api_key then download = download .. "&key=" .. self.api_key end
+
+      local categories = {}
+      if ext then categories[1] = ext end
+
+      results[#results + 1] = {
+        title = title,
+        info_url = info,
+        download_url = download,
+        size = size,
+        download_type = "Direct",
+        categories = categories,
+      }
     end
     return results
   end,

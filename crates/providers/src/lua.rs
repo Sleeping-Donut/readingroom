@@ -125,6 +125,11 @@ fn decode_releases(indexer: &str, result: Value) -> Result<Vec<Release>> {
     }
     let json = serde_json::to_value(&result)
         .map_err(|e| AppError::Other(format!("Plugin returned non-serializable value: {e}")))?;
+    // Lua tables that aren't a clean array (e.g. an empty table) can serialize
+    // as a JSON object; treat an empty object as "no results".
+    if json.is_object() && json.as_object().map(|m| m.is_empty()).unwrap_or(false) {
+        return Ok(vec![]);
+    }
     let rows: Vec<LuaRelease> = serde_json::from_value(json)
         .map_err(|e| AppError::Other(format!("Plugin search result is malformed: {e}")))?;
     Ok(rows
@@ -362,5 +367,69 @@ return {
         assert_eq!(releases[0].download_type, DownloadType::Direct);
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Feed the bundled annas-archive.lua a canned HTML page via a stub host
+    /// (no network) to exercise its parsing in isolation.
+    #[test]
+    fn annas_plugin_parses_canned_html() {
+        let source = include_str!("../lua_plugins/annas-archive.lua");
+        let lua = Lua::new();
+        let host = lua.create_table().unwrap();
+        let fixture = r#"<html><body>
+<div class="flex gap-[18px] items-start">
+  <div class="min-w-0 flex-1 pt-[2px]">
+    <h3 class="font-bold text-lg leading-tight">
+      <a href="https://annas-archive.is/books/5719046-foundation-5719046" class="custom-a text-black">Foundation</a>
+    </h3>
+    <div class="text-sm text-[#666] mt-1">Isaac Asimov · 2004 · EPUB · 2.3 MB · Books catalog</div>
+  </div>
+</div>
+<div class="flex gap-[18px] items-start">
+  <div class="min-w-0 flex-1 pt-[2px]">
+    <h3 class="font-bold text-lg leading-tight">
+      <a href="https://annas-archive.is/books/29118438-29118438-foundation-3" class="custom-a text-black">Foundation</a>
+    </h3>
+    <div class="text-sm text-[#666] mt-1">Asimov, Isaac · FB2 · 400.9 KB · Books catalog</div>
+  </div>
+</div>
+</body></html>"#;
+        host.set(
+            "http_get",
+            lua.create_function(move |_, _url: String| {
+                Ok((Some(fixture.to_string()), None::<String>))
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        host.set(
+            "url_encode",
+            lua.create_function(|_, s: String| Ok(s)).unwrap(),
+        )
+        .unwrap();
+        host.set(
+            "log",
+            lua.create_function(|_, _: (String, String)| Ok(())).unwrap(),
+        )
+        .unwrap();
+        lua.globals().set("host", host).unwrap();
+
+        let table: Table = lua.load(source).set_name("plugin").eval().unwrap();
+        let search: mlua::Function = table.get("search").unwrap();
+        let self_table = lua.create_table().unwrap();
+        self_table.set("url", "https://annas-archive.is").unwrap();
+        let crit = lua.create_table().unwrap();
+        crit.set("query", "Foundation").unwrap();
+        let result: Value = search.call((self_table, crit)).unwrap();
+
+        let releases = decode_releases("test", result).unwrap();
+        assert_eq!(releases.len(), 2);
+        assert_eq!(releases[0].title, "Isaac Asimov - Foundation [epub]");
+        assert_eq!(releases[1].title, "Asimov, Isaac - Foundation [fb2]");
+        assert_eq!(releases[0].size, (2.3 * 1024.0 * 1024.0) as i64);
+        assert_eq!(
+            releases[0].download_url,
+            "https://annas-archive.is/dyn/api/fast_download.json?md5=5719046"
+        );
     }
 }
