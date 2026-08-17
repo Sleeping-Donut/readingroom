@@ -9,7 +9,7 @@ use readingroom_core::{
     traits::{Indexer, SearchCriteria},
 };
 use regex::Regex;
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 
 const USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -40,7 +40,7 @@ impl AnnaIndexer {
     }
 
     async fn search_page(&self, query: &str) -> Result<Vec<Release>> {
-        let url = format!("{}/search?q={}&content=books&lang=all", self.base_url, query);
+        let url = format!("{}/search?q={query}&content=books&lang=all", self.base_url);
         let resp = self
             .client
             .get(&url)
@@ -53,56 +53,48 @@ impl AnnaIndexer {
                 resp.status()
             )));
         }
-        let html = resp.text().await.map_err(|e| {
-            AppError::Provider(format!("Anna's Archive read: {e}"))
-        })?;
-        Ok(self.parse_results(&html))
+        let html = resp
+            .text()
+            .await
+            .map_err(|e| AppError::Provider(format!("Anna's Archive read: {e}")))?;
+        Ok(self.parse_results(&html, &self.base_url))
     }
 
-    fn parse_results(&self, html: &str) -> Vec<Release> {
+    fn parse_results(&self, html: &str, host: &str) -> Vec<Release> {
         // Anna's Archive hides some markup inside HTML comments; strip them.
         let cleaned = html.replace("<!--", "").replace("-->", "");
         let document = Html::parse_document(&cleaned);
 
-        let card_selector = Selector::parse("div[class*='pt-3'][class*='border-b']").unwrap();
-        let link_selector = Selector::parse("a.js-vim-focus").unwrap();
-        let author_selector = Selector::parse("div.text-amber-900").unwrap();
-        let metadata_selector = Selector::parse("div.text-gray-800").unwrap();
-        let filepath_selector = Selector::parse("div.text-gray-500").unwrap();
+        let link_selector =
+            Selector::parse("h3 a[href*='/books/'], h3 a[href*='/md5/']").unwrap();
+        let metadata_selector = Selector::parse("div.text-sm").unwrap();
 
         let mut releases = Vec::new();
-        for card in document.select(&card_selector) {
-            let Some(link) = card.select(&link_selector).next() else {
+        for link in document.select(&link_selector) {
+            let href = link.value().attr("href").unwrap_or("");
+            let Some(id) = book_id_from_href(href) else {
                 continue;
             };
             let title = link.text().collect::<String>().trim().to_string();
-            let href = link.value().attr("href").unwrap_or("");
-            let Some(hash) = href.split("md5/").nth(1) else {
-                continue;
-            };
-            if hash.is_empty() || title.is_empty() {
+            if title.is_empty() {
                 continue;
             }
 
-            let author = card
-                .select(&author_selector)
-                .next()
-                .and_then(|el| el.value().attr("data-content"))
-                .map(|s| s.trim().to_string())
-                .unwrap_or_default();
-
-            let metadata = card
-                .select(&metadata_selector)
-                .next()
+            // The metadata line ("{author} · {year} · {format} · {size} ·
+            // {catalog}") is a sibling of the title's <h3> inside the card.
+            let metadata = link
+                .parent()
+                .and_then(|h3| h3.parent())
+                .and_then(ElementRef::wrap)
+                .and_then(|card| {
+                    card.select(&metadata_selector)
+                        .find(|el| el.text().collect::<String>().contains('·'))
+                })
                 .map(|el| el.text().collect::<String>())
                 .unwrap_or_default();
 
-            let extension = extract_format(&metadata).or_else(|| {
-                card.select(&filepath_selector).next().and_then(|el| {
-                    let path = el.text().collect::<String>();
-                    path.rsplit('.').next().map(|e| e.trim().to_lowercase())
-                })
-            });
+            let author = metadata.split('·').next().map(str::trim).unwrap_or("");
+            let extension = extract_format(&metadata);
             let size = extract_size(&metadata);
 
             let mut title = title;
@@ -113,14 +105,19 @@ impl AnnaIndexer {
                 title = format!("{title} [{ext}]");
             }
 
-            let mut download_url = format!("{}/dyn/api/fast_download.json?md5={hash}", self.base_url);
+            let mut download_url = format!("{host}/dyn/api/fast_download.json?md5={id}");
             if let Some(key) = &self.api_key {
                 download_url.push_str(&format!("&key={key}"));
             }
+            let info_url = if id.len() == 32 {
+                format!("{host}/md5/{id}")
+            } else {
+                format!("{host}/books/{id}")
+            };
 
             releases.push(Release {
                 title,
-                info_url: format!("{}/md5/{hash}", self.base_url),
+                info_url,
                 download_url,
                 size,
                 pub_date: Utc::now(),
@@ -136,17 +133,34 @@ impl AnnaIndexer {
     }
 }
 
+/// Extract the book identifier from a result link. Supports the current
+/// `/books/<id>-<slug>` format and the legacy `/md5/<hash>` format.
+fn book_id_from_href(href: &str) -> Option<String> {
+    let path = href.split(['?', '#']).next()?;
+    if let Some(id) = path.split("/md5/").nth(1) {
+        if !id.is_empty() {
+            return Some(id.to_string());
+        }
+    }
+    path.split("/books/")
+        .nth(1)?
+        .split('-')
+        .next()
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
 fn format_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)(?:·\s*|,\s*|\s)(PDF|EPUB|MOBI|AZW3|FB2|TXT|DJVU|CBR|CBZ|RTF|LIT|DOC|DOCX|HTML|HTM|LRF|MHT|ZIP|RAR)(?:\s*·|,)")
+        Regex::new(r"(?i)(?:·\s*|,\s*|\s)(PDF|EPUB|MOBI|AZW3|FB2|TXT|DJVU|CBR|CBZ|RTF|LIT|DOC|DOCX|HTML|HTM|LRF|MHT|ZIP|RAR|PDB|RB)(?:\s*·|,)")
             .unwrap()
     })
 }
 
 fn size_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)(\d+\.?\d*)\s*([KMGT]B)").unwrap())
+    RE.get_or_init(|| Regex::new(r"(?i)(\d+\.?\d*)\s*([KMGT]?B)").unwrap())
 }
 
 fn extract_format(metadata: &str) -> Option<String> {
@@ -162,6 +176,7 @@ fn extract_size(metadata: &str) -> i64 {
     let value: f64 = caps[1].parse().unwrap_or(0.0);
     let unit = caps[2].to_ascii_uppercase();
     let bytes = match unit.as_str() {
+        "B" => value,
         "KB" => value * 1024.0,
         "MB" => value * 1024.0 * 1024.0,
         "GB" => value * 1024.0 * 1024.0 * 1024.0,
@@ -215,15 +230,21 @@ mod tests {
 
     const SAMPLE_HTML: &str = r#"
 <html><body>
-  <div class="pt-3 pb-3 border-b border-slate-200">
-    <a class="js-vim-focus" href="/md5/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6">Foundation</a>
-    <div class="text-amber-900" data-content="Isaac Asimov">Isaac Asimov</div>
-    <div class="text-gray-800">English [en], PDF, 7.5MB, "Foundation.pdf"</div>
+  <div class="flex gap-[18px] items-start">
+    <div class="min-w-0 flex-1 pt-[2px]">
+      <h3 class="font-bold text-lg leading-tight">
+        <a href="https://annas-archive.org/books/5719046-foundation-5719046" class="custom-a">Foundation</a>
+      </h3>
+      <div class="text-sm text-[#666] mt-1">Isaac Asimov · 2004 · EPUB · 2.3 MB · Books catalog</div>
+    </div>
   </div>
-  <div class="pt-3 pb-3 border-b border-slate-200">
-    <a class="js-vim-focus" href="/md5/11111111111111111111111111111111">Dune</a>
-    <div class="text-amber-900" data-content="Frank Herbert">Frank Herbert</div>
-    <div class="text-gray-800">English [en], EPUB, 2.3 MB</div>
+  <div class="flex gap-[18px] items-start">
+    <div class="min-w-0 flex-1 pt-[2px]">
+      <h3 class="font-bold text-lg leading-tight">
+        <a href="https://annas-archive.org/md5/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6" class="custom-a">Dune</a>
+      </h3>
+      <div class="text-sm text-[#666] mt-1">Frank Herbert · PDF · 7.5MB · Books catalog</div>
+    </div>
   </div>
 </body></html>
 "#;
@@ -239,20 +260,28 @@ mod tests {
 
     #[test]
     fn test_parse_results() {
-        let releases = indexer().parse_results(SAMPLE_HTML);
+        let releases = indexer().parse_results(SAMPLE_HTML, "https://annas-archive.org");
         assert_eq!(releases.len(), 2);
 
         let first = &releases[0];
-        assert_eq!(first.title, "Isaac Asimov - Foundation [pdf]");
-        assert!(first.download_url.contains("/dyn/api/fast_download.json?md5=a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"));
+        assert_eq!(first.title, "Isaac Asimov - Foundation [epub]");
+        assert!(first.download_url.contains("/dyn/api/fast_download.json?md5=5719046"));
         assert!(first.download_url.contains("key=secret"));
-        assert_eq!(first.info_url, "https://annas-archive.org/md5/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6");
-        assert_eq!(first.size, (7.5 * 1024.0 * 1024.0) as i64);
-        assert_eq!(first.categories, vec!["pdf".to_string()]);
+        assert_eq!(
+            first.info_url,
+            "https://annas-archive.org/books/5719046"
+        );
+        assert_eq!(first.size, (2.3 * 1024.0 * 1024.0) as i64);
+        assert_eq!(first.categories, vec!["epub".to_string()]);
 
         let second = &releases[1];
-        assert_eq!(second.title, "Frank Herbert - Dune [epub]");
-        assert_eq!(second.size, (2.3 * 1024.0 * 1024.0) as i64);
+        assert_eq!(second.title, "Frank Herbert - Dune [pdf]");
+        assert!(second.download_url.contains("md5=a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"));
+        assert_eq!(
+            second.info_url,
+            "https://annas-archive.org/md5/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+        );
+        assert_eq!(second.size, (7.5 * 1024.0 * 1024.0) as i64);
     }
 
     #[tokio::test]
