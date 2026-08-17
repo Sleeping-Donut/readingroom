@@ -297,6 +297,8 @@ const SCHEMA_STATEMENTS: &[&str] = &[
     "CREATE INDEX IF NOT EXISTS idx_authors_name ON authors(name)",
     "CREATE TABLE IF NOT EXISTS redirects (key TEXT PRIMARY KEY, to_key TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    "CREATE VIRTUAL TABLE IF NOT EXISTS works_fts USING fts5(key UNINDEXED, title, tokenize='trigram')",
+    "CREATE VIRTUAL TABLE IF NOT EXISTS authors_fts USING fts5(key UNINDEXED, name, tokenize='trigram')",
 ];
 
 async fn ensure_schema(db: &sqlx::SqlitePool) -> Result<()> {
@@ -615,6 +617,11 @@ async fn insert_rows(
             .bind(&row.json)
             .execute(&mut **txn)
             .await?;
+        sqlx::query("INSERT OR REPLACE INTO works_fts (key, title) VALUES (?, ?)")
+            .bind(&row.key)
+            .bind(&row.title)
+            .execute(&mut **txn)
+            .await?;
         n += 1;
     }
     for row in &batch.editions {
@@ -633,6 +640,11 @@ async fn insert_rows(
             .bind(&row.key)
             .bind(&row.name)
             .bind(&row.json)
+            .execute(&mut **txn)
+            .await?;
+        sqlx::query("INSERT OR REPLACE INTO authors_fts (key, name) VALUES (?, ?)")
+            .bind(&row.key)
+            .bind(&row.name)
             .execute(&mut **txn)
             .await?;
         n += 1;
@@ -810,6 +822,18 @@ fn parse_dump(path: &Path, tx: &tokio::sync::mpsc::Sender<Batch>) -> std::io::Re
 
 fn ol_id_from_key(key: &str) -> String {
     key.trim_start_matches('/').to_string()
+}
+
+/// Build a trigram-FTS MATCH expression for a substring query. Returns None for
+/// queries shorter than the trigram minimum (3 chars) so callers can fall back
+/// to a LIKE scan.
+fn fts_match_expr(query: &str) -> Option<String> {
+    let q = query.trim();
+    if q.chars().count() < 3 {
+        return None;
+    }
+    let escaped = q.replace('"', "\"\"");
+    Some(format!("\"{escaped}\""))
 }
 
 fn looks_like_isbn(s: &str) -> bool {
@@ -1115,6 +1139,74 @@ impl OlCacheSource {
         apply_edition_overrides(&mut book, &edition);
         Ok(book)
     }
+
+    /// Slow-but-always-works LIKE-based search used as a fallback when the FTS
+    /// index is empty or the query is too short for trigram matching.
+    async fn search_book_like(&self, query: &str) -> Result<Vec<Book>> {
+        let pattern = format!("%{}%", query.to_lowercase());
+        let mut books: Vec<Book> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        let rows = sqlx::query_as::<_, (String, String, String, Option<String>, String)>(
+            "SELECT w.key, w.title, w.author_keys, w.first_publish_date, w.json
+             FROM works w
+             WHERE lower(w.title) LIKE ?
+                OR EXISTS (
+                    SELECT 1 FROM json_each(w.author_keys) je
+                    JOIN authors a ON a.key = je.value
+                    WHERE lower(a.name) LIKE ?
+                )
+             ORDER BY w.title
+             LIMIT 20",
+        )
+        .bind(&pattern)
+        .bind(&pattern)
+        .fetch_all(&self.db)
+        .await?;
+
+        for r in rows {
+            let row = WorkRow {
+                key: r.0,
+                title: r.1,
+                author_keys: r.2,
+                first_publish_date: r.3,
+                json: r.4,
+            };
+            if seen.insert(row.key.clone()) {
+                books.push(self.book_from_work(&row).await?);
+            }
+        }
+
+        if books.len() < 20 {
+            let work_keys: Vec<String> = sqlx::query_as::<_, (String,)>(
+                "SELECT DISTINCT e.work_key
+                 FROM editions e
+                 WHERE e.work_key IS NOT NULL
+                   AND lower(e.title) LIKE ?
+                   AND e.work_key NOT IN (SELECT key FROM works WHERE lower(title) LIKE ?)
+                 LIMIT 20",
+            )
+            .bind(&pattern)
+            .bind(&pattern)
+            .fetch_all(&self.db)
+            .await?
+            .into_iter()
+            .map(|(k,)| k)
+            .collect();
+            for work_key in work_keys {
+                if books.len() >= 20 {
+                    break;
+                }
+                if let Some(row) = query_work_row(&self.db, &work_key).await? {
+                    if seen.insert(row.key.clone()) {
+                        books.push(self.book_from_work(&row).await?);
+                    }
+                }
+            }
+        }
+
+        Ok(books)
+    }
 }
 
 #[async_trait]
@@ -1207,68 +1299,71 @@ impl MetadataSource for OlCacheSource {
     }
 
     async fn search_book(&self, query: &str) -> Result<Vec<Book>> {
-        let pattern = format!("%{}%", query.to_lowercase());
         let mut books: Vec<Book> = Vec::new();
         let mut seen = std::collections::HashSet::new();
 
-        let rows = sqlx::query_as::<_, (String, String, String, Option<String>, String)>(
-            "SELECT w.key, w.title, w.author_keys, w.first_publish_date, w.json
-             FROM works w
-             WHERE lower(w.title) LIKE ?
-                OR EXISTS (
-                    SELECT 1 FROM json_each(w.author_keys) je
-                    JOIN authors a ON a.key = je.value
-                    WHERE lower(a.name) LIKE ?
-                )
-             ORDER BY w.title
-             LIMIT 20",
-        )
-        .bind(&pattern)
-        .bind(&pattern)
-        .fetch_all(&self.db)
-        .await?;
-
-        for r in rows {
-            let row = WorkRow {
-                key: r.0,
-                title: r.1,
-                author_keys: r.2,
-                first_publish_date: r.3,
-                json: r.4,
-            };
-            if seen.insert(row.key.clone()) {
-                books.push(self.book_from_work(&row).await?);
-            }
-        }
-
-        if books.len() < 20 {
-            let work_keys: Vec<String> = sqlx::query_as::<_, (String,)>(
-                "SELECT DISTINCT e.work_key
-                 FROM editions e
-                 WHERE e.work_key IS NOT NULL
-                   AND lower(e.title) LIKE ?
-                   AND e.work_key NOT IN (SELECT key FROM works WHERE lower(title) LIKE ?)
-                 LIMIT 20",
+        // Trigram FTS gives fast substring search; requires >= 3 chars.
+        if let Some(match_expr) = fts_match_expr(query) {
+            let title_keys: Vec<String> = sqlx::query_scalar(
+                "SELECT key FROM works_fts WHERE works_fts MATCH ? ORDER BY rank LIMIT 30",
             )
-            .bind(&pattern)
-            .bind(&pattern)
+            .bind(&match_expr)
             .fetch_all(&self.db)
-            .await?
-            .into_iter()
-            .map(|(k,)| k)
-            .collect();
-            for work_key in work_keys {
-                if books.len() >= 20 {
-                    break;
-                }
-                if let Some(row) = query_work_row(&self.db, &work_key).await? {
-                    if seen.insert(row.key.clone()) {
+            .await?;
+            for key in title_keys {
+                if seen.insert(key.clone()) {
+                    if let Some(row) = query_work_row(&self.db, &key).await? {
                         books.push(self.book_from_work(&row).await?);
+                        if books.len() >= 20 {
+                            break;
+                        }
                     }
                 }
             }
+
+            // Author name match via the authors FTS index.
+            let author_keys: Vec<String> = sqlx::query_scalar(
+                "SELECT key FROM authors_fts WHERE authors_fts MATCH ? ORDER BY rank LIMIT 5",
+            )
+            .bind(&match_expr)
+            .fetch_all(&self.db)
+            .await?;
+            for akey in author_keys {
+                let rows = sqlx::query_as::<_, (String, String, String, Option<String>, String)>(
+                    "SELECT w.key, w.title, w.author_keys, w.first_publish_date, w.json
+                     FROM works w
+                     WHERE EXISTS (SELECT 1 FROM json_each(w.author_keys) je WHERE je.value = ?)
+                     ORDER BY w.title LIMIT 20",
+                )
+                .bind(&akey)
+                .fetch_all(&self.db)
+                .await?;
+                for r in rows {
+                    let row = WorkRow {
+                        key: r.0,
+                        title: r.1,
+                        author_keys: r.2,
+                        first_publish_date: r.3,
+                        json: r.4,
+                    };
+                    if seen.insert(row.key.clone()) {
+                        books.push(self.book_from_work(&row).await?);
+                        if books.len() >= 20 {
+                            break;
+                        }
+                    }
+                }
+                if books.len() >= 20 {
+                    break;
+                }
+            }
         }
 
+        // Fallback for short queries or when the FTS index is empty (e.g. a
+        // pre-FTS cache that hasn't been backfilled yet).
+        if books.is_empty() {
+            books = self.search_book_like(query).await?;
+        }
         Ok(books)
     }
 
@@ -1369,10 +1464,18 @@ mod tests {
             .bind("2000")
             .bind(r#"{"key":"/works/OL1W","title":"The Great Book","first_publish_date":"2000","description":{"value":"A great read"},"subjects":["Fiction","Classic"],"covers":[12345],"authors":[{"author":{"key":"/authors/OL1A"}}]}"#)
             .execute(pool).await?;
+        sqlx::query("INSERT OR REPLACE INTO works_fts (key, title) VALUES (?, ?)")
+            .bind("/works/OL1W")
+            .bind("The Great Book")
+            .execute(pool).await?;
         sqlx::query("INSERT OR REPLACE INTO authors (key, name, json) VALUES (?, ?, ?)")
             .bind("/authors/OL1A")
             .bind("Jane Author")
             .bind(r#"{"key":"/authors/OL1A","name":"Jane Author","bio":{"value":"A brilliant author"},"photos":[67890],"alternate_names":["J. Author"]}"#)
+            .execute(pool).await?;
+        sqlx::query("INSERT OR REPLACE INTO authors_fts (key, name) VALUES (?, ?)")
+            .bind("/authors/OL1A")
+            .bind("Jane Author")
             .execute(pool).await?;
         sqlx::query("INSERT OR REPLACE INTO editions (key, work_key, title, isbn, json) VALUES (?, ?, ?, ?, ?)")
             .bind("/books/OL1M")

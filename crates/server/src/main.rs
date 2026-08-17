@@ -52,6 +52,11 @@ struct Args {
     /// and exit. Useful for seeding the cache from a file downloaded with curl.
     #[arg(long = "import-dump")]
     import_dump: Option<PathBuf>,
+
+    /// Backfill the offline cache FTS indexes from the works/authors tables
+    /// (one-time, for caches built before FTS support) and exit.
+    #[arg(long = "backfill-fts")]
+    backfill_fts: bool,
 }
 
 pub struct AppState {
@@ -189,6 +194,29 @@ async fn main() -> readingroom_core::error::Result<()> {
             authors = counts.authors,
             redirects = counts.redirects,
             "Dump import complete"
+        );
+        return Ok(());
+    }
+
+    // `--backfill-fts`: populate the offline cache FTS indexes from the
+    // already-imported works/authors tables (one-time for pre-FTS caches).
+    if args.backfill_fts {
+        let pool = local_cache.source().pool();
+        tracing::info!("Backfilling offline cache FTS indexes");
+        let works = sqlx::query(
+            "INSERT INTO works_fts (key, title) SELECT key, title FROM works",
+        )
+        .execute(pool)
+        .await?;
+        let authors = sqlx::query(
+            "INSERT INTO authors_fts (key, name) SELECT key, name FROM authors",
+        )
+        .execute(pool)
+        .await?;
+        tracing::info!(
+            works_rows = works.rows_affected(),
+            authors_rows = authors.rows_affected(),
+            "FTS backfill complete"
         );
         return Ok(());
     }
