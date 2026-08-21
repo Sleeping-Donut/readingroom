@@ -1,4 +1,4 @@
-import { action, createOptimisticStore, createStore, refresh } from "solid-js";
+import { action, createOptimisticStore, createStore, createProjection, refresh } from "solid-js";
 
 import type { TestResult } from "../types";
 
@@ -8,13 +8,16 @@ type ServerIndexer = Awaited<ReturnType<typeof settingsApi.listIndexers>>["index
 
 export type RowError = { op: "add" | "update" | "remove"; args: unknown[] };
 
-// Server row + optimistic affordances. tags/created_at are server-only
-// metadata the optimistic temp row doesn't have yet.
-export type IndexerRow = Omit<ServerIndexer, "tags" | "created_at"> & {
-  tags?: string;
-  created_at?: string;
+// Wire row minus server-only metadata the optimistic temp row can't provide,
+// plus the optimistic in-flight flag (written during actions, reverted on settle).
+type StoredIndexer = Omit<ServerIndexer, "tags" | "created_at"> & {
   pending?: boolean;
+};
+
+// Projected row: stored fields + client affordances layered by the projection.
+export type IndexerRow = StoredIndexer & {
   error?: RowError;
+  test?: TestResult;
 };
 
 export interface IndexerInput {
@@ -26,31 +29,39 @@ export interface IndexerInput {
   priority?: number;
 }
 
-/// Server state + mutations for the indexers settings page. The route reads
-/// `indexers`/`testResults` and calls the actions; all mutation logic and
-/// failed-persist bookkeeping lives here.
+/// Server state + mutations for the indexers settings page. Returns the
+/// projected indexer list (server rows with pending/error/test affordances
+/// layered on) plus the actions; the route holds no other state.
 export function createIndexers() {
   // Failed-persist bookkeeping — scoped to this factory, touched only by the
-  // actions, projected back into the list by the async projection.
+  // actions, layered back onto rows by the projection.
   const rowErrors = new Map<number, RowError>();
 
-  const [indexers, setIndexers] = createOptimisticStore<{ indexers: IndexerRow[] }>(
+  // Authoritative server rows (+optimistic overlay during actions).
+  const [serverRows, setServerRows] = createOptimisticStore<{ indexers: StoredIndexer[] }>(
     async () => {
       const data = await settingsApi.listIndexers();
-      return {
-        indexers: data.indexers.map((i) => {
-          const err = rowErrors.get(i.id);
-          return err ? { ...i, error: err } : i;
-        }),
-      };
+      return { indexers: data.indexers };
     },
     { indexers: [] },
   );
 
   const [testResults, setTestResults] = createStore<Record<number, TestResult>>({});
 
+  // Projected view: server rows with affordances layered per row.
+  const indexers = createProjection(
+    () => ({
+      indexers: serverRows.indexers.map((row) => ({
+        ...row,
+        error: rowErrors.get(row.id),
+        test: testResults[row.id],
+      })),
+    }),
+    { indexers: [] },
+  );
+
   const removeIndexer = action(function* (row: IndexerRow) {
-    setIndexers((s) => {
+    setServerRows((s) => {
       s.indexers = s.indexers.filter((i) => i.id !== row.id);
     });
     try {
@@ -59,11 +70,11 @@ export function createIndexers() {
     } catch {
       rowErrors.set(row.id, { op: "remove", args: [row] });
     }
-    refresh(indexers);
+    refresh(serverRows);
   });
 
   const retryRemoveIndexer = action(function* (row: IndexerRow) {
-    setIndexers((s) => {
+    setServerRows((s) => {
       const r = s.indexers.find((x) => x.id === row.id);
       if (r) r.pending = true;
     });
@@ -73,12 +84,12 @@ export function createIndexers() {
     } catch {
       /* row keeps its retry affordance */
     }
-    refresh(indexers);
+    refresh(serverRows);
   });
 
   const addIndexer = action(function* (input: IndexerInput) {
     const tempId = -Date.now();
-    setIndexers((s) => {
+    setServerRows((s) => {
       s.indexers.push({
         id: tempId,
         name: input.name,
@@ -100,11 +111,11 @@ export function createIndexers() {
       priority: input.priority,
       pluginSettings: input.settings,
     });
-    refresh(indexers);
+    refresh(serverRows);
   });
 
   const updateIndexer = action(function* (id: number, input: IndexerInput) {
-    setIndexers((s) => {
+    setServerRows((s) => {
       const row = s.indexers.find((x) => x.id === id);
       if (row) {
         row.name = input.name;
@@ -125,16 +136,15 @@ export function createIndexers() {
       priority: input.priority,
       pluginSettings: input.settings,
     });
-    refresh(indexers);
+    refresh(serverRows);
   });
 
-  const testIndexer = action(async function* (id: number) {
+  const testIndexer = action(function* (id: number) {
     setTestResults((r) => {
       r[id] = { status: "testing" };
     });
     try {
-      const data = await settingsApi.testIndexer(id);
-      yield;
+      const data = yield settingsApi.testIndexer(id);
       setTestResults((r) => {
         r[id] = { status: data.success ? "success" : "error", message: data.message };
       });
@@ -146,7 +156,7 @@ export function createIndexers() {
   });
 
   const testAllIndexers = action(function* () {
-    for (const idx of indexers.indexers) {
+    for (const idx of serverRows.indexers) {
       try {
         yield testIndexer(idx.id);
       } catch {
@@ -156,10 +166,9 @@ export function createIndexers() {
     }
   });
 
-  return {
+  return [
     indexers,
-    testResults,
-    actions: {
+    {
       addIndexer,
       updateIndexer,
       removeIndexer,
@@ -167,5 +176,5 @@ export function createIndexers() {
       testIndexer,
       testAllIndexers,
     },
-  };
+  ] as const;
 }

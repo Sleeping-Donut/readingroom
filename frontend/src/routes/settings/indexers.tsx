@@ -293,18 +293,10 @@ function ConfigFields(props: {
 }
 
 export default function IndexersTab(_props: RouteProps<typeof route>) {
-  const {
+  const [
     indexers,
-    testResults,
-    actions: {
-      addIndexer,
-      updateIndexer,
-      removeIndexer,
-      retryRemoveIndexer,
-      testIndexer,
-      testAllIndexers,
-    },
-  } = createIndexers();
+    { addIndexer, updateIndexer, removeIndexer, retryRemoveIndexer, testIndexer, testAllIndexers },
+  ] = createIndexers();
 
   const implementations = createMemo(
     async () => {
@@ -539,7 +531,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                           { "border-red-800": !!idx.error, "border-gray-800": !idx.error },
                         ]}
                       >
-                        <StatusDot status={testResults[idx.id]?.status ?? "idle"} />
+                        <StatusDot status={idx.test?.status ?? "idle"} />
                         <div class="flex-1 min-w-0">
                           <p class="font-medium truncate">{idx.name}</p>
                           <div class="flex flex-wrap gap-1.5 mt-1">
@@ -567,17 +559,13 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                               </span>
                             </Show>
                           </div>
-                          <Show when={testResults[idx.id]}>
+                          <Show when={idx.test}>
                             <Switch>
-                              <Match when={testResults[idx.id]?.status === "success"}>
-                                <p class="text-xs text-green-400 mt-1">
-                                  ✓ {testResults[idx.id]?.message}
-                                </p>
+                              <Match when={idx.test?.status === "success"}>
+                                <p class="text-xs text-green-400 mt-1">✓ {idx.test?.message}</p>
                               </Match>
-                              <Match when={testResults[idx.id]?.status === "error"}>
-                                <p class="text-xs text-red-400 mt-1">
-                                  ✗ {testResults[idx.id]?.message}
-                                </p>
+                              <Match when={idx.test?.status === "error"}>
+                                <p class="text-xs text-red-400 mt-1">✗ {idx.test?.message}</p>
                               </Match>
                             </Switch>
                           </Show>
@@ -588,10 +576,10 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                         <div class="flex flex-wrap gap-2 shrink-0">
                           <button
                             onClick={() => void testIndexer(idx.id)}
-                            disabled={testResults[idx.id]?.status === "testing"}
+                            disabled={idx.test?.status === "testing"}
                             class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
                           >
-                            {testResults[idx.id]?.status === "testing" ? "Testing..." : "Test"}
+                            {idx.test?.status === "testing" ? "Testing..." : "Test"}
                           </button>
                           <button
                             onClick={() => {

@@ -237,11 +237,35 @@ const testAll = action(function* () {
 });
 ```
 
-Return shape becomes `[indexers, testResults, actions]` (or fold `testResults` into
-the returned object). The auto-test-on-load kick uses the **two-arg `createEffect`
-boundary** watching the list (with a `autoTested` latch so refreshes don't re-fire) —
-NOT `onSettled`: reading a *rejected* optimistic-store projection inside onSettled
-re-reads it every microtask and OOMs the process (verified empirically):
+Return shape becomes `[indexers, actions]` where `indexers` is a **projected store**
+(`createProjection`) that layers the per-row affordances onto server rows at read
+time — consumers get one read path (`idx.name`, `idx.pending`, `idx.error`,
+`idx.test.status`) and never touch `testResults` directly:
+
+```ts
+const [serverRows, setServerRows] = createOptimisticStore<{ indexers: StoredIndexer[] }>(
+  async () => { const d = await api.listIndexers(); return { indexers: d.indexers }; },
+  { indexers: [] },
+);
+const indexers = createProjection(
+  () => ({
+    indexers: serverRows.indexers.map((row) => ({
+      ...row,
+      error: rowErrors.get(row.id),
+      test: testResults[row.id],
+    })),
+  }),
+  { indexers: [] },
+);
+```
+
+`createProjection` (not `createMemo`) because the derivation is store→store:
+reconciled by `id`, surviving rows keep proxy identity across recomputes, and the
+projected store is itself `Refreshable`. The auto-test-on-load kick uses the
+**two-arg `createEffect` boundary** watching the list (with an `autoTested` latch so
+refreshes don't re-fire) — NOT `onSettled`: reading a *rejected* optimistic-store
+projection inside onSettled re-reads it every microtask and OOMs the process
+(verified empirically):
 
 ```ts
 const [autoTested, setAutoTested] = createSignal(false);
