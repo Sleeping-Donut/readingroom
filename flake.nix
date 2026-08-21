@@ -58,6 +58,7 @@
           # Frontend
           nodejs
           pnpm
+		  typescript-language-server
           # General
           just
           typos
