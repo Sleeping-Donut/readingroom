@@ -104,8 +104,10 @@ interface Draft {
   priority: number;
 }
 
+// Backend serializes ParamDef.default as JSON null when unset, so treat
+// null like missing throughout.
 function paramDefault(p: IndexerParamDef): string | number | boolean | undefined {
-  if (p.default !== undefined) return p.default;
+  if (p.default != null) return p.default;
   if (p.type === "boolean") return false;
   if (p.type === "select") return p.options[0];
   return undefined;
@@ -123,7 +125,7 @@ function draftFor(impl: ImplementationInfo, row?: IndexerRow): Draft {
   const values: Draft["values"] = {};
   for (const p of impl.params) {
     const seed = raw[p.name] ?? paramDefault(p);
-    if (seed !== undefined) values[p.name] = seed;
+    if (seed != null && seed !== "") values[p.name] = seed;
   }
   return {
     name: row?.name ?? "",
