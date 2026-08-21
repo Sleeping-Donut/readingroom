@@ -238,17 +238,23 @@ const testAll = action(function* () {
 ```
 
 Return shape becomes `[indexers, testResults, actions]` (or fold `testResults` into
-the returned object). The auto-test-on-load kick moves to `onSettled` in the route:
+the returned object). The auto-test-on-load kick uses the **two-arg `createEffect`
+boundary** watching the list (with a `autoTested` latch so refreshes don't re-fire) —
+NOT `onSettled`: reading a *rejected* optimistic-store projection inside onSettled
+re-reads it every microtask and OOMs the process (verified empirically):
 
 ```ts
-onSettled(() => {
-  const timers = indexers.indexers.map((idx, i) =>
-    setTimeout(() => void test(idx.id), i * 300));
-  return () => timers.forEach(clearTimeout);
-});
+const [autoTested, setAutoTested] = createSignal(false);
+createEffect(
+  () => indexers.indexers,
+  (list) => {
+    if (autoTested() || list.length === 0) return;
+    setAutoTested(true);
+    const timers = list.map((idx, i) => setTimeout(() => void test(idx.id), i * 300));
+    return () => timers.forEach(clearTimeout);
+  },
+);
 ```
-
-(deleting the `autoTested` latch + the two-arg `createEffect` boundary).
 
 ### 2.3 Validation with valibot
 

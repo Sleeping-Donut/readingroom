@@ -30,8 +30,20 @@ pub fn from_config(config: &IndexerConfig, plugins: &PluginManager) -> Result<Bo
 }
 
 /// Static metadata for the hardcoded implementations, merged with loaded
-/// plugins by the settings API for the WebUI add/edit flow.
+/// plugins by the settings API for the WebUI add/edit flow. Core types declare
+/// their config params too, so the WebUI form is data-driven for everything.
 pub fn core_implementations() -> Vec<ImplementationInfo> {
+    fn param(name: &str, label: &str, ptype: &str, required: bool) -> plugin::ParamDef {
+        plugin::ParamDef {
+            name: name.into(),
+            label: label.into(),
+            param_type: ptype.into(),
+            required,
+            default: None,
+            options: vec![],
+        }
+    }
+
     vec![
         ImplementationInfo {
             id: "torznab".into(),
@@ -39,7 +51,10 @@ pub fn core_implementations() -> Vec<ImplementationInfo> {
             hint: "Torrent indexer using the Torznab protocol.".into(),
             supports_search: true,
             supports_rss: true,
-            params: vec![],
+            params: vec![
+                param("url", "URL", "string", true),
+                param("api_key", "API Key", "password", false),
+            ],
             plugin: false,
         },
         ImplementationInfo {
@@ -48,7 +63,10 @@ pub fn core_implementations() -> Vec<ImplementationInfo> {
             hint: "Usenet indexer using the Newznab protocol.".into(),
             supports_search: true,
             supports_rss: true,
-            params: vec![],
+            params: vec![
+                param("url", "URL", "string", true),
+                param("api_key", "API Key", "password", false),
+            ],
             plugin: false,
         },
         ImplementationInfo {
@@ -57,7 +75,7 @@ pub fn core_implementations() -> Vec<ImplementationInfo> {
             hint: "RSS feed indexer — API key is not required.".into(),
             supports_search: false,
             supports_rss: true,
-            params: vec![],
+            params: vec![param("url", "Feed URL", "string", true)],
             plugin: false,
         },
     ]
