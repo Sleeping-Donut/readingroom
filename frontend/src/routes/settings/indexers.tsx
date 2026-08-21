@@ -17,7 +17,9 @@ import type { ImplementationInfo } from "../../api/settings";
 import type { Draft } from "../../resources/indexers";
 
 import * as settingsApi from "../../api/settings";
+import { ImplementationPicker } from "../../components/settings/ImplementationPicker";
 import { IndexerCard } from "../../components/settings/IndexerCard";
+import { IndexerConfigFields } from "../../components/settings/IndexerConfigFields";
 import { IndexerEditPanel } from "../../components/settings/IndexerEditPanel";
 import {
   CORE_IMPLEMENTATIONS,
@@ -41,21 +43,13 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
     { addIndexer, updateIndexer, removeIndexer, retryRemoveIndexer, testIndexer, testAllIndexers },
   ] = createIndexers();
 
-  const implementations = createMemo(
-    async () => {
-      try {
-        return await settingsApi.getIndexerImplementations();
-      } catch {
-        return null;
-      }
-    },
-    { loadingValue: null },
-  );
+  // Implementation catalog for the add wizard. Falls back to the static core
+  // list while loading or if the endpoint is unreachable.
+  const implementations = createMemo(() => settingsApi.getIndexerImplementations());
 
-  const implementationList = createMemo<ImplementationInfo[]>(() => {
-    const loaded = implementations()?.implementations;
-    return loaded && loaded.length > 0 ? loaded : CORE_IMPLEMENTATIONS;
-  });
+  const implementationList = createMemo<ImplementationInfo[]>(
+    () => implementations()?.implementations ?? CORE_IMPLEMENTATIONS,
+  );
 
   const implById = (id: string) => implementationList().find((i) => i.id === id) ?? null;
 
@@ -212,37 +206,21 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
               <Show
                 when={addStep() === "configure"}
                 fallback={
-                  <>
-                    <h4 class="text-sm font-semibold text-gray-300 mb-3">Indexer type</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <For each={implementationList()}>
-                        {(impl) => (
-                          <button
-                            onClick={() => {
-                              setConfigureImplId(impl.id);
-                              setDraft(() => draftFor(impl));
-                              setAddStep("configure");
-                            }}
-                            class="p-4 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-indigo-600 rounded-lg text-left transition-colors"
-                          >
-                            <p class="font-medium">{impl.label}</p>
-                            <p class="text-xs text-gray-500 mt-1">{impl.hint}</p>
-                          </button>
-                        )}
-                      </For>
-                    </div>
-                  </>
+                  <ImplementationPicker
+                    implementations={implementationList()}
+                    onPick={(impl) => {
+                      setConfigureImplId(impl.id);
+                      setDraft(() => draftFor(impl));
+                      setAddStep("configure");
+                    }}
+                  />
                 }
               >
-                <IndexerEditPanel
+                <IndexerConfigFields
                   impl={configureImpl()!}
                   draft={draft}
                   setDraft={setDraft}
                   showPriority={false}
-                  submitting={submitting()}
-                  valid={addValid()}
-                  onCancel={() => setAddStep("closed")}
-                  onSave={() => void submitAdd()}
                 />
                 <div class="flex gap-3 items-center mt-4">
                   <button
@@ -250,6 +228,19 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
                     class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
                   >
                     Back
+                  </button>
+                  <button
+                    onClick={() => void submitAdd()}
+                    disabled={submitting() || !addValid()}
+                    class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setAddStep("closed")}
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+                  >
+                    Cancel
                   </button>
                 </div>
               </Show>
