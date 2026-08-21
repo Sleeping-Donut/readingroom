@@ -1,5 +1,7 @@
 import { action, createOptimisticStore, createStore, createProjection, refresh } from "solid-js";
+import * as v from "valibot";
 
+import type { ImplementationInfo, IndexerParamDef } from "../api/settings";
 import type { TestResult } from "../types";
 
 import * as settingsApi from "../api/settings";
@@ -27,6 +29,136 @@ export interface IndexerInput {
   enable_rss: boolean;
   enable_search: boolean;
   priority?: number;
+}
+
+// Offline fallback while /settings/indexers/implementations loads. Params mirror
+// backend core_implementations() so the config form is data-driven either way.
+export const CORE_IMPLEMENTATIONS: ImplementationInfo[] = [
+  {
+    id: "torznab",
+    label: "Torznab (torrent)",
+    hint: "Torrent indexer using the Torznab protocol.",
+    supports_search: true,
+    supports_rss: true,
+    plugin: false,
+    params: [
+      { name: "url", label: "URL", type: "string", required: true, options: [] },
+      { name: "api_key", label: "API Key", type: "password", required: false, options: [] },
+    ],
+  },
+  {
+    id: "newznab",
+    label: "Newznab (usenet)",
+    hint: "Usenet indexer using the Newznab protocol.",
+    supports_search: true,
+    supports_rss: true,
+    plugin: false,
+    params: [
+      { name: "url", label: "URL", type: "string", required: true, options: [] },
+      { name: "api_key", label: "API Key", type: "password", required: false, options: [] },
+    ],
+  },
+  {
+    id: "rss",
+    label: "RSS",
+    hint: "RSS feed indexer — API key is not required.",
+    supports_search: false,
+    supports_rss: true,
+    plugin: false,
+    params: [{ name: "url", label: "Feed URL", type: "string", required: true, options: [] }],
+  },
+];
+
+// --- validation -------------------------------------------------------------
+
+function paramSchema(p: IndexerParamDef) {
+  switch (p.type) {
+    case "number":
+      return p.required ? v.number(`${p.label || p.name} is required`) : v.optional(v.number());
+    case "boolean":
+      return v.boolean();
+    case "select":
+      return p.options.length
+        ? v.optional(v.picklist(p.options as [string, ...string[]]))
+        : v.optional(v.string());
+    default:
+      return p.required
+        ? v.pipe(v.string(), v.trim(), v.minLength(1, `${p.label || p.name} is required`))
+        : v.optional(v.string());
+  }
+}
+
+function implSchema(impl: ImplementationInfo) {
+  return v.object({
+    name: v.pipe(v.string(), v.trim(), v.minLength(1, "Name is required")),
+    ...Object.fromEntries(impl.params.map((p) => [p.name, paramSchema(p)])),
+  });
+}
+
+/// Validate a draft against its implementation's schema.
+export function validateDraft(impl: ImplementationInfo, draft: Draft) {
+  const parsed = v.safeParse(implSchema(impl), { name: draft.name, ...draft.values });
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: parsed.issues[0]?.message ?? "Invalid indexer settings",
+    };
+  }
+  return { success: true as const, output: parsed.output };
+}
+
+// --- drafts -----------------------------------------------------------------
+
+export interface Draft {
+  name: string;
+  values: Record<string, string | number | boolean>;
+  enable_rss: boolean;
+  enable_search: boolean;
+  priority: number;
+}
+
+function paramDefault(p: IndexerParamDef): string | number | boolean | undefined {
+  if (p.default != null) return p.default;
+  if (p.type === "boolean") return false;
+  if (p.type === "select") return p.options[0];
+  return undefined;
+}
+
+/// Seed a form draft for `impl`, optionally pre-filling from an existing row's
+/// stored settings JSON.
+export function draftFor(impl: ImplementationInfo, row?: IndexerRow): Draft {
+  let raw: Record<string, string | number | boolean> = {};
+  if (row) {
+    try {
+      raw = JSON.parse(row.settings);
+    } catch {
+      raw = {};
+    }
+  }
+  const values: Draft["values"] = {};
+  for (const p of impl.params) {
+    const seed = raw[p.name] ?? paramDefault(p);
+    if (seed !== undefined) values[p.name] = seed;
+  }
+  return {
+    name: row?.name ?? "",
+    values,
+    enable_rss: row?.enable_rss ?? impl.supports_rss,
+    enable_search: row?.enable_search ?? impl.supports_search,
+    priority: row?.priority ?? 0,
+  };
+}
+
+/// Convert a draft into the API input shape for add/update calls.
+export function toInput(impl: ImplementationInfo, draft: Draft): IndexerInput {
+  return {
+    name: draft.name.trim(),
+    implementation: impl.id,
+    settings: draft.values,
+    enable_rss: draft.enable_rss,
+    enable_search: draft.enable_search,
+    priority: draft.priority,
+  };
 }
 
 /// Server state + mutations for the indexers settings page. Returns the
