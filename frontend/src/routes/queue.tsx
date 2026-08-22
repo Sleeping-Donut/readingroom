@@ -47,7 +47,10 @@ export default function Queue() {
 	return (
 		<div>
 			<Title>Queue · ReadingRoom</Title>
-			<h2 class="mb-6 text-2xl font-bold">Download Queue</h2>
+			<div class="mb-8">
+				<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">In Flight</p>
+				<h2 class="font-display text-4xl text-ink-900">Queue</h2>
+			</div>
 
 			<Errored
 				fallback={(err, reset) => (
@@ -71,16 +74,13 @@ export default function Queue() {
 							</div>
 						}
 					>
-						<div class="space-y-3">
+						<div class="divide-y divide-rule border-y border-rule">
 							<For each={queue.queue}>
 								{(entry) => (
 									<div
 										class={[
-											"flex items-center gap-4 rounded-lg border bg-paper-100 p-4 transition-colors",
-											{
-												"border-bad/30": !!entry.error,
-												"border-rule": !entry.error,
-											},
+											"flex items-center gap-4 py-4 transition-colors",
+											{ "bg-bad/5": !!entry.error },
 										]}
 									>
 										<div class="min-w-0 flex-1">

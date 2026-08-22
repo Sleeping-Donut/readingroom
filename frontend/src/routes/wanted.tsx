@@ -52,7 +52,12 @@ export default function Wanted() {
 		<div>
 			<Title>Wanted · ReadingRoom</Title>
 			<div class="mb-6 flex items-center justify-between">
-				<h2 class="text-2xl font-bold">Wanted Books</h2>
+				<div>
+					<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+						Missing from the Shelves
+					</p>
+					<h2 class="font-display text-4xl text-ink-900">Wanted</h2>
+				</div>
 				<button
 					onClick={() => void searchAll()}
 					disabled={searchingAll()}
@@ -93,7 +98,7 @@ export default function Wanted() {
 							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 								<For each={wanted().books}>
 									{(book) => (
-										<div class="group relative rounded-lg border border-rule bg-paper-100 p-4">
+										<div class="group relative rounded-sm border border-rule bg-paper-100 p-4">
 											<span class="absolute top-2 right-2 rounded bg-pending px-2 py-0.5 text-xs font-medium text-pending">
 												Wanted
 											</span>

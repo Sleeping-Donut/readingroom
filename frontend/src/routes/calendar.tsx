@@ -33,7 +33,10 @@ export default function Calendar() {
 	return (
 		<div>
 			<Title>Release Calendar · ReadingRoom</Title>
-			<h2 class="mb-6 text-2xl font-bold">Release Calendar</h2>
+			<div class="mb-8">
+				<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">Forthcoming</p>
+				<h2 class="font-display text-4xl text-ink-900">Release Calendar</h2>
+			</div>
 
 			<Errored
 				fallback={(err, reset) => (
@@ -61,7 +64,7 @@ export default function Calendar() {
 							<For each={calendar().months}>
 								{(monthGroup) => (
 									<div class="mb-8">
-										<h3 class="mb-4 text-xl font-semibold text-accent">
+										<h3 class="mb-4 font-display text-xl text-accent italic">
 											{monthNames[monthGroup.month - 1]} {monthGroup.year}
 										</h3>
 										<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -69,7 +72,7 @@ export default function Calendar() {
 												{(book) => (
 													<a
 														href={paths.books(bookId(book))}
-														class="block rounded-lg border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
+														class="block rounded-sm border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
 													>
 														<Show when={book.image_url}>
 															{(img) => (

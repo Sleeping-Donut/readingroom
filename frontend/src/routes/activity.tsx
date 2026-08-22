@@ -16,7 +16,10 @@ export default function Activity() {
 	return (
 		<div>
 			<Title>Activity · ReadingRoom</Title>
-			<h2 class="mb-6 text-2xl font-bold">Activity</h2>
+			<div class="mb-8">
+				<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">History</p>
+				<h2 class="font-display text-4xl text-ink-900">Activity</h2>
+			</div>
 
 			<Errored
 				fallback={(err, reset) => (
@@ -43,7 +46,7 @@ export default function Activity() {
 						<div class="overflow-x-auto">
 							<table class="w-full text-sm">
 								<thead>
-									<tr class="border-b border-rule text-left text-ink-700">
+									<tr class="border-b border-rule text-left font-meta text-xs tracking-widest text-ink-500 uppercase">
 										<th class="pr-4 pb-3">Event</th>
 										<th class="pr-4 pb-3">Title</th>
 										<th class="pr-4 pb-3">Details</th>
