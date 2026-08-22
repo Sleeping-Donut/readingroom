@@ -25,43 +25,17 @@ export const Layout: Component<ParentProps> = (props) => {
 	];
 
 	return (
-		<div class="min-h-screen bg-gray-950 text-gray-100">
-			<nav class="border-b border-gray-800 px-4 py-3 sm:px-6">
-				<div class="flex items-center gap-4">
-					<h1 class="text-lg font-bold text-indigo-400">ReadingRoom</h1>
-
-					{/* Desktop navigation */}
-					<div class="ml-4 hidden items-center gap-6 md:flex">
-						<For each={links()}>
-							{(link) => (
-								<a href={String(link.href)} class="text-sm hover:text-indigo-300">
-									{link.label}
-								</a>
-							)}
-						</For>
-						<div class="ml-auto flex items-center gap-3">
-							<Show when={authEnabled() && user()}>
-								<span class="text-sm text-gray-500">{user()?.username}</span>
-								<button
-									onClick={handleLogout}
-									class="text-sm text-gray-500 hover:text-gray-300"
-								>
-									Logout
-								</button>
-							</Show>
-						</div>
-					</div>
-
-					{/* Mobile hamburger */}
+		<div class="min-h-screen bg-paper-50 text-ink-900">
+			<header>
+				{/* Masthead row */}
+				<div class="relative flex items-center justify-center border-b border-rule px-4 py-4">
 					<button
 						type="button"
-						onClick={() => {
-							setOpen(!open());
-						}}
+						onClick={() => setOpen(!open())}
 						aria-label="Toggle navigation menu"
 						aria-expanded={open() ? "true" : "false"}
 						aria-controls="mobile-menu"
-						class="ml-auto inline-flex h-10 w-10 items-center justify-center rounded text-gray-300 transition-colors hover:bg-gray-800 md:hidden"
+						class="absolute left-4 inline-flex h-10 w-10 items-center justify-center rounded-sm text-ink-700 transition-colors hover:bg-paper-200 md:hidden"
 					>
 						<svg
 							viewBox="0 0 24 24"
@@ -76,36 +50,71 @@ export const Layout: Component<ParentProps> = (props) => {
 							</Show>
 						</svg>
 					</button>
+
+					<a href={String(paths())} class="font-display text-3xl text-ink-900">
+						ReadingRoom
+					</a>
+
+					{/* Desktop user controls */}
+					<div class="absolute right-4 hidden items-center gap-3 md:flex">
+						<Show when={authEnabled() && user()}>
+							<span class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+								{user()?.username}
+							</span>
+							<button
+								onClick={handleLogout}
+								class="text-sm text-ink-500 underline-offset-4 hover:text-ink-900 hover:underline"
+							>
+								Logout
+							</button>
+						</Show>
+					</div>
 				</div>
+
+				{/* Desktop nav row */}
+				<nav class="hidden justify-center gap-8 border-b border-rule py-2.5 md:flex">
+					<For each={links()}>
+						{(link) => (
+							<a
+								href={String(link.href)}
+								class="border-b-2 border-transparent pb-1 font-meta text-xs tracking-widest text-ink-700 uppercase transition-colors hover:text-ink-900"
+							>
+								{link.label}
+							</a>
+						)}
+					</For>
+				</nav>
 
 				{/* Mobile menu */}
 				<Show when={open()}>
 					<div
-						class="fixed inset-0 z-40 bg-black/70 md:hidden"
+						class="fixed inset-0 z-40 bg-ink-900/40 md:hidden"
 						onClick={() => setOpen(false)}
 						aria-hidden="true"
 					/>
 					<div
 						id="mobile-menu"
-						class="relative z-50 mt-3 flex flex-col gap-1 border-t border-gray-800 bg-gray-950 px-1 pt-3 pb-3 md:hidden"
+						class="relative z-50 flex flex-col border-b border-rule bg-paper-50 px-1 py-2 md:hidden"
 					>
 						<For each={links()}>
 							{(link) => (
 								<a
 									href={String(link.href)}
 									onClick={() => setOpen(false)}
-									class="rounded px-3 py-2 text-sm transition-colors hover:bg-gray-800 hover:text-indigo-300"
+									class="rounded-sm px-3 py-2 font-meta text-xs tracking-widest text-ink-700 uppercase transition-colors hover:bg-paper-200 hover:text-ink-900"
 								>
 									{link.label}
 								</a>
 							)}
 						</For>
 						<Show when={authEnabled() && user()}>
-							<div class="mt-1 flex items-center justify-between border-t border-gray-800 px-3 py-2">
-								<span class="text-sm text-gray-500">{user()?.username}</span>
+							<div class="mt-1 flex items-center justify-between border-t border-rule px-3 py-2">
+								<span class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+									{user()?.username}
+								</span>
 								<button
 									onClick={handleLogout}
-									class="text-sm text-gray-500 hover:text-gray-300"
+									class="text-sm text-ink-500 underline-offset-4 hover:text-ink-900 hover:underline"
 								>
 									Logout
 								</button>
@@ -113,8 +122,8 @@ export const Layout: Component<ParentProps> = (props) => {
 						</Show>
 					</div>
 				</Show>
-			</nav>
-			<main class="p-4 sm:p-6">{props.children}</main>
+			</header>
+			<main class="p-4 sm:p-8">{props.children}</main>
 		</div>
 	);
 };
