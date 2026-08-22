@@ -153,9 +153,12 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
 export default function AuthorDetail(props: RouteProps<typeof route>) {
   const author = createMemo(() => getAuthor(props.params.id));
 
+  // Empty result (not null) until the author's name resolves, so consumers
+  // read one non-nullable shape.
+  const EMPTY_SEARCH = { books: [] as Book[], total: 0 };
   const metadataBooks = createMemo(async () => {
     const name = author().name;
-    if (!name) return null;
+    if (!name) return EMPTY_SEARCH;
     return searchBooks(name);
   });
 
@@ -164,7 +167,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
   const dedupedBooks = createMemo(() => {
     const seen = new Set<string>();
     const out: Book[] = [];
-    for (const b of metadataBooks()?.books ?? []) {
+    for (const b of metadataBooks().books) {
       const key = b.foreign_id || b.title;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -325,7 +328,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
         )}
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <Show when={(metadataBooks()?.books.length ?? 0) > 0}>
+          <Show when={metadataBooks().books.length > 0}>
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 class="text-xl font-bold">Books by {author()?.name} (from metadata)</h3>
               <div class="flex flex-wrap items-center gap-3">

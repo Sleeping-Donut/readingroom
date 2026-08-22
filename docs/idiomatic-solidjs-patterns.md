@@ -282,6 +282,10 @@ or a projection for derived views.
 
 ### Related smells
 
+- **Async sources that return null for "nothing yet"** (`if (!q) return null`) — return an
+  empty result shape instead so consumers read one non-nullable type; model "idle" vs
+  "no matches" explicitly at the call site (e.g. gate the panel on the query), not inside
+  the source. Reserve null for genuinely-absent entities.
 - **Parallel in-flight signals** (`adding()`, `savingId()`) — replaced by `pending` on
   rows / optimistic store semantics (see §2).
 - **Side-channel state merged during fetch** — replaced by projection layering (§3).
@@ -306,6 +310,7 @@ or a projection for derived views.
       with `Omit`/intersections.
 - [ ] Row→draft→input conversions and validation wrappers are pure exported functions,
       not inline handler code.
+- [ ] Async memos return empty result shapes, not null; "idle" states are gated in JSX.
 - [ ] Route declares `preload` for everything its resource modules will fetch.
 - [ ] No `try/catch → null` in memos; no `loadingValue`; errors reach `<Errored>`.
 - [ ] No parallel in-flight signals; in-flight state is data (`pending`) or optimistic.

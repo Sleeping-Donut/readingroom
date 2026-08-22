@@ -4,6 +4,8 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import * as v from "valibot";
 
+import type { Book } from "../../types";
+
 import { getBooks, bookId, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
@@ -38,9 +40,12 @@ export default function Books(_props: RouteProps<typeof route>) {
 
   const filterQuery = () => search.q ?? "";
 
+  // Empty result (not null) while the query is empty; the JSX gates "idle"
+  // on the query so an open panel doesn't read as "no matches".
+  const EMPTY_SEARCH = { books: [] as Book[], total: 0 };
   const searchResults = createMemo(async () => {
     const q = searchQuery().trim();
-    if (!q) return null;
+    if (!q) return EMPTY_SEARCH;
     return searchBooks(q);
   });
 
@@ -95,70 +100,67 @@ export default function Books(_props: RouteProps<typeof route>) {
             autofocus
           />
 
-          <Errored
-            fallback={(err, reset) => (
-              <p class="text-sm text-red-400 mt-2">
-                Search failed: {String(err())}{" "}
-                <button
-                  onClick={reset}
-                  class="text-indigo-400 hover:text-indigo-300 underline ml-1"
-                >
-                  Retry
-                </button>
-              </p>
-            )}
-          >
-            <Loading fallback={<p class="text-gray-500 text-sm">Searching...</p>}>
-              <Show when={searchResults()} fallback={null}>
-                {(r) => (
-                  <Show
-                    when={r().books.length > 0}
-                    fallback={<p class="mt-4 text-gray-500 text-sm">No books found.</p>}
+          <Show when={searchQuery().trim()}>
+            <Errored
+              fallback={(err, reset) => (
+                <p class="text-sm text-red-400 mt-2">
+                  Search failed: {String(err())}{" "}
+                  <button
+                    onClick={reset}
+                    class="text-indigo-400 hover:text-indigo-300 underline ml-1"
                   >
-                    <div class="mt-4 space-y-2">
-                      <For each={r().books}>
-                        {(book) => (
-                          <div class="flex items-center gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
-                            <Show when={book.image_url}>
-                              {(img) => (
-                                <img
-                                  src={img()}
-                                  alt={book.title}
-                                  class="w-10 h-14 object-cover rounded"
-                                />
-                              )}
-                            </Show>
-                            <div class="flex-1 min-w-0">
-                              <p class="font-medium truncate">{book.title}</p>
-                              <p class="text-xs text-gray-400 truncate">
-                                {book.publish_date && `${book.publish_date}`}
-                                {book.genres.length > 0 &&
-                                  ` · ${book.genres.slice(0, 3).join(", ")}`}
-                                {book.language && ` · ${book.language}`}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() =>
-                                void submitAdd({
-                                  foreign_id: book.foreign_id,
-                                  author_id: book.author_id,
-                                  title: book.title,
-                                })
-                              }
-                              disabled={addingId() === book.foreign_id}
-                              class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
-                            >
-                              {addingId() === book.foreign_id ? "Adding..." : "Add"}
-                            </button>
+                    Retry
+                  </button>
+                </p>
+              )}
+            >
+              <Loading fallback={<p class="text-gray-500 text-sm">Searching...</p>}>
+                <Show
+                  when={searchResults().books.length > 0}
+                  fallback={<p class="mt-4 text-gray-500 text-sm">No books found.</p>}
+                >
+                  <div class="mt-4 space-y-2">
+                    <For each={searchResults().books}>
+                      {(book) => (
+                        <div class="flex items-center gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
+                          <Show when={book.image_url}>
+                            {(img) => (
+                              <img
+                                src={img()}
+                                alt={book.title}
+                                class="w-10 h-14 object-cover rounded"
+                              />
+                            )}
+                          </Show>
+                          <div class="flex-1 min-w-0">
+                            <p class="font-medium truncate">{book.title}</p>
+                            <p class="text-xs text-gray-400 truncate">
+                              {book.publish_date && `${book.publish_date}`}
+                              {book.genres.length > 0 && ` · ${book.genres.slice(0, 3).join(", ")}`}
+                              {book.language && ` · ${book.language}`}
+                            </p>
                           </div>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                )}
-              </Show>
-            </Loading>
-          </Errored>
+                          <button
+                            onClick={() =>
+                              void submitAdd({
+                                foreign_id: book.foreign_id,
+                                author_id: book.author_id,
+                                title: book.title,
+                              })
+                            }
+                            disabled={addingId() === book.foreign_id}
+                            class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+                          >
+                            {addingId() === book.foreign_id ? "Adding..." : "Add"}
+                          </button>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </Loading>
+            </Errored>
+          </Show>
 
           <Show when={actionError()}>
             <p class="text-sm text-red-400 mt-2">{actionError()}</p>
