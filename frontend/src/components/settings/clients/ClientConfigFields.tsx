@@ -2,7 +2,7 @@ import { Show, createUniqueId } from "solid-js";
 
 import type { Draft } from "../../../resources/clients";
 
-const inputClass = "w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm";
+const inputClass = "w-full px-3 py-2 bg-paper-200 border border-rule rounded text-sm";
 
 export const CLIENT_IMPL_OPTIONS = [
 	{ value: "transmission", label: "Transmission" },
@@ -26,7 +26,7 @@ function ClientConfigFields(props: {
 	return (
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			<div>
-				<label for={fieldId("name")} class="mb-1 block text-xs text-gray-400">
+				<label for={fieldId("name")} class="mb-1 block text-xs text-ink-700">
 					Name
 				</label>
 				<input
@@ -42,7 +42,7 @@ function ClientConfigFields(props: {
 				/>
 			</div>
 			<div>
-				<label for={fieldId("implementation")} class="mb-1 block text-xs text-gray-400">
+				<label for={fieldId("implementation")} class="mb-1 block text-xs text-ink-700">
 					Type
 				</label>
 				<select
@@ -62,7 +62,7 @@ function ClientConfigFields(props: {
 			</div>
 			<Show when={!isHttp()}>
 				<div>
-					<label for={fieldId("host")} class="mb-1 block text-xs text-gray-400">
+					<label for={fieldId("host")} class="mb-1 block text-xs text-ink-700">
 						Host
 					</label>
 					<input
@@ -80,7 +80,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label for={fieldId("port")} class="mb-1 block text-xs text-gray-400">
+					<label for={fieldId("port")} class="mb-1 block text-xs text-ink-700">
 						Port
 					</label>
 					<input
@@ -99,7 +99,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label for={fieldId("username")} class="mb-1 block text-xs text-gray-400">
+					<label for={fieldId("username")} class="mb-1 block text-xs text-ink-700">
 						Username
 					</label>
 					<input
@@ -117,7 +117,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label for={fieldId("password")} class="mb-1 block text-xs text-gray-400">
+					<label for={fieldId("password")} class="mb-1 block text-xs text-ink-700">
 						Password
 					</label>
 					<input
@@ -136,7 +136,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label for={fieldId("url_base")} class="mb-1 block text-xs text-gray-400">
+					<label for={fieldId("url_base")} class="mb-1 block text-xs text-ink-700">
 						URL Base
 					</label>
 					<input
@@ -154,7 +154,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label for={fieldId("category")} class="mb-1 block text-xs text-gray-400">
+					<label for={fieldId("category")} class="mb-1 block text-xs text-ink-700">
 						Category
 					</label>
 					<input
@@ -171,7 +171,7 @@ function ClientConfigFields(props: {
 				</div>
 			</Show>
 			<div>
-				<label for={fieldId("download_dir")} class="mb-1 block text-xs text-gray-400">
+				<label for={fieldId("download_dir")} class="mb-1 block text-xs text-ink-700">
 					Download Directory
 				</label>
 				<input
@@ -188,7 +188,7 @@ function ClientConfigFields(props: {
 			</div>
 			<Show when={isHttp()}>
 				<div>
-					<label for={fieldId("rate_limit_kb")} class="mb-1 block text-xs text-gray-400">
+					<label for={fieldId("rate_limit_kb")} class="mb-1 block text-xs text-ink-700">
 						Rate Limit (KB/s)
 					</label>
 					<input
@@ -209,7 +209,7 @@ function ClientConfigFields(props: {
 				<div>
 					<label
 						for={fieldId("concurrent_downloads")}
-						class="mb-1 block text-xs text-gray-400"
+						class="mb-1 block text-xs text-ink-700"
 					>
 						Concurrent Downloads
 					</label>

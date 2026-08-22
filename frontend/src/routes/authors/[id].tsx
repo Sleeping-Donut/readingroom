@@ -45,7 +45,7 @@ function BookAction(props: {
 					onClick={props.onAdd}
 					disabled={props.adding}
 					class={[
-						"rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600",
+						"rounded bg-ink-900 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-ink-700 disabled:opacity-50",
 						props.block ? "mt-2 w-full" : "shrink-0",
 					]}
 				>
@@ -55,7 +55,7 @@ function BookAction(props: {
 		>
 			<span
 				class={[
-					"rounded border border-green-800 bg-green-900/40 px-3 py-1.5 text-xs font-medium text-green-400",
+					"rounded border border-good/30 bg-good/10 px-3 py-1.5 text-xs font-medium text-good",
 					props.block ? "mt-2 flex w-full items-center justify-center" : "shrink-0",
 				]}
 			>
@@ -71,27 +71,27 @@ function ReleaseRow(props: {
 	onDownload: () => void;
 }) {
 	return (
-		<div class="flex items-center gap-4 rounded-lg border border-gray-800 bg-gray-900 p-3">
+		<div class="flex items-center gap-4 rounded-lg border border-rule bg-paper-100 p-3">
 			<div class="min-w-0 flex-1">
 				<p class="truncate font-medium">{props.result.release.title}</p>
-				<p class="text-xs text-gray-400">
+				<p class="text-xs text-ink-700">
 					{props.result.release.indexer}
 					{props.result.release.seeders != null &&
 						` · ${props.result.release.seeders} seeders`}
 					{props.result.release.size > 0 &&
 						` · ${(props.result.release.size / 1_000_000).toFixed(0)} MB`}
 				</p>
-				<p class="text-xs text-gray-500">
+				<p class="text-xs text-ink-500">
 					Score: {props.result.score.toFixed(0)}
 					{props.result.reasons.length > 0 &&
 						` · ${props.result.reasons.slice(0, 2).join(", ")}`}
 				</p>
 			</div>
-			<span class="mr-2 text-xs text-indigo-400">{props.result.release.download_type}</span>
+			<span class="mr-2 text-xs text-accent">{props.result.release.download_type}</span>
 			<button
 				onClick={props.onDownload}
 				disabled={props.downloading}
-				class="rounded bg-green-700 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
+				class="rounded bg-good px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-90 disabled:opacity-50"
 			>
 				{props.downloading ? "..." : "Download"}
 			</button>
@@ -115,7 +115,7 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
 				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div>
 						<h2 class="mb-2 text-3xl font-bold">{props.author.name}</h2>
-						<div class="mb-4 flex gap-4 text-sm text-gray-400">
+						<div class="mb-4 flex gap-4 text-sm text-ink-700">
 							<Show when={props.author.birth_date}>
 								<span>Born: {props.author.birth_date}</span>
 							</Show>
@@ -128,20 +128,20 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
 					<button
 						onClick={props.onSearch}
 						disabled={props.searching}
-						class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
+						class="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 					>
 						{props.searching ? "Searching..." : "Search Indexers"}
 					</button>
 				</div>
 
 				<Show when={props.author.biography}>
-					<p class="leading-relaxed text-gray-300">{props.author.biography}</p>
+					<p class="leading-relaxed text-ink-900">{props.author.biography}</p>
 				</Show>
 				<Show when={props.author.genres.length > 0}>
 					<div class="mt-4 flex flex-wrap gap-2">
 						<For each={props.author.genres}>
 							{(g) => (
-								<span class="rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">
+								<span class="rounded bg-paper-200 px-2 py-1 text-xs text-ink-900">
 									{g}
 								</span>
 							)}
@@ -149,7 +149,7 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
 					</div>
 				</Show>
 				<Show when={props.author.aliases.length > 0}>
-					<p class="mt-4 text-sm text-gray-400">
+					<p class="mt-4 text-sm text-ink-700">
 						Also known as: {props.author.aliases.join(", ")}
 					</p>
 				</Show>
@@ -271,22 +271,22 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 		<div>
 			<a
 				href={paths.authors}
-				class="mb-4 inline-block text-sm text-indigo-400 hover:text-indigo-300"
+				class="mb-4 inline-block text-sm text-accent underline-offset-2 hover:text-ink-900"
 			>
 				&larr; Back to Authors
 			</a>
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="mt-2 text-sm text-red-400">
+					<p class="mt-2 text-sm text-bad">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="ml-1 text-indigo-400 underline">
+						<button onClick={reset} class="ml-1 text-accent underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
+				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<Title>{author().name} · ReadingRoom</Title>
 					<AuthorBio
 						author={author()}
@@ -297,7 +297,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 			</Errored>
 
 			<Show when={actionError()}>
-				<p class="mt-2 mb-4 text-sm text-red-400">{actionError()}</p>
+				<p class="mt-2 mb-4 text-sm text-bad">{actionError()}</p>
 			</Show>
 
 			<Show when={indexerResults()}>
@@ -329,15 +329,15 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="mt-2 text-sm text-red-400">
+					<p class="mt-2 text-sm text-bad">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="ml-1 text-indigo-400 underline">
+						<button onClick={reset} class="ml-1 text-accent underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
+				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<Show when={metadataBooks().books.length > 0}>
 						<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 							<h3 class="text-xl font-bold">
@@ -349,7 +349,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 									value={filter()}
 									onInput={(e) => setFilter(e.currentTarget.value)}
 									placeholder="Filter by title..."
-									class="rounded border border-gray-800 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-hidden"
+									class="rounded border border-rule bg-paper-100 px-3 py-1.5 text-sm text-ink-900 placeholder:text-ink-500 focus:border-ink-900 focus:outline-hidden"
 								/>
 								<ViewToggle view={view()} onChange={(v) => setView(v)} />
 							</div>
@@ -357,7 +357,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 						<Show
 							when={filteredBooks().length > 0}
 							fallback={
-								<p class="text-sm text-gray-500">No books match your filter.</p>
+								<p class="text-sm text-ink-500">No books match your filter.</p>
 							}
 						>
 							<Show

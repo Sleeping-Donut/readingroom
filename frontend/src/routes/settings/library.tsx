@@ -82,20 +82,20 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 			<h3 class="mb-4 text-lg font-semibold">Library</h3>
 			<Errored
 				fallback={(err, reset) => (
-					<p class="mt-2 text-sm text-red-400">
+					<p class="mt-2 text-sm text-bad">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="ml-1 text-indigo-400 underline">
+						<button onClick={reset} class="ml-1 text-accent underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
-					<div class="max-w-md space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
+				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
+					<div class="max-w-md space-y-3 rounded-lg border border-rule bg-paper-100 p-4">
 						<div>
 							<label
 								for="library-root-folder"
-								class="mb-1 block text-xs text-gray-400"
+								class="mb-1 block text-xs text-ink-700"
 							>
 								Root folder (ebooks)
 							</label>
@@ -107,14 +107,14 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.root_folder = e.currentTarget.value;
 									})
 								}
-								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+								class="w-full rounded border border-rule bg-paper-200 px-3 py-2 text-sm"
 								placeholder="/data/books"
 							/>
 						</div>
 						<div>
 							<label
 								for="library-audiobook-folder"
-								class="mb-1 block text-xs text-gray-400"
+								class="mb-1 block text-xs text-ink-700"
 							>
 								Audiobook folder
 							</label>
@@ -126,7 +126,7 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.audiobook_folder = e.currentTarget.value;
 									})
 								}
-								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+								class="w-full rounded border border-rule bg-paper-200 px-3 py-2 text-sm"
 								placeholder="/data/audiobooks"
 							/>
 						</div>
@@ -146,7 +146,7 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 						<div>
 							<label
 								for="library-author-format"
-								class="mb-1 block text-xs text-gray-400"
+								class="mb-1 block text-xs text-ink-700"
 							>
 								Author folder format
 							</label>
@@ -158,14 +158,14 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.author_folder_format = e.currentTarget.value;
 									})
 								}
-								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm"
+								class="w-full rounded border border-rule bg-paper-200 px-3 py-2 font-mono text-sm"
 								placeholder="{author_name}"
 							/>
 						</div>
 						<div>
 							<label
 								for="library-book-format"
-								class="mb-1 block text-xs text-gray-400"
+								class="mb-1 block text-xs text-ink-700"
 							>
 								Book file format
 							</label>
@@ -177,24 +177,24 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.book_file_format = e.currentTarget.value;
 									})
 								}
-								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm"
+								class="w-full rounded border border-rule bg-paper-200 px-3 py-2 font-mono text-sm"
 								placeholder="{book_title} ({author_name}).{ext}"
 							/>
 						</div>
-						<div class="rounded border border-gray-800 bg-gray-950 px-3 py-2">
-							<p class="mb-1 text-xs text-gray-500">Preview</p>
-							<p class="font-mono text-xs break-all text-gray-300">{preview()}</p>
+						<div class="rounded border border-rule bg-paper-50 px-3 py-2">
+							<p class="mb-1 text-xs text-ink-500">Preview</p>
+							<p class="font-mono text-xs break-all text-ink-900">{preview()}</p>
 						</div>
 						<Show when={error()}>
-							<p class="text-sm text-red-400">{error()}</p>
+							<p class="text-sm text-bad">{error()}</p>
 						</Show>
 						<Show when={success()}>
-							<p class="text-sm text-green-400">Library settings saved.</p>
+							<p class="text-sm text-good">Library settings saved.</p>
 						</Show>
 						<button
 							onClick={() => void save()}
 							disabled={saving()}
-							class="rounded bg-indigo-600 px-4 py-2 text-sm transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
+							class="rounded bg-ink-900 px-4 py-2 text-sm transition-colors hover:bg-ink-700 disabled:opacity-50"
 						>
 							{saving() ? "Saving..." : "Save"}
 						</button>

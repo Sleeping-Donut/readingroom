@@ -2,7 +2,7 @@ import { For } from "solid-js";
 
 import type { Draft } from "../../../resources/notifications";
 
-const inputClass = "w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm";
+const inputClass = "w-full px-3 py-2 bg-paper-200 border border-rule rounded text-sm";
 
 const EVENT_TOGGLES = [
 	{ key: "on_grab", label: "On Grab" },
@@ -21,11 +21,11 @@ export function AddNotificationForm(props: {
 	onCancel: () => void;
 }) {
 	return (
-		<div class="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+		<div class="mb-4 rounded-lg border border-rule bg-paper-100 p-4">
 			<div class="flex flex-col gap-3">
 				<div class="flex items-end gap-3">
 					<div class="flex-1">
-						<label for="notification-name" class="mb-1 block text-xs text-gray-400">
+						<label for="notification-name" class="mb-1 block text-xs text-ink-700">
 							Name
 						</label>
 						<input
@@ -43,7 +43,7 @@ export function AddNotificationForm(props: {
 					<div>
 						<label
 							for="notification-implementation"
-							class="mb-1 block text-xs text-gray-400"
+							class="mb-1 block text-xs text-ink-700"
 						>
 							Implementation
 						</label>
@@ -55,14 +55,14 @@ export function AddNotificationForm(props: {
 									d.implementation = e.currentTarget.value;
 								})
 							}
-							class="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+							class="rounded border border-rule bg-paper-200 px-3 py-2 text-sm"
 						>
 							<option value="apprise">Apprise</option>
 						</select>
 					</div>
 				</div>
 				<div>
-					<label for="notification-webhook-url" class="mb-1 block text-xs text-gray-400">
+					<label for="notification-webhook-url" class="mb-1 block text-xs text-ink-700">
 						Webhook URL
 					</label>
 					<input
@@ -89,7 +89,7 @@ export function AddNotificationForm(props: {
 											d[toggle.key] = e.currentTarget.checked;
 										})
 									}
-									class="rounded border-gray-700 bg-gray-800"
+									class="rounded border-rule bg-paper-200"
 								/>
 								{toggle.label}
 							</label>
@@ -98,7 +98,7 @@ export function AddNotificationForm(props: {
 					<button
 						onClick={props.onSave}
 						disabled={props.submitting || !props.valid}
-						class="rounded bg-green-700 px-4 py-2 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
+						class="rounded-sm bg-good px-4 py-2 text-sm text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 					>
 						Save
 					</button>

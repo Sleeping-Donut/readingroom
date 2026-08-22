@@ -12,8 +12,8 @@ export function AuthorCover(props: {
 			when={props.src}
 			fallback={
 				<Show when={props.placeholder}>
-					<div class={["flex items-center justify-center bg-gray-800", props.class]}>
-						<span class="text-sm font-medium text-gray-500">
+					<div class={["flex items-center justify-center bg-paper-200", props.class]}>
+						<span class="text-sm font-medium text-ink-500">
 							{props.name.charAt(0).toUpperCase()}
 						</span>
 					</div>

@@ -11,7 +11,7 @@ export function AuthorCard(props: {
 	return (
 		<a
 			href={props.href}
-			class="block rounded-lg border border-gray-800 bg-gray-900 p-4 transition-colors hover:border-indigo-600"
+			class="block rounded-lg border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
 		>
 			<AuthorCover
 				src={props.imageUrl}
@@ -20,7 +20,7 @@ export function AuthorCard(props: {
 				class="mb-3 h-48 w-full rounded"
 			/>
 			<p class="truncate font-medium">{props.name}</p>
-			<p class="mt-1 text-xs text-gray-400">{props.subtitle}</p>
+			<p class="mt-1 text-xs text-ink-700">{props.subtitle}</p>
 		</a>
 	);
 }

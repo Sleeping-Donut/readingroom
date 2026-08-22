@@ -37,7 +37,7 @@ export default function SettingsLayout(props: RouteProps<typeof route>) {
 			<Title>Settings · ReadingRoom</Title>
 			<h2 class="mb-6 text-2xl font-bold">Settings</h2>
 
-			<div class="mb-6 flex flex-wrap gap-3 border-b border-gray-800 pb-4">
+			<div class="mb-6 flex flex-wrap gap-3 border-b border-rule pb-4">
 				<For each={TABS}>
 					{(tab) => {
 						const isActive = () => activeSlug() === tab.slug;
@@ -49,8 +49,8 @@ export default function SettingsLayout(props: RouteProps<typeof route>) {
 								class={[
 									"rounded-lg px-4 py-2 text-sm font-medium transition-colors",
 									isActive()
-										? "bg-indigo-600 text-white"
-										: "text-gray-400 hover:text-gray-200",
+										? "bg-ink-900 text-paper-50"
+										: "text-ink-700 hover:text-ink-900",
 								]}
 							>
 								{label}

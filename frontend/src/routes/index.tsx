@@ -30,30 +30,30 @@ export default function Dashboard() {
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="mt-2 text-sm text-red-400">
+					<p class="mt-2 text-sm text-bad">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="ml-1 text-indigo-400 underline">
+						<button onClick={reset} class="ml-1 text-accent underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
+				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<div>
 						<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 							<a
 								href={paths.authors}
-								class="block rounded-lg border border-gray-800 bg-gray-900 p-4 transition-colors hover:border-indigo-600"
+								class="block rounded-lg border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
 							>
-								<p class="text-sm text-gray-400">Total Authors</p>
+								<p class="text-sm text-ink-700">Total Authors</p>
 								<p class="mt-1 text-2xl font-bold">{stats().total_authors}</p>
 							</a>
 
 							<a
 								href={paths.books}
-								class="block rounded-lg border border-gray-800 bg-gray-900 p-4 transition-colors hover:border-indigo-600"
+								class="block rounded-lg border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
 							>
-								<p class="text-sm text-gray-400">Total Books</p>
+								<p class="text-sm text-ink-700">Total Books</p>
 								<p class="mt-1 text-2xl font-bold">{stats().total_books}</p>
 							</a>
 
@@ -62,18 +62,18 @@ export default function Dashboard() {
 								class={[
 									"block rounded-lg border p-4 transition-colors",
 									{
-										"border-yellow-700 bg-yellow-900/30 hover:border-yellow-500":
+										"border-pending/40 bg-pending/10 hover:border-pending":
 											stats().wanted_books > 0,
-										"border-gray-800 bg-gray-900 hover:border-indigo-600":
+										"border-rule bg-paper-100 hover:border-ink-900":
 											stats().wanted_books <= 0,
 									},
 								]}
 							>
-								<p class="text-sm text-gray-400">Wanted Books</p>
+								<p class="text-sm text-ink-700">Wanted Books</p>
 								<p
 									class={[
 										"mt-1 text-2xl font-bold",
-										{ "text-yellow-400": stats().wanted_books > 0 },
+										{ "text-pending": stats().wanted_books > 0 },
 									]}
 								>
 									{stats().wanted_books}
@@ -85,18 +85,18 @@ export default function Dashboard() {
 								class={[
 									"block rounded-lg border p-4 transition-colors",
 									{
-										"border-blue-700 bg-blue-900/30 hover:border-blue-500":
+										"border-pending/40 bg-pending/10 hover:border-pending":
 											stats().active_queue > 0,
-										"border-gray-800 bg-gray-900 hover:border-indigo-600":
+										"border-rule bg-paper-100 hover:border-ink-900":
 											stats().active_queue <= 0,
 									},
 								]}
 							>
-								<p class="text-sm text-gray-400">Active Downloads</p>
+								<p class="text-sm text-ink-700">Active Downloads</p>
 								<p
 									class={[
 										"mt-1 text-2xl font-bold",
-										{ "text-blue-400": stats().active_queue > 0 },
+										{ "text-pending": stats().active_queue > 0 },
 									]}
 								>
 									{stats().active_queue}
@@ -105,15 +105,15 @@ export default function Dashboard() {
 						</div>
 
 						<div class="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-							<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
-								<p class="mb-3 text-sm text-gray-400">Library</p>
+							<div class="rounded-lg border border-rule bg-paper-100 p-4">
+								<p class="mb-3 text-sm text-ink-700">Library</p>
 								<div class="space-y-2">
 									<div class="flex justify-between">
-										<span class="text-gray-400">Total Files</span>
+										<span class="text-ink-700">Total Files</span>
 										<span class="font-medium">{stats().total_files}</span>
 									</div>
 									<div class="flex justify-between">
-										<span class="text-gray-400">Total Size</span>
+										<span class="text-ink-700">Total Size</span>
 										<span class="font-medium">
 											{formatSize(stats().total_size)}
 										</span>
@@ -121,21 +121,21 @@ export default function Dashboard() {
 								</div>
 							</div>
 
-							<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
-								<p class="mb-3 text-sm text-gray-400">System</p>
+							<div class="rounded-lg border border-rule bg-paper-100 p-4">
+								<p class="mb-3 text-sm text-ink-700">System</p>
 								<div class="space-y-2">
 									<div class="flex justify-between">
-										<span class="text-gray-400">Version</span>
+										<span class="text-ink-700">Version</span>
 										<span class="font-medium">v{status().version}</span>
 									</div>
 									<div class="flex justify-between">
-										<span class="text-gray-400">Auth</span>
+										<span class="text-ink-700">Auth</span>
 										<span
 											class={[
 												"font-medium",
 												{
-													"text-green-400": status().auth_enabled,
-													"text-gray-400": !status().auth_enabled,
+													"text-good": status().auth_enabled,
+													"text-ink-700": !status().auth_enabled,
 												},
 											]}
 										>
@@ -146,12 +146,12 @@ export default function Dashboard() {
 							</div>
 						</div>
 
-						<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+						<div class="rounded-lg border border-rule bg-paper-100 p-4">
 							<h3 class="mb-4 text-lg font-semibold">Recent Activity</h3>
 							<Show
 								when={stats().recent_history.length > 0}
 								fallback={
-									<p class="py-4 text-center text-sm text-gray-500">
+									<p class="py-4 text-center text-sm text-ink-500">
 										No recent activity.
 									</p>
 								}
@@ -159,7 +159,7 @@ export default function Dashboard() {
 								<div class="overflow-x-auto">
 									<table class="w-full text-sm">
 										<thead>
-											<tr class="border-b border-gray-800 text-left text-gray-400">
+											<tr class="border-b border-rule text-left text-ink-700">
 												<th class="pr-4 pb-3">Event</th>
 												<th class="pr-4 pb-3">Title</th>
 												<th class="pr-4 pb-3">Date</th>
@@ -168,16 +168,16 @@ export default function Dashboard() {
 										<tbody>
 											<For each={stats().recent_history}>
 												{(item) => (
-													<tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+													<tr class="border-b border-rule hover:bg-paper-200/30">
 														<td class="py-3 pr-4">
-															<span class="rounded bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-300">
+															<span class="rounded bg-paper-200 px-2 py-0.5 text-xs font-medium text-ink-900">
 																{item.event_type}
 															</span>
 														</td>
-														<td class="max-w-xs truncate py-3 pr-4 text-gray-200">
+														<td class="max-w-xs truncate py-3 pr-4 text-ink-900">
 															{item.source_title || "-"}
 														</td>
-														<td class="py-3 pr-4 whitespace-nowrap text-gray-400">
+														<td class="py-3 pr-4 whitespace-nowrap text-ink-700">
 															{new Date(
 																item.date,
 															).toLocaleDateString()}

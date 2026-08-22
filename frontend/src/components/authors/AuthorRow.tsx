@@ -11,7 +11,7 @@ export function AuthorRow(props: {
 	return (
 		<a
 			href={props.href}
-			class="flex items-center gap-4 rounded-lg border border-gray-800 bg-gray-900 p-3 transition-colors hover:border-indigo-600"
+			class="flex items-center gap-4 rounded-lg border border-rule bg-paper-100 p-3 transition-colors hover:border-ink-900"
 		>
 			<AuthorCover
 				src={props.imageUrl}
@@ -22,9 +22,9 @@ export function AuthorRow(props: {
 			/>
 			<div class="min-w-0 flex-1">
 				<p class="truncate font-medium">{props.name}</p>
-				<p class="truncate text-xs text-gray-400">{props.subtitle}</p>
+				<p class="truncate text-xs text-ink-700">{props.subtitle}</p>
 			</div>
-			<span class="shrink-0 text-gray-500">›</span>
+			<span class="shrink-0 text-ink-500">›</span>
 		</a>
 	);
 }

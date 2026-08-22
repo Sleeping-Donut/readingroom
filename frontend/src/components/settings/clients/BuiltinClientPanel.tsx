@@ -5,7 +5,7 @@ import type { TestResult } from "../../../types";
 
 import StatusDot from "../StatusDot";
 
-const inputClass = "w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm";
+const inputClass = "w-full px-3 py-2 bg-paper-200 border border-rule rounded text-sm";
 
 /// Settings card for the built-in HTTP downloader.
 export function BuiltinClientPanel(props: {
@@ -18,21 +18,21 @@ export function BuiltinClientPanel(props: {
 	onTest: () => void;
 }) {
 	return (
-		<div class="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+		<div class="mb-4 rounded-lg border border-rule bg-paper-100 p-4">
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 				<div class="flex items-center gap-2">
 					<StatusDot status={props.result?.status ?? "idle"} />
 					<h4 class="font-medium">HTTP (Direct)</h4>
-					<span class="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
+					<span class="rounded border border-rule bg-paper-200 px-1.5 py-0.5 text-xs text-ink-700">
 						Built-in
 					</span>
 					<Show when={props.result?.status === "success"}>
-						<span class="rounded border border-green-800 bg-green-900/40 px-1.5 py-0.5 text-xs text-green-400">
+						<span class="rounded border border-good/30 bg-good/10 px-1.5 py-0.5 text-xs text-good">
 							Connected
 						</span>
 					</Show>
 					<Show when={props.result?.status === "error"}>
-						<span class="rounded border border-red-800 bg-red-900/40 px-1.5 py-0.5 text-xs text-red-400">
+						<span class="rounded border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-xs text-bad">
 							Disconnected
 						</span>
 					</Show>
@@ -42,8 +42,8 @@ export function BuiltinClientPanel(props: {
 					class={[
 						"rounded px-3 py-1.5 text-sm transition-colors",
 						props.form.enabled
-							? "bg-green-700 hover:bg-green-600"
-							: "bg-gray-700 hover:bg-gray-600",
+							? "bg-good hover:opacity-90"
+							: "bg-paper-200 hover:bg-paper-200",
 					]}
 				>
 					{props.form.enabled ? "Enabled" : "Disabled"}
@@ -51,7 +51,7 @@ export function BuiltinClientPanel(props: {
 			</div>
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<div>
-					<label for="builtin-download-dir" class="mb-1 block text-xs text-gray-400">
+					<label for="builtin-download-dir" class="mb-1 block text-xs text-ink-700">
 						Download Directory
 					</label>
 					<input
@@ -67,7 +67,7 @@ export function BuiltinClientPanel(props: {
 					/>
 				</div>
 				<div>
-					<label for="builtin-rate-limit" class="mb-1 block text-xs text-gray-400">
+					<label for="builtin-rate-limit" class="mb-1 block text-xs text-ink-700">
 						Rate Limit (KB/s)
 					</label>
 					<input
@@ -84,7 +84,7 @@ export function BuiltinClientPanel(props: {
 					/>
 				</div>
 				<div>
-					<label for="builtin-concurrent" class="mb-1 block text-xs text-gray-400">
+					<label for="builtin-concurrent" class="mb-1 block text-xs text-ink-700">
 						Concurrent Downloads
 					</label>
 					<input
@@ -102,7 +102,7 @@ export function BuiltinClientPanel(props: {
 				</div>
 			</div>
 			<Show when={props.result?.status === "success"}>
-				<p class="mt-2 text-xs text-green-400">
+				<p class="mt-2 text-xs text-good">
 					✓ Connected
 					<Show when={props.result?.version}> · v{props.result?.version}</Show>
 					<Show when={props.result?.default_save_path}>
@@ -112,24 +112,24 @@ export function BuiltinClientPanel(props: {
 				</p>
 			</Show>
 			<Show when={props.result?.status === "error"}>
-				<p class="mt-2 text-xs text-red-400">✗ {props.result?.message}</p>
+				<p class="mt-2 text-xs text-bad">✗ {props.result?.message}</p>
 			</Show>
 			<div class="mt-3 flex items-center gap-3">
 				<button
 					onClick={props.onSave}
 					disabled={props.saving}
-					class="rounded bg-green-700 px-4 py-2 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
+					class="rounded bg-good px-4 py-2 text-sm transition-colors hover:opacity-90 disabled:opacity-50"
 				>
 					Save
 				</button>
 				<button
 					onClick={props.onTest}
 					disabled={props.result?.status === "testing"}
-					class="rounded bg-indigo-700 px-4 py-2 text-sm transition-colors hover:bg-indigo-600"
+					class="rounded bg-ink-900 px-4 py-2 text-sm transition-colors hover:bg-ink-900"
 				>
 					{props.result?.status === "testing" ? "Testing..." : "Test"}
 				</button>
-				<p class="text-xs text-gray-500">
+				<p class="text-xs text-ink-500">
 					The built-in HTTP downloader streams release URLs to disk.
 				</p>
 			</div>

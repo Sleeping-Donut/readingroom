@@ -1,28 +1,22 @@
 import { Show } from "solid-js";
 
-const STATUSES: Record<string, { label: string; class: string }> = {
-	tracked: {
-		label: "Tracked",
-		class: "bg-gray-800 text-gray-300 border border-gray-700",
-	},
-	getting: {
-		label: "Getting",
-		class: "bg-yellow-900/40 text-yellow-300 border border-yellow-700 animate-pulse",
-	},
-	have: {
-		label: "Have",
-		class: "bg-green-900/40 text-green-400 border border-green-800",
-	},
+import { Badge } from "../ui/Badge";
+
+const STATUSES: Record<string, { label: string; tone: "pending" | "good" | "neutral" }> = {
+	tracked: { label: "Tracked", tone: "neutral" },
+	getting: { label: "Getting", tone: "pending" },
+	have: { label: "Have", tone: "good" },
 };
 
+/// Small-caps status line with a leading status dot.
 export function StatusBadge(props: { status?: string }) {
 	const entry = () => (props.status ? STATUSES[props.status] : undefined);
 	return (
 		<Show when={entry()}>
 			{(s) => (
-				<span class={["inline-block rounded px-2 py-0.5 text-xs font-medium", s().class]}>
+				<Badge tone={s().tone} class="mt-2">
 					{s().label}
-				</span>
+				</Badge>
 			)}
 		</Show>
 	);

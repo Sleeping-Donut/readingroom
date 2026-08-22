@@ -12,19 +12,19 @@ export function ClientEditPanel(props: {
 	onSave: () => void;
 }) {
 	return (
-		<div class="rounded-lg border border-gray-800 bg-gray-900 p-3">
+		<div class="rounded-lg border border-rule bg-paper-100 p-3">
 			<ClientConfigFields draft={props.draft} setDraft={props.setDraft} />
 			<div class="mt-3 flex justify-end gap-2">
 				<button
 					onClick={props.onCancel}
-					class="rounded bg-gray-700 px-3 py-1.5 text-sm transition-colors hover:bg-gray-600"
+					class="rounded bg-paper-200 px-3 py-1.5 text-sm transition-colors hover:bg-paper-200"
 				>
 					Cancel
 				</button>
 				<button
 					onClick={props.onSave}
 					disabled={props.submitting || !props.valid}
-					class="rounded bg-green-700 px-3 py-1.5 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
+					class="rounded bg-good px-3 py-1.5 text-sm transition-colors hover:opacity-90 disabled:opacity-50"
 				>
 					Save
 				</button>

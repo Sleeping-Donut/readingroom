@@ -13,23 +13,23 @@ export function AddClientForm(props: {
 	onCancel: () => void;
 }) {
 	return (
-		<div class="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+		<div class="mb-4 rounded-lg border border-rule bg-paper-100 p-4">
 			<ClientConfigFields draft={props.draft} setDraft={props.setDraft} />
 			<div class="mt-4 flex items-center gap-3">
 				<button
 					onClick={props.onSave}
 					disabled={props.submitting || !props.valid}
-					class="rounded bg-green-700 px-4 py-2 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
+					class="rounded bg-good px-4 py-2 text-sm transition-colors hover:opacity-90 disabled:opacity-50"
 				>
 					Save
 				</button>
 				<button
 					onClick={props.onCancel}
-					class="rounded bg-gray-700 px-4 py-2 text-sm transition-colors hover:bg-gray-600"
+					class="rounded bg-paper-200 px-4 py-2 text-sm transition-colors hover:bg-paper-200"
 				>
 					Cancel
 				</button>
-				<p class="text-xs text-gray-500">
+				<p class="text-xs text-ink-500">
 					{props.draft.implementation === "http"
 						? "The download URL is fetched directly."
 						: "A host is required to connect."}

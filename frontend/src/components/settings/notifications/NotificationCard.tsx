@@ -11,20 +11,20 @@ export function NotificationCard(props: {
 }) {
 	const settings = createMemo(() => parseNotificationSettings(props.notif.settings));
 	const event = (on: boolean, label: string) => (
-		<span class={["text-xs", { "text-green-400": on, "text-gray-600": !on }]}>
+		<span class={["text-xs", { "text-good": on, "text-ink-500": !on }]}>
 			{on ? "\u2713" : "\u2717"} {label}
 		</span>
 	);
 	return (
 		<div
 			class={[
-				"flex flex-col gap-3 rounded-lg border bg-gray-900 p-3 transition-colors sm:flex-row sm:items-center",
-				{ "border-red-800": !!props.notif.error, "border-gray-800": !props.notif.error },
+				"flex flex-col gap-3 rounded-lg border bg-paper-100 p-3 transition-colors sm:flex-row sm:items-center",
+				{ "border-bad/30": !!props.notif.error, "border-rule": !props.notif.error },
 			]}
 		>
 			<div class="min-w-0 flex-1">
 				<p class="truncate font-medium">{props.notif.name}</p>
-				<p class="text-xs text-gray-400">
+				<p class="text-xs text-ink-700">
 					{props.notif.implementation}
 					{settings().webhook_url && ` · ${settings().webhook_url}`}
 				</p>
@@ -35,14 +35,14 @@ export function NotificationCard(props: {
 					{event(props.notif.on_health_issue, "Health")}
 				</div>
 				<Show when={props.notif.error}>
-					<p class="mt-1 text-xs text-red-400">Failed to remove — click Retry</p>
+					<p class="mt-1 text-xs text-bad">Failed to remove — click Retry</p>
 				</Show>
 			</div>
 			<div class="flex shrink-0 flex-wrap gap-2">
 				<button
 					onClick={props.onTest}
 					disabled={props.notif.pending}
-					class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600 disabled:bg-gray-600"
+					class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900 disabled:opacity-50"
 				>
 					Test
 				</button>
@@ -51,7 +51,7 @@ export function NotificationCard(props: {
 					fallback={
 						<button
 							onClick={props.onRemove}
-							class="rounded bg-red-700 px-2 py-1 text-xs transition-colors hover:bg-red-600"
+							class="rounded bg-bad px-2 py-1 text-xs transition-colors hover:opacity-90"
 						>
 							Remove
 						</button>
@@ -60,7 +60,7 @@ export function NotificationCard(props: {
 					<button
 						onClick={props.onRetry}
 						disabled={props.notif.pending}
-						class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600 disabled:bg-gray-700"
+						class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900 disabled:bg-paper-200"
 					>
 						{props.notif.pending ? "Retrying..." : "Retry"}
 					</button>

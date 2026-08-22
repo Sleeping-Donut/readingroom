@@ -37,20 +37,20 @@ export default function Calendar() {
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="mt-2 text-sm text-red-400">
+					<p class="mt-2 text-sm text-bad">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="ml-1 text-indigo-400 underline">
+						<button onClick={reset} class="ml-1 text-accent underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
+				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<div>
 						<Show
 							when={calendar().months.length > 0}
 							fallback={
-								<div class="py-12 text-center text-gray-500">
+								<div class="py-12 text-center text-ink-500">
 									<p class="text-lg">No upcoming releases</p>
 									<p class="mt-2 text-sm">
 										Books with publish dates will appear here.
@@ -61,7 +61,7 @@ export default function Calendar() {
 							<For each={calendar().months}>
 								{(monthGroup) => (
 									<div class="mb-8">
-										<h3 class="mb-4 text-xl font-semibold text-indigo-300">
+										<h3 class="mb-4 text-xl font-semibold text-accent">
 											{monthNames[monthGroup.month - 1]} {monthGroup.year}
 										</h3>
 										<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -69,7 +69,7 @@ export default function Calendar() {
 												{(book) => (
 													<a
 														href={paths.books(bookId(book))}
-														class="block rounded-lg border border-gray-800 bg-gray-900 p-4 transition-colors hover:border-indigo-600"
+														class="block rounded-lg border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
 													>
 														<Show when={book.image_url}>
 															{(img) => (
@@ -83,7 +83,7 @@ export default function Calendar() {
 														<p class="truncate font-medium">
 															{book.title}
 														</p>
-														<p class="mt-1 text-xs text-gray-400">
+														<p class="mt-1 text-xs text-ink-700">
 															{book.publish_date}
 														</p>
 													</a>

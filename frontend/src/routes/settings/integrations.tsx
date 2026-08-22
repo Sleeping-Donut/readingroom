@@ -33,26 +33,26 @@ function copyableRow(props: {
 
 	return (
 		<div class="mb-4">
-			<label class="mb-1 block text-xs text-gray-400">{props.label}</label>
+			<label class="mb-1 block text-xs text-ink-700">{props.label}</label>
 			<div class="flex items-center gap-2">
 				<input
 					type={props.secret && !revealed() ? "password" : "text"}
 					readonly
 					value={props.value}
 					placeholder={props.placeholder ?? ""}
-					class="flex-1 rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-gray-200"
+					class="flex-1 rounded border border-rule bg-paper-200 px-3 py-2 font-mono text-sm text-ink-900"
 				/>
 				<Show when={props.secret}>
 					<button
 						onClick={() => setRevealed(!revealed())}
-						class="rounded border border-gray-700 bg-gray-800 px-2 py-2 text-xs text-gray-400 transition-colors hover:bg-gray-700"
+						class="rounded border border-rule bg-paper-200 px-2 py-2 text-xs text-ink-700 transition-colors hover:bg-paper-200"
 					>
 						{revealed() ? "Hide" : "Show"}
 					</button>
 				</Show>
 				<button
 					onClick={() => void copy()}
-					class="rounded bg-indigo-600 px-3 py-2 text-xs font-medium transition-colors hover:bg-indigo-500"
+					class="rounded bg-ink-900 px-3 py-2 text-xs font-medium transition-colors hover:bg-ink-700"
 				>
 					{copied() ? "Copied!" : "Copy"}
 				</button>
@@ -73,28 +73,28 @@ export default function IntegrationsTab(_props: RouteProps<typeof route>) {
 		<div>
 			<Title>Integrations · Settings · ReadingRoom</Title>
 			<h3 class="mb-4 text-lg font-semibold">Prowlarr Integration</h3>
-			<p class="mb-4 text-sm text-gray-400">
-				Add ReadingRoom as a <span class="text-gray-200">Readarr</span> app in Prowlarr
+			<p class="mb-4 text-sm text-ink-700">
+				Add ReadingRoom as a <span class="text-ink-900">Readarr</span> app in Prowlarr
 				(Settings → Apps) and use these values. Prowlarr will then push and manage
 				ReadingRoom's indexers.
 			</p>
 			<Errored
 				fallback={(err, reset) => (
-					<p class="mt-2 text-sm text-red-400">
+					<p class="mt-2 text-sm text-bad">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="ml-1 text-indigo-400 underline">
+						<button onClick={reset} class="ml-1 text-accent underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-sm text-gray-500">Loading...</p>}>
+				<Loading fallback={<p class="text-sm text-ink-500">Loading...</p>}>
 					<div class="max-w-md">
 						{copyableRow({ label: "URL", value: baseUrl() })}
 						<Show
 							when={integration.api_key}
 							fallback={
-								<p class="text-sm text-yellow-300/80">
+								<p class="text-sm text-pending">
 									No API key configured. Set{" "}
 									<code class="text-xs">READINGROOM_API_KEY</code> on the server
 									to enable Prowlarr sync.

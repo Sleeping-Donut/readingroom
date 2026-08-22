@@ -52,17 +52,17 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 			<h3 class="mb-4 text-lg font-semibold">Account</h3>
 			<Show
 				when={authEnabled()}
-				fallback={<p class="text-sm text-gray-500">Authentication is disabled.</p>}
+				fallback={<p class="text-sm text-ink-500">Authentication is disabled.</p>}
 			>
-				<div class="max-w-md space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
+				<div class="max-w-md space-y-3 rounded-lg border border-rule bg-paper-100 p-4">
 					<div>
-						<label class="mb-1 block text-xs text-gray-400">Username</label>
+						<label class="mb-1 block text-xs text-ink-700">Username</label>
 						<p class="text-sm">{user()?.username ?? "unknown"}</p>
 					</div>
 					<div>
 						<label
 							for="account-current-password"
-							class="mb-1 block text-xs text-gray-400"
+							class="mb-1 block text-xs text-ink-700"
 						>
 							Current Password
 						</label>
@@ -71,12 +71,12 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 							type="password"
 							value={currentPassword()}
 							onInput={(e) => setCurrentPassword(e.currentTarget.value)}
-							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+							class="w-full rounded border border-rule bg-paper-200 px-3 py-2 text-sm"
 							autocomplete="current-password"
 						/>
 					</div>
 					<div>
-						<label for="account-new-password" class="mb-1 block text-xs text-gray-400">
+						<label for="account-new-password" class="mb-1 block text-xs text-ink-700">
 							New Password
 						</label>
 						<input
@@ -84,14 +84,14 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 							type="password"
 							value={newPassword()}
 							onInput={(e) => setNewPassword(e.currentTarget.value)}
-							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+							class="w-full rounded border border-rule bg-paper-200 px-3 py-2 text-sm"
 							autocomplete="new-password"
 						/>
 					</div>
 					<div>
 						<label
 							for="account-confirm-password"
-							class="mb-1 block text-xs text-gray-400"
+							class="mb-1 block text-xs text-ink-700"
 						>
 							Confirm New Password
 						</label>
@@ -100,15 +100,15 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 							type="password"
 							value={confirmPassword()}
 							onInput={(e) => setConfirmPassword(e.currentTarget.value)}
-							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+							class="w-full rounded border border-rule bg-paper-200 px-3 py-2 text-sm"
 							autocomplete="new-password"
 						/>
 					</div>
 					<Show when={error()}>
-						<p class="text-sm text-red-400">{error()}</p>
+						<p class="text-sm text-bad">{error()}</p>
 					</Show>
 					<Show when={success()}>
-						<p class="text-sm text-green-400">Password updated.</p>
+						<p class="text-sm text-good">Password updated.</p>
 					</Show>
 					<button
 						onClick={() => void submit()}
@@ -118,7 +118,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 							!newPassword() ||
 							!!passwordError()
 						}
-						class="rounded bg-indigo-600 px-4 py-2 text-sm transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
+						class="rounded bg-ink-900 px-4 py-2 text-sm transition-colors hover:bg-ink-700 disabled:opacity-50"
 					>
 						{submitting() ? "Updating..." : "Update Password"}
 					</button>

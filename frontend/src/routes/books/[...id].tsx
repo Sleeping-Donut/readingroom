@@ -81,12 +81,12 @@ function EditionRow(props: {
 			.join(" · ");
 
 	return (
-		<div class="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-3">
+		<div class="space-y-3 rounded-sm border border-rule bg-paper-100 p-3">
 			<div class="min-w-0 flex-1">
 				<p class="truncate font-medium">{props.edition.title}</p>
-				<p class="text-xs text-gray-400">{meta()}</p>
+				<p class="text-xs text-ink-700">{meta()}</p>
 				<Show when={props.edition.isbn13}>
-					<p class="text-xs text-gray-500">ISBN: {props.edition.isbn13}</p>
+					<p class="text-xs text-ink-500">ISBN: {props.edition.isbn13}</p>
 				</Show>
 			</div>
 			<div class="flex items-center gap-2">
@@ -94,7 +94,7 @@ function EditionRow(props: {
 					<button
 						onClick={props.onAdd}
 						disabled={props.adding}
-						class="shrink-0 rounded bg-green-700 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
+						class="shrink-0 rounded bg-good px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-90 disabled:opacity-50"
 					>
 						{props.adding ? "Adding..." : "Add"}
 					</button>
@@ -102,7 +102,7 @@ function EditionRow(props: {
 				<button
 					onClick={props.onInteractiveAdd}
 					disabled={props.searching}
-					class="shrink-0 rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
+					class="shrink-0 rounded bg-ink-900 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-ink-700 disabled:opacity-50"
 				>
 					{props.searching ? "Searching..." : "Interactive Add"}
 				</button>
@@ -114,8 +114,8 @@ function EditionRow(props: {
 function InfoRow(props: { label: string; value?: string | number }) {
 	return (
 		<Show when={props.value}>
-			<div class="flex justify-between border-b border-gray-800 py-2">
-				<span class="text-xs text-gray-400">{props.label}</span>
+			<div class="flex justify-between border-b border-rule py-2">
+				<span class="text-xs text-ink-700">{props.label}</span>
 				<span class="text-right text-sm">{props.value}</span>
 			</div>
 		</Show>
@@ -135,20 +135,20 @@ function ReleaseRow(props: {
 		props.result.release.seeders != null ? props.result.release.seeders : "—";
 
 	return (
-		<tr class="border-b border-gray-800/50 hover:bg-gray-900/50">
+		<tr class="border-b border-rule hover:bg-paper-200">
 			<td class="py-3 pr-4">
 				<p class="max-w-xs truncate font-medium">{props.result.release.title}</p>
 			</td>
-			<td class="py-3 pr-4 text-gray-400">{props.result.release.indexer}</td>
-			<td class="py-3 pr-4 whitespace-nowrap text-gray-400">{sizeMb()}</td>
-			<td class="py-3 pr-4 whitespace-nowrap text-gray-400">{seeders()}</td>
+			<td class="py-3 pr-4 text-ink-700">{props.result.release.indexer}</td>
+			<td class="py-3 pr-4 whitespace-nowrap text-ink-700">{sizeMb()}</td>
+			<td class="py-3 pr-4 whitespace-nowrap text-ink-700">{seeders()}</td>
 			<td class="py-3 pr-4 whitespace-nowrap">
-				<span class="rounded border border-indigo-800 bg-indigo-900/40 px-2 py-0.5 text-xs font-semibold text-indigo-300">
+				<span class="rounded border border-accent/30 bg-accent-wash px-2 py-0.5 text-xs font-semibold text-accent">
 					{props.result.score.toFixed(0)}
 				</span>
 			</td>
 			<td class="py-3 pr-4 whitespace-nowrap">
-				<span class="rounded border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-300">
+				<span class="rounded-sm border border-rule bg-paper-200 px-2 py-0.5 font-meta text-xs text-ink-700 uppercase">
 					{props.result.release.download_type}
 				</span>
 			</td>
@@ -156,7 +156,7 @@ function ReleaseRow(props: {
 				<button
 					onClick={props.onDownload}
 					disabled={props.downloading}
-					class="rounded bg-green-700 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
+					class="rounded bg-good px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-90 disabled:opacity-50"
 				>
 					{props.downloading ? "..." : "Download"}
 				</button>
@@ -355,7 +355,7 @@ export default function BookDetail() {
 		<div>
 			<button
 				onClick={back}
-				class="mb-4 inline-block text-sm text-indigo-400 hover:text-indigo-300"
+				class="mb-4 inline-block text-sm text-accent underline-offset-2 hover:text-ink-900"
 			>
 				&larr; Back
 			</button>
@@ -370,7 +370,7 @@ export default function BookDetail() {
 								href={paths.authors(
 									stored().author_foreign_id ?? stored().author_id,
 								)}
-								class="text-lg text-indigo-400 hover:text-indigo-300"
+								class="text-lg text-accent underline-offset-2 hover:text-ink-900"
 							>
 								{stored().author_name}
 							</a>
@@ -381,15 +381,15 @@ export default function BookDetail() {
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="mt-2 text-sm text-red-400">
+					<p class="mt-2 text-sm text-bad">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="ml-1 text-indigo-400 underline">
+						<button onClick={reset} class="ml-1 text-accent underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
+				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<Title>{book().title} · ReadingRoom</Title>
 					<div class="mt-4 flex flex-col gap-6 sm:flex-row sm:gap-8">
 						<BookCover
@@ -411,7 +411,7 @@ export default function BookDetail() {
 												href={paths.authors(
 													book().author_foreign_id ?? book().author_id,
 												)}
-												class="text-lg text-indigo-400 hover:text-indigo-300"
+												class="text-lg text-accent underline-offset-2 hover:text-ink-900"
 											>
 												{book().author_name}
 											</a>
@@ -423,7 +423,7 @@ export default function BookDetail() {
 										<button
 											onClick={() => void autoSearch()}
 											disabled={autoSearching()}
-											class="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
+											class="rounded-lg bg-good px-4 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
 										>
 											{autoSearching() ? "Searching..." : "Automatic Search"}
 										</button>
@@ -434,8 +434,8 @@ export default function BookDetail() {
 											class={[
 												"flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
 												monitored()
-													? "bg-green-700 text-white hover:bg-green-600"
-													: "bg-gray-700 text-gray-300 hover:bg-gray-600",
+													? "bg-good text-paper-50 hover:opacity-90"
+													: "bg-paper-200 text-ink-900 hover:bg-paper-200",
 											]}
 										>
 											<svg
@@ -460,7 +460,7 @@ export default function BookDetail() {
 									<button
 										onClick={openSearch}
 										disabled={searching()}
-										class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
+										class="flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 									>
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
@@ -482,7 +482,7 @@ export default function BookDetail() {
 										<button
 											onClick={() => void addToLibrary()}
 											disabled={adding()}
-											class="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
+											class="rounded-lg bg-good px-4 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
 										>
 											{adding() ? "Adding..." : "Add to Library"}
 										</button>
@@ -509,7 +509,7 @@ export default function BookDetail() {
 								>
 									<For each={book().genres}>
 										{(g) => (
-											<span class="rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">
+											<span class="rounded-sm bg-paper-200 px-2 py-1 font-meta text-xs text-ink-700 uppercase">
 												{g}
 											</span>
 										)}
@@ -518,7 +518,7 @@ export default function BookDetail() {
 								<Show when={book().genres.length > 6}>
 									<button
 										onClick={() => setShowAllTags((v) => !v)}
-										class="mt-1 text-xs text-indigo-400 hover:text-indigo-300"
+										class="mt-1 text-xs text-accent underline-offset-2 hover:text-ink-900"
 									>
 										{showAllTags()
 											? "Show less"
@@ -528,7 +528,7 @@ export default function BookDetail() {
 							</Show>
 
 							<Show when={book().description}>
-								<p class="mt-4 leading-relaxed text-gray-300">
+								<p class="mt-4 leading-relaxed text-ink-900">
 									{book().description}
 								</p>
 							</Show>
@@ -547,13 +547,13 @@ export default function BookDetail() {
 									return (
 										<section>
 											<h3 class="mb-4 text-xl font-bold">Download Status</h3>
-											<div class="space-y-2 rounded-lg border border-gray-800 bg-gray-900 p-4">
+											<div class="space-y-2 rounded-sm border border-rule bg-paper-100 p-4">
 												<div class="flex items-center justify-between gap-2">
 													<span class="text-sm font-medium">
 														{QUEUE_LABELS[entry().status] ??
 															entry().status}
 													</span>
-													<span class="text-xs text-indigo-400">
+													<span class="text-xs text-accent">
 														{entry().download_client}
 													</span>
 												</div>
@@ -563,7 +563,7 @@ export default function BookDetail() {
 														entry().title !== book().title
 													}
 												>
-													<p class="truncate text-xs text-gray-400">
+													<p class="truncate text-xs text-ink-700">
 														{entry().title}
 													</p>
 												</Show>
@@ -574,21 +574,21 @@ export default function BookDetail() {
 														entry().status === "seeding"
 													}
 												>
-													<div class="h-1.5 w-full rounded-full bg-gray-800">
+													<div class="h-1.5 w-full rounded-full bg-rule">
 														<div
-															class="h-1.5 rounded-full bg-indigo-500 transition-all"
+															class="h-1.5 rounded-full bg-accent transition-all"
 															style={{
 																width: `${Math.round(entry().progress * 100)}%`,
 															}}
 														/>
 													</div>
-													<p class="text-xs text-gray-400">
+													<p class="text-xs text-ink-700">
 														{Math.round(entry().progress * 100)}%
 														complete
 													</p>
 												</Show>
 												<Show when={size() > 0}>
-													<p class="text-xs text-gray-400">
+													<p class="text-xs text-ink-700">
 														{(size() / 1_000_000).toFixed(1)} MB
 													</p>
 												</Show>
@@ -601,20 +601,20 @@ export default function BookDetail() {
 								{(lib) => (
 									<section>
 										<h3 class="mb-4 text-xl font-bold">Files</h3>
-										<div class="space-y-2 rounded-lg border border-gray-800 bg-gray-900 p-4">
-											<p class="text-sm font-medium text-green-400">
+										<div class="space-y-2 rounded-sm border border-rule bg-paper-100 p-4">
+											<p class="text-sm font-medium text-good">
 												✓ Saved to library
 											</p>
 											<div class="flex items-center justify-between gap-2">
-												<span class="text-xs text-gray-400">Status</span>
+												<span class="text-xs text-ink-700">Status</span>
 												<StatusBadge status={book().status} />
 											</div>
 											<Show when={lib().library.root_folder}>
 												<div>
-													<p class="text-xs text-gray-400">
+													<p class="text-xs text-ink-700">
 														Library location
 													</p>
-													<p class="font-mono text-xs break-all text-gray-300">
+													<p class="font-mono text-xs break-all text-ink-900">
 														{lib().library.root_folder}
 													</p>
 												</div>
@@ -637,14 +637,14 @@ export default function BookDetail() {
 									<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 										<div>
 											<h3 class="text-xl font-bold">Editions</h3>
-											<p class="mt-0.5 text-xs text-gray-500">
+											<p class="mt-0.5 text-xs text-ink-500">
 												{book().title}
 												<Show when={book().id === 0}>
 													{" · add a specific edition to your library"}
 												</Show>
 											</p>
 										</div>
-										<span class="text-xs text-gray-500">
+										<span class="text-xs text-ink-500">
 											{list().editions.length} total
 										</span>
 									</div>
@@ -676,7 +676,7 @@ export default function BookDetail() {
 			</Errored>
 
 			<Show when={actionError()}>
-				<p class="mt-4 text-sm text-red-400">{actionError()}</p>
+				<p class="mt-4 text-sm text-bad">{actionError()}</p>
 			</Show>
 
 			<Show when={searchOpen()}>
@@ -684,7 +684,7 @@ export default function BookDetail() {
 					<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<h3 class="text-xl font-bold">Interactive Search</h3>
-							<p class="mt-0.5 text-xs text-gray-500">
+							<p class="mt-0.5 text-xs text-ink-500">
 								{searchTitle() ?? book().title}
 								<Show when={indexerResults()}>
 									{(r) => ` · ${r().total} results`}
@@ -694,7 +694,7 @@ export default function BookDetail() {
 						<button
 							onClick={() => void indexerSearch()}
 							disabled={searching()}
-							class="rounded bg-indigo-700 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-indigo-600 disabled:bg-gray-600"
+							class="rounded bg-ink-900 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-ink-900 disabled:opacity-50"
 						>
 							{searching() ? "Searching..." : "Search again"}
 						</button>
@@ -702,7 +702,7 @@ export default function BookDetail() {
 					<Show
 						when={indexerResults()}
 						fallback={
-							<p class="text-sm text-gray-500">
+							<p class="text-sm text-ink-500">
 								{searching()
 									? "Searching indexers..."
 									: "Click Search Indexers to find releases."}
@@ -712,12 +712,12 @@ export default function BookDetail() {
 						{(r) => (
 							<Show
 								when={r().results.length > 0}
-								fallback={<p class="text-sm text-gray-500">No releases found.</p>}
+								fallback={<p class="text-sm text-ink-500">No releases found.</p>}
 							>
 								<div class="overflow-x-auto">
 									<table class="w-full text-sm">
 										<thead>
-											<tr class="border-b border-gray-800 text-left text-gray-400">
+											<tr class="border-b border-rule text-left font-meta text-xs tracking-widest text-ink-500 uppercase">
 												<th class="pr-4 pb-3">Title</th>
 												<th class="pr-4 pb-3">Indexer</th>
 												<th class="pr-4 pb-3">Size</th>

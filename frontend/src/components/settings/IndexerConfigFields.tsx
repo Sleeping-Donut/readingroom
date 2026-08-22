@@ -3,7 +3,7 @@ import { For, Match, Show, Switch, createUniqueId } from "solid-js";
 import type { ImplementationInfo, IndexerParamDef } from "../../api/settings";
 import type { Draft } from "../../resources/indexers";
 
-const inputClass = "w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm";
+const inputClass = "w-full px-3 py-2 bg-paper-200 border border-rule rounded text-sm";
 
 /// Renders one declared param as the right control for its type. Boolean
 /// params nest their checkbox inside the label; other kinds associate via
@@ -22,14 +22,14 @@ function ParamField(props: {
 						type="checkbox"
 						checked={Boolean(props.value)}
 						onChange={(e) => props.onValue(e.currentTarget.checked)}
-						class="rounded border-gray-700 bg-gray-800"
+						class="rounded border-rule bg-paper-200"
 					/>
 					{props.p.label || props.p.name}
 				</label>
 			</Match>
 			<Match when={props.p.type !== "boolean"}>
 				<div>
-					<label for={props.fieldId} class="mb-1 block text-xs text-gray-400">
+					<label for={props.fieldId} class="mb-1 block text-xs text-ink-700">
 						{props.p.label || props.p.name}
 						{props.p.required ? " *" : ""}
 					</label>
@@ -86,7 +86,7 @@ export function IndexerConfigFields(props: {
 	return (
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			<div>
-				<label for={`${uid}-indexer-name`} class="mb-1 block text-xs text-gray-400">
+				<label for={`${uid}-indexer-name`} class="mb-1 block text-xs text-ink-700">
 					Name
 				</label>
 				<input
@@ -102,11 +102,11 @@ export function IndexerConfigFields(props: {
 				/>
 			</div>
 			<div>
-				<span class="mb-1 block text-xs text-gray-400">Type</span>
-				<p class="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300">
+				<span class="mb-1 block text-xs text-ink-700">Type</span>
+				<p class="rounded border border-rule bg-paper-200 px-3 py-2 text-sm text-ink-900">
 					{props.impl.label}
 				</p>
-				<p class="mt-1 text-xs text-gray-500">{props.impl.hint}</p>
+				<p class="mt-1 text-xs text-ink-500">{props.impl.hint}</p>
 			</div>
 			<For each={props.impl.params}>
 				{(p) => (
@@ -124,7 +124,7 @@ export function IndexerConfigFields(props: {
 			</For>
 			<Show when={props.showPriority}>
 				<div>
-					<label for={`${uid}-indexer-priority`} class="mb-1 block text-xs text-gray-400">
+					<label for={`${uid}-indexer-priority`} class="mb-1 block text-xs text-ink-700">
 						Priority
 					</label>
 					<input
@@ -151,7 +151,7 @@ export function IndexerConfigFields(props: {
 									d.enable_rss = e.currentTarget.checked;
 								})
 							}
-							class="rounded border-gray-700 bg-gray-800"
+							class="rounded border-rule bg-paper-200"
 						/>
 						Enable RSS
 					</label>
@@ -166,7 +166,7 @@ export function IndexerConfigFields(props: {
 									d.enable_search = e.currentTarget.checked;
 								})
 							}
-							class="rounded border-gray-700 bg-gray-800"
+							class="rounded border-rule bg-paper-200"
 						/>
 						Enable Search
 					</label>

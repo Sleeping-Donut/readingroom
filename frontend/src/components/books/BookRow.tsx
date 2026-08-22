@@ -23,7 +23,7 @@ export function BookRow(props: {
 			emojiClass={props.coverEmojiClass}
 		/>
 	);
-	const title = <p class="truncate font-medium">{props.title}</p>;
+	const title = <p class="truncate font-display text-lg text-ink-900">{props.title}</p>;
 	const status = (
 		<div class="mt-1.5">
 			<StatusBadge status={props.status} />
@@ -34,12 +34,12 @@ export function BookRow(props: {
 		return (
 			<a
 				href={props.href}
-				class="flex items-center gap-4 rounded-lg border border-gray-800 bg-gray-900 p-3 transition-colors hover:border-indigo-600"
+				class="flex items-center gap-4 rounded-sm border border-rule bg-paper-100 p-3 transition-colors hover:border-ink-900"
 			>
 				{cover}
 				<div class="min-w-0 flex-1">
 					{title}
-					<p class="truncate text-xs text-gray-400">{props.subtitle}</p>
+					<p class="truncate text-xs text-ink-700">{props.subtitle}</p>
 					{status}
 				</div>
 				{props.footer}
@@ -47,7 +47,7 @@ export function BookRow(props: {
 		);
 	}
 	return (
-		<div class="flex items-center gap-4 rounded-lg border border-gray-800 bg-gray-900 p-3">
+		<div class="flex items-center gap-4 rounded-sm border border-rule bg-paper-100 p-3 transition-colors">
 			<Show when={props.href} fallback={cover}>
 				<a href={props.href} class="shrink-0">
 					{cover}
@@ -55,11 +55,11 @@ export function BookRow(props: {
 			</Show>
 			<div class="min-w-0 flex-1">
 				<Show when={props.href} fallback={title}>
-					<a href={props.href} class="block hover:text-indigo-300">
+					<a href={props.href} class="block hover:text-accent">
 						{title}
 					</a>
 				</Show>
-				<p class="mt-0.5 truncate text-xs text-gray-400">{props.subtitle}</p>
+				<p class="mt-0.5 truncate text-xs text-ink-500">{props.subtitle}</p>
 				{status}
 			</div>
 			{props.footer}
