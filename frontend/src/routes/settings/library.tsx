@@ -93,10 +93,14 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
 					<div class="max-w-md space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
 						<div>
-							<label class="mb-1 block text-xs text-gray-400">
+							<label
+								for="library-root-folder"
+								class="mb-1 block text-xs text-gray-400"
+							>
 								Root folder (ebooks)
 							</label>
 							<input
+								id="library-root-folder"
 								value={form.root_folder}
 								onInput={(e) =>
 									setForm((st) => {
@@ -108,8 +112,14 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 							/>
 						</div>
 						<div>
-							<label class="mb-1 block text-xs text-gray-400">Audiobook folder</label>
+							<label
+								for="library-audiobook-folder"
+								class="mb-1 block text-xs text-gray-400"
+							>
+								Audiobook folder
+							</label>
 							<input
+								id="library-audiobook-folder"
 								value={form.audiobook_folder}
 								onInput={(e) =>
 									setForm((st) => {
@@ -134,10 +144,14 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 							Rename imported files
 						</label>
 						<div>
-							<label class="mb-1 block text-xs text-gray-400">
+							<label
+								for="library-author-format"
+								class="mb-1 block text-xs text-gray-400"
+							>
 								Author folder format
 							</label>
 							<input
+								id="library-author-format"
 								value={form.author_folder_format}
 								onInput={(e) =>
 									setForm((st) => {
@@ -149,8 +163,14 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 							/>
 						</div>
 						<div>
-							<label class="mb-1 block text-xs text-gray-400">Book file format</label>
+							<label
+								for="library-book-format"
+								class="mb-1 block text-xs text-gray-400"
+							>
+								Book file format
+							</label>
 							<input
+								id="library-book-format"
 								value={form.book_file_format}
 								onInput={(e) =>
 									setForm((st) => {

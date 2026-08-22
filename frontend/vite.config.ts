@@ -38,6 +38,11 @@ export default defineConfig({
 		rules: {
 			"vite-plus/prefer-vite-plus-imports": "error",
 			"import/no-duplicates": "error",
+			// The port expects React's `htmlFor`; Solid uses `for`, which the type
+			// system requires back (`htmlFor` fails to typecheck). Nesting every
+			// control inside its label would satisfy the rule but restructure all
+			// form layouts for no user-visible gain.
+			"jsx-a11y/label-has-associated-control": "off",
 		},
 		options: { typeAware: true, typeCheck: true },
 	},

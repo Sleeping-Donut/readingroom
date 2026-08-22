@@ -120,7 +120,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
 									<div class="mt-4 space-y-2">
 										<For each={searchResults().authors}>
 											{(author) => (
-												<div class="hover:bg-gray-750 flex items-center gap-4 rounded-lg bg-gray-800 p-3 transition-colors">
+												<div class="flex items-center gap-4 rounded-lg bg-gray-800 p-3 transition-colors hover:bg-gray-700">
 													<Show when={author.image_url}>
 														{(img) => (
 															<img

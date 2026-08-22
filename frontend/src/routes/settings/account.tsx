@@ -60,8 +60,14 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 						<p class="text-sm">{user()?.username ?? "unknown"}</p>
 					</div>
 					<div>
-						<label class="mb-1 block text-xs text-gray-400">Current Password</label>
+						<label
+							for="account-current-password"
+							class="mb-1 block text-xs text-gray-400"
+						>
+							Current Password
+						</label>
 						<input
+							id="account-current-password"
 							type="password"
 							value={currentPassword()}
 							onInput={(e) => setCurrentPassword(e.currentTarget.value)}
@@ -70,8 +76,11 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 						/>
 					</div>
 					<div>
-						<label class="mb-1 block text-xs text-gray-400">New Password</label>
+						<label for="account-new-password" class="mb-1 block text-xs text-gray-400">
+							New Password
+						</label>
 						<input
+							id="account-new-password"
 							type="password"
 							value={newPassword()}
 							onInput={(e) => setNewPassword(e.currentTarget.value)}
@@ -80,8 +89,14 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 						/>
 					</div>
 					<div>
-						<label class="mb-1 block text-xs text-gray-400">Confirm New Password</label>
+						<label
+							for="account-confirm-password"
+							class="mb-1 block text-xs text-gray-400"
+						>
+							Confirm New Password
+						</label>
 						<input
+							id="account-confirm-password"
 							type="password"
 							value={confirmPassword()}
 							onInput={(e) => setConfirmPassword(e.currentTarget.value)}

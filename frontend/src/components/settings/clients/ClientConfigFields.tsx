@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, createUniqueId } from "solid-js";
 
 import type { Draft } from "../../../resources/clients";
 
@@ -13,17 +13,24 @@ export const CLIENT_IMPL_OPTIONS = [
 
 /// One shared config form for every client implementation: connection fields
 /// for torrent/usenet clients, rate/concurrency fields for the built-in HTTP
-/// downloader. Field visibility follows `draft.implementation`.
+/// downloader. Field visibility follows `draft.implementation`. Ids are
+/// instance-scoped because the add wizard and an edit panel can mount
+/// alongside each other.
 function ClientConfigFields(props: {
 	draft: Draft;
 	setDraft: (mutate: (d: Draft) => void) => void;
 }) {
+	const uid = createUniqueId();
+	const fieldId = (name: string) => `${uid}-client-${name}`;
 	const isHttp = () => props.draft.implementation === "http";
 	return (
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			<div>
-				<label class="mb-1 block text-xs text-gray-400">Name</label>
+				<label for={fieldId("name")} class="mb-1 block text-xs text-gray-400">
+					Name
+				</label>
 				<input
+					id={fieldId("name")}
 					value={props.draft.name}
 					onInput={(e) =>
 						props.setDraft((d) => {
@@ -35,8 +42,11 @@ function ClientConfigFields(props: {
 				/>
 			</div>
 			<div>
-				<label class="mb-1 block text-xs text-gray-400">Type</label>
+				<label for={fieldId("implementation")} class="mb-1 block text-xs text-gray-400">
+					Type
+				</label>
 				<select
+					id={fieldId("implementation")}
 					value={props.draft.implementation}
 					onChange={(e) =>
 						props.setDraft((d) => {
@@ -52,8 +62,11 @@ function ClientConfigFields(props: {
 			</div>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Host</label>
+					<label for={fieldId("host")} class="mb-1 block text-xs text-gray-400">
+						Host
+					</label>
 					<input
+						id={fieldId("host")}
 						value={props.draft.host}
 						onInput={(e) =>
 							props.setDraft((d) => {
@@ -67,8 +80,11 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Port</label>
+					<label for={fieldId("port")} class="mb-1 block text-xs text-gray-400">
+						Port
+					</label>
 					<input
+						id={fieldId("port")}
 						type="number"
 						value={props.draft.port}
 						onInput={(e) =>
@@ -83,8 +99,11 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Username</label>
+					<label for={fieldId("username")} class="mb-1 block text-xs text-gray-400">
+						Username
+					</label>
 					<input
+						id={fieldId("username")}
 						value={props.draft.username}
 						onInput={(e) =>
 							props.setDraft((d) => {
@@ -98,8 +117,11 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Password</label>
+					<label for={fieldId("password")} class="mb-1 block text-xs text-gray-400">
+						Password
+					</label>
 					<input
+						id={fieldId("password")}
 						type="password"
 						value={props.draft.password}
 						onInput={(e) =>
@@ -114,8 +136,11 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">URL Base</label>
+					<label for={fieldId("url_base")} class="mb-1 block text-xs text-gray-400">
+						URL Base
+					</label>
 					<input
+						id={fieldId("url_base")}
 						value={props.draft.url_base}
 						onInput={(e) =>
 							props.setDraft((d) => {
@@ -129,8 +154,11 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Category</label>
+					<label for={fieldId("category")} class="mb-1 block text-xs text-gray-400">
+						Category
+					</label>
 					<input
+						id={fieldId("category")}
 						value={props.draft.category}
 						onInput={(e) =>
 							props.setDraft((d) => {
@@ -143,8 +171,11 @@ function ClientConfigFields(props: {
 				</div>
 			</Show>
 			<div>
-				<label class="mb-1 block text-xs text-gray-400">Download Directory</label>
+				<label for={fieldId("download_dir")} class="mb-1 block text-xs text-gray-400">
+					Download Directory
+				</label>
 				<input
+					id={fieldId("download_dir")}
 					value={props.draft.download_dir}
 					onInput={(e) =>
 						props.setDraft((d) => {
@@ -157,8 +188,11 @@ function ClientConfigFields(props: {
 			</div>
 			<Show when={isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Rate Limit (KB/s)</label>
+					<label for={fieldId("rate_limit_kb")} class="mb-1 block text-xs text-gray-400">
+						Rate Limit (KB/s)
+					</label>
 					<input
+						id={fieldId("rate_limit_kb")}
 						type="number"
 						value={props.draft.rate_limit_kb}
 						onInput={(e) =>
@@ -173,8 +207,14 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={isHttp()}>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Concurrent Downloads</label>
+					<label
+						for={fieldId("concurrent_downloads")}
+						class="mb-1 block text-xs text-gray-400"
+					>
+						Concurrent Downloads
+					</label>
 					<input
+						id={fieldId("concurrent_downloads")}
 						type="number"
 						value={props.draft.concurrent_downloads}
 						onInput={(e) =>

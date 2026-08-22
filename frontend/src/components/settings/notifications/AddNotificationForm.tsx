@@ -25,8 +25,11 @@ export function AddNotificationForm(props: {
 			<div class="flex flex-col gap-3">
 				<div class="flex items-end gap-3">
 					<div class="flex-1">
-						<label class="mb-1 block text-xs text-gray-400">Name</label>
+						<label for="notification-name" class="mb-1 block text-xs text-gray-400">
+							Name
+						</label>
 						<input
+							id="notification-name"
 							value={props.draft.name}
 							onInput={(e) =>
 								props.setDraft((d) => {
@@ -38,8 +41,14 @@ export function AddNotificationForm(props: {
 						/>
 					</div>
 					<div>
-						<label class="mb-1 block text-xs text-gray-400">Implementation</label>
+						<label
+							for="notification-implementation"
+							class="mb-1 block text-xs text-gray-400"
+						>
+							Implementation
+						</label>
 						<select
+							id="notification-implementation"
 							value={props.draft.implementation}
 							onChange={(e) =>
 								props.setDraft((d) => {
@@ -53,8 +62,11 @@ export function AddNotificationForm(props: {
 					</div>
 				</div>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Webhook URL</label>
+					<label for="notification-webhook-url" class="mb-1 block text-xs text-gray-400">
+						Webhook URL
+					</label>
 					<input
+						id="notification-webhook-url"
 						value={props.draft.webhook_url}
 						onInput={(e) =>
 							props.setDraft((d) => {

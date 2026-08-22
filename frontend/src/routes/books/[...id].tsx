@@ -724,7 +724,9 @@ export default function BookDetail() {
 												<th class="pr-4 pb-3">Seeders</th>
 												<th class="pr-4 pb-3">Score</th>
 												<th class="pr-4 pb-3">Type</th>
-												<th class="pb-3"></th>
+												<th>
+													<span class="sr-only">Actions</span>
+												</th>
 											</tr>
 										</thead>
 										<tbody>

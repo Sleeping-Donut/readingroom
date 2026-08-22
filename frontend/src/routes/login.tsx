@@ -49,8 +49,11 @@ export default function Login() {
 					</Show>
 
 					<div>
-						<label class="mb-1 block text-sm text-gray-400">Username</label>
+						<label for="login-username" class="mb-1 block text-sm text-gray-400">
+							Username
+						</label>
 						<input
+							id="login-username"
 							type="text"
 							value={username()}
 							onInput={(e) => {
@@ -63,8 +66,11 @@ export default function Login() {
 					</div>
 
 					<div>
-						<label class="mb-1 block text-sm text-gray-400">Password</label>
+						<label for="login-password" class="mb-1 block text-sm text-gray-400">
+							Password
+						</label>
 						<input
+							id="login-password"
 							type="password"
 							value={password()}
 							onInput={(e) => {

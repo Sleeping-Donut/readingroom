@@ -29,7 +29,7 @@ afterEach(() => {
 
 describe("<ViewToggle />", () => {
 	test("clicking the List button calls onChange with list", () => {
-		const onChange = vi.fn();
+		const onChange = vi.fn<(view: ViewMode) => void>();
 		render(() => <ViewToggle view="grid" onChange={onChange} />);
 
 		fireEvent.click(screen.getByRole("button", { name: "List" }));
@@ -38,7 +38,7 @@ describe("<ViewToggle />", () => {
 	});
 
 	test("clicking the Grid button calls onChange with grid", () => {
-		const onChange = vi.fn();
+		const onChange = vi.fn<(view: ViewMode) => void>();
 		render(() => <ViewToggle view="list" onChange={onChange} />);
 
 		fireEvent.click(screen.getByRole("button", { name: "Grid" }));

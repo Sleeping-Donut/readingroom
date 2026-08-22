@@ -51,8 +51,11 @@ export function BuiltinClientPanel(props: {
 			</div>
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Download Directory</label>
+					<label for="builtin-download-dir" class="mb-1 block text-xs text-gray-400">
+						Download Directory
+					</label>
 					<input
+						id="builtin-download-dir"
 						value={props.form.download_dir}
 						onInput={(e) =>
 							props.setForm((f) => {
@@ -64,8 +67,11 @@ export function BuiltinClientPanel(props: {
 					/>
 				</div>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Rate Limit (KB/s)</label>
+					<label for="builtin-rate-limit" class="mb-1 block text-xs text-gray-400">
+						Rate Limit (KB/s)
+					</label>
 					<input
+						id="builtin-rate-limit"
 						type="number"
 						value={props.form.rate_limit_kb}
 						onInput={(e) =>
@@ -78,8 +84,11 @@ export function BuiltinClientPanel(props: {
 					/>
 				</div>
 				<div>
-					<label class="mb-1 block text-xs text-gray-400">Concurrent Downloads</label>
+					<label for="builtin-concurrent" class="mb-1 block text-xs text-gray-400">
+						Concurrent Downloads
+					</label>
 					<input
+						id="builtin-concurrent"
 						type="number"
 						value={props.form.concurrent}
 						onInput={(e) =>
