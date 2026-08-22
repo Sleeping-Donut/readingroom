@@ -1,21 +1,11 @@
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import {
-  action,
-  createOptimisticStore,
-  createSignal,
-  Errored,
-  For,
-  Loading,
-  Show,
-  onSettled,
-} from "solid-js";
+import { Errored, For, Loading, Show, onSettled } from "solid-js";
 
-import type { QueueEntry, QueueResponse } from "../types";
-
-import { getQueue, removeQueueEntry } from "../api/queue";
+import { getQueue } from "../api/queue";
 import { subscribeAll } from "../api/ws";
+import { createQueue } from "../resources/queue";
 
 export const route = defineFileRoute("/queue", {
   preload: () => {
@@ -23,25 +13,28 @@ export const route = defineFileRoute("/queue", {
   },
 });
 
+const statusColor = (status: string) => {
+  switch (status) {
+    case "downloading":
+      return "text-blue-400";
+    case "completed":
+      return "text-green-400";
+    case "failed":
+      return "text-red-400";
+    case "queued":
+      return "text-yellow-400";
+    case "seeding":
+      return "text-purple-400";
+    default:
+      return "text-gray-400";
+  }
+};
+
 export default function Queue() {
-  // Failed removals, keyed by queue id. Lives under the optimistic layer so
-  // optimistic reverts don't erase the error marker; cleared on retry.
-  const erroredRemovals: Record<number, QueueEntry> = {};
+  const [queue, { remove, retryRemove }] = createQueue();
 
-  const [queue, setQueue] = createOptimisticStore<QueueResponse>(
-    async () => {
-      const data = await getQueue();
-      return {
-        ...data,
-        queue: data.queue.map((e) => (erroredRemovals[e.id] ? { ...e, error: true } : e)),
-      };
-    },
-    { queue: [], total: 0 },
-  );
-
-  // The projection above reads getQueue(), so revalidate(getQueue.key) re-runs
-  // it (query retriggers its live consumers; the projected store is one).
-  // WS push is the primary update source; keep a slow poll as a fallback in case WS drops.
+  // WS push is the primary update source; keep a slow poll as a fallback in
+  // case WS drops. Revalidating the query retriggers the store's source.
   onSettled(() => {
     const pollId = setInterval(() => revalidate(getQueue.key), 30000);
     const unsub = subscribeAll(() => revalidate(getQueue.key));
@@ -50,53 +43,6 @@ export default function Queue() {
       unsub();
     };
   });
-
-  const remove = action(function* (entry: QueueEntry) {
-    // Optimistic: drop the row immediately.
-    setQueue((s) => {
-      s.queue = s.queue.filter((e) => e.id !== entry.id);
-    });
-    try {
-      yield removeQueueEntry(entry.id);
-      delete erroredRemovals[entry.id];
-    } catch {
-      // Keep the row, marked errored, so the user can retry just this removal.
-      erroredRemovals[entry.id] = entry;
-    }
-    revalidate(getQueue.key);
-  });
-
-  const [retryingId, setRetryingId] = createSignal<number | null>(null);
-
-  const retryRemove = action(function* (entry: QueueEntry) {
-    setRetryingId(entry.id);
-    try {
-      yield removeQueueEntry(entry.id);
-      delete erroredRemovals[entry.id];
-    } catch {
-      /* leave errored */
-    } finally {
-      setRetryingId(null);
-    }
-    revalidate(getQueue.key);
-  });
-
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "downloading":
-        return "text-blue-400";
-      case "completed":
-        return "text-green-400";
-      case "failed":
-        return "text-red-400";
-      case "queued":
-        return "text-yellow-400";
-      case "seeding":
-        return "text-purple-400";
-      default:
-        return "text-gray-400";
-    }
-  };
 
   return (
     <div>
@@ -165,11 +111,11 @@ export default function Queue() {
                       }
                     >
                       <button
-                        onClick={() => void retryRemove(entry)}
-                        disabled={retryingId() === entry.id}
+                        onClick={() => void retryRemove(entry.id)}
+                        disabled={entry.pending}
                         class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors disabled:bg-gray-700"
                       >
-                        {retryingId() === entry.id ? "Retrying..." : "Retry"}
+                        {entry.pending ? "Retrying..." : "Retry"}
                       </button>
                     </Show>
                   </div>
