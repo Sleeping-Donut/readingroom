@@ -81,7 +81,7 @@ function buildIndexerSettings(input: IndexerInput): string {
   });
 }
 
-function buildClientSettings(input: DownloadClientInput): string {
+export function buildClientSettings(input: DownloadClientInput): string {
   if (input.implementation === "http") {
     const settings: Record<string, unknown> = {};
     if (input.download_dir?.trim()) settings.download_dir = input.download_dir.trim();
