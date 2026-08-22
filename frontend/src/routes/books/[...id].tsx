@@ -13,7 +13,7 @@ import {
   Show,
 } from "solid-js";
 
-import type { Book, Edition } from "../../types";
+import type { Edition } from "../../types";
 
 import {
   addBook,
@@ -35,6 +35,7 @@ import { automaticSearchBook } from "../../api/wanted";
 import { subscribeAll } from "../../api/ws";
 import { BookCover } from "../../components/books/BookCover";
 import { StatusBadge } from "../../components/books/StatusBadge";
+import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/books/*id", {
@@ -174,13 +175,11 @@ export default function BookDetail() {
 
   const book = createMemo(() => getBook(params.id));
 
-  // The tracked book from the local books list, so the stored title/status
+  // The tracked book from the shared books store, so the stored title/status
   // render immediately instead of blanking the whole page on the detail load.
-  const booksList = createMemo(() => getBooks(), {
-    loadingValue: null as { books: Book[]; total: number } | null,
-  });
+  const [tracked] = createBooks();
   const storedBook = createMemo(() => {
-    const list = booksList()?.books ?? [];
+    const list = tracked.books;
     const p = params.id;
     return (
       list.find((b) => String(b.id) === p) ??
@@ -207,12 +206,14 @@ export default function BookDetail() {
     results: ScoredRelease[];
     total: number;
   } | null>(null);
-  const [searching, setSearching] = createSignal(false);
+  // Optimistic booleans: revert automatically when their action settles.
+  const [searching, setSearching] = createOptimistic(false);
+  // Keyed busy flags for per-row buttons; no store row to hang pending on.
   const [downloadingId, setDownloadingId] = createSignal<number | null>(null);
-  const [adding, setAdding] = createSignal(false);
+  const [adding, setAdding] = createOptimistic(false);
   const [actionError, setActionError] = createSignal<string | null>(null);
-  const [autoSearching, setAutoSearching] = createSignal(false);
-  const [savingMonitored, setSavingMonitored] = createSignal(false);
+  const [autoSearching, setAutoSearching] = createOptimistic(false);
+  const [savingMonitored, setSavingMonitored] = createOptimistic(false);
   const [showAllTags, setShowAllTags] = createSignal(false);
   const [addingEditionId, setAddingEditionId] = createSignal<string | null>(null);
   const [searchTitle, setSearchTitle] = createSignal<string | null>(null);
@@ -243,8 +244,6 @@ export default function BookDetail() {
       setIndexerResults(res);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setSearching(false);
     }
   });
 
@@ -258,8 +257,6 @@ export default function BookDetail() {
       setIndexerResults(res);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setSearching(false);
     }
   });
 
@@ -301,8 +298,6 @@ export default function BookDetail() {
       navigate(paths.books(created.book.id));
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setAdding(false);
     }
   });
 
@@ -335,8 +330,6 @@ export default function BookDetail() {
       }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setAutoSearching(false);
     }
     revalidate(getQueue.key);
     revalidate(getBook.key);
@@ -351,8 +344,6 @@ export default function BookDetail() {
       yield updateBookMonitored(book().id, next);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setSavingMonitored(false);
     }
     revalidate(getBook.key);
   });

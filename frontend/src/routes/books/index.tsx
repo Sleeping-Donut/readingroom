@@ -1,15 +1,14 @@
 import { Title } from "@solidjs/meta";
-import { revalidate, useSearchParams, type RouteProps } from "@solidjs/router";
+import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import * as v from "valibot";
 
-import type { Book } from "../../types";
-
-import { addBook as createBook, bookId, getBooks, searchBooks } from "../../api/books";
+import { getBooks, bookId, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
 import { ViewToggle, createViewPreference } from "../../components/ViewToggle";
+import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/books", {
@@ -28,16 +27,16 @@ const listSubtitle = (book: { author_name?: string; genres: string[]; publish_da
 export default function Books(_props: RouteProps<typeof route>) {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showSearch, setShowSearch] = createSignal(false);
+  // Busy flag for a search-result row; search results aren't store rows, so
+  // there's no pending affordance to hang this on.
   const [addingId, setAddingId] = createSignal<string | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [view, setView] = createViewPreference("books");
   const [search, setSearch] = useSearchParams(paths.books);
 
-  const filterQuery = () => search.q ?? "";
+  const [books, { addBook }] = createBooks();
 
-  const books = createMemo(() => getBooks(), {
-    loadingValue: null as { books: Book[]; total: number } | null,
-  });
+  const filterQuery = () => search.q ?? "";
 
   const searchResults = createMemo(async () => {
     const q = searchQuery().trim();
@@ -47,7 +46,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 
   const filteredBooks = createMemo(() => {
     const q = filterQuery().trim().toLowerCase();
-    const all = books()?.books ?? [];
+    const all = books.books;
     if (!q) return all;
     return all.filter(
       (b) =>
@@ -57,25 +56,17 @@ export default function Books(_props: RouteProps<typeof route>) {
     );
   });
 
-  const addBook = action(async function* (book: {
-    foreign_id: string;
-    author_id: number;
-    title: string;
-  }) {
+  const submitAdd = async (book: { foreign_id: string; author_id: number; title: string }) => {
     setAddingId(book.foreign_id);
     setActionError(null);
     try {
-      await createBook(book);
-      yield;
-      revalidate(getBooks.key);
+      await addBook(book);
       setSearchQuery("");
       setShowSearch(false);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setAddingId(null);
     }
-  });
+  };
 
   return (
     <div>
@@ -148,7 +139,7 @@ export default function Books(_props: RouteProps<typeof route>) {
                             </div>
                             <button
                               onClick={() =>
-                                void addBook({
+                                void submitAdd({
                                   foreign_id: book.foreign_id,
                                   author_id: book.author_id,
                                   title: book.title,
@@ -185,76 +176,72 @@ export default function Books(_props: RouteProps<typeof route>) {
           </p>
         )}
       >
-        <Show when={books()} fallback={<p class="text-gray-500">Loading books...</p>}>
-          {(list) => (
-            <>
-              <div class="mb-4">
-                <input
-                  type="text"
-                  placeholder="Filter tracked books by title or author..."
-                  value={filterQuery()}
-                  onInput={(e) => setSearch({ q: e.currentTarget.value })}
-                  class="w-full sm:w-72 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
+        <Loading fallback={<p class="text-gray-500">Loading books...</p>}>
+          <div class="mb-4">
+            <input
+              type="text"
+              placeholder="Filter tracked books by title or author..."
+              value={filterQuery()}
+              onInput={(e) => setSearch({ q: e.currentTarget.value })}
+              class="w-full sm:w-72 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+          <Show
+            when={books.books.length > 0}
+            fallback={
+              <div class="text-center py-12 text-gray-500">
+                <p class="text-lg">No books tracked yet.</p>
+                <p class="text-sm mt-2">Click "Add Book" to search and start tracking.</p>
               </div>
+            }
+          >
+            <Show
+              when={filteredBooks().length > 0}
+              fallback={
+                <div class="text-center py-12 text-gray-500">
+                  <p class="text-lg">No books match your filter.</p>
+                </div>
+              }
+            >
               <Show
-                when={list().books.length > 0}
+                when={view() === "grid"}
                 fallback={
-                  <div class="text-center py-12 text-gray-500">
-                    <p class="text-lg">No books tracked yet.</p>
-                    <p class="text-sm mt-2">Click "Add Book" to search and start tracking.</p>
+                  <div class="space-y-2">
+                    <For each={filteredBooks()}>
+                      {(book) => (
+                        <BookRow
+                          href={paths.books(bookId(book))}
+                          cardLink
+                          coverSrc={book.image_url}
+                          title={book.title}
+                          subtitle={listSubtitle(book)}
+                          status={book.status}
+                        />
+                      )}
+                    </For>
                   </div>
                 }
               >
-                <Show
-                  when={filteredBooks().length > 0}
-                  fallback={
-                    <div class="text-center py-12 text-gray-500">
-                      <p class="text-lg">No books match your filter.</p>
-                    </div>
-                  }
-                >
-                  <Show
-                    when={view() === "grid"}
-                    fallback={
-                      <div class="space-y-2">
-                        <For each={filteredBooks()}>
-                          {(book) => (
-                            <BookRow
-                              href={paths.books(bookId(book))}
-                              cardLink
-                              coverSrc={book.image_url}
-                              title={book.title}
-                              subtitle={listSubtitle(book)}
-                              status={book.status}
-                            />
-                          )}
-                        </For>
-                      </div>
-                    }
-                  >
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      <For each={filteredBooks()}>
-                        {(book) => (
-                          <BookCard
-                            href={paths.books(bookId(book))}
-                            cardLink
-                            coverSrc={book.image_url}
-                            title={book.title}
-                            subtitle={
-                              book.author_name || book.genres.slice(0, 2).join(", ") || "No author"
-                            }
-                            status={book.status}
-                          />
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                </Show>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <For each={filteredBooks()}>
+                    {(book) => (
+                      <BookCard
+                        href={paths.books(bookId(book))}
+                        cardLink
+                        coverSrc={book.image_url}
+                        title={book.title}
+                        subtitle={
+                          book.author_name || book.genres.slice(0, 2).join(", ") || "No author"
+                        }
+                        status={book.status}
+                      />
+                    )}
+                  </For>
+                </div>
               </Show>
-            </>
-          )}
-        </Show>
+            </Show>
+          </Show>
+        </Loading>
       </Errored>
     </div>
   );
