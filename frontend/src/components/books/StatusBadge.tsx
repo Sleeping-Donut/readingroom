@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 
-import { Badge } from "../ui/Badge";
+import { Badge } from "../ui";
 
 const STATUSES: Record<string, { label: string; tone: "pending" | "good" | "neutral" }> = {
 	tracked: { label: "Tracked", tone: "neutral" },
