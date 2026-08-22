@@ -7,5 +7,5 @@ import { api } from "./client";
 export const getQueue = query(async () => api.get<QueueResponse>("/queue"), "queue");
 
 export async function removeQueueEntry(id: number) {
-  await api.delete(`/queue/${id}`);
+	await api.delete(`/queue/${id}`);
 }

@@ -6,12 +6,12 @@ import { Router } from "../router";
 afterEach(cleanup);
 
 describe("App Router", () => {
-  test("renders the settings layout for the /settings route", async () => {
-    window.history.replaceState({}, "", "/settings");
+	test("renders the settings layout for the /settings route", async () => {
+		window.history.replaceState({}, "", "/settings");
 
-    render(() => <Router>{(props) => <div>{props.children}</div>}</Router>);
+		render(() => <Router>{(props) => <div>{props.children}</div>}</Router>);
 
-    expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "Library" })).toBeInTheDocument();
-  });
+		expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
+		expect(await screen.findByRole("link", { name: "Library" })).toBeInTheDocument();
+	});
 });

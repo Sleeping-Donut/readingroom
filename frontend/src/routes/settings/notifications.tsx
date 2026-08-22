@@ -7,111 +7,111 @@ import * as settingsApi from "../../api/settings";
 import { AddNotificationForm } from "../../components/settings/notifications/AddNotificationForm";
 import { NotificationCard } from "../../components/settings/notifications/NotificationCard";
 import {
-  createNotifications,
-  draftFor,
-  toInput,
-  validateDraft,
-  type Draft,
+	createNotifications,
+	draftFor,
+	toInput,
+	validateDraft,
+	type Draft,
 } from "../../resources/notifications";
 
 export const route = defineFileRoute("/settings/notifications", {
-  info: { label: "Notifications" },
-  preload: () => {
-    void settingsApi.listNotifications();
-  },
+	info: { label: "Notifications" },
+	preload: () => {
+		void settingsApi.listNotifications();
+	},
 });
 
 export default function NotificationsTab(_props: RouteProps<typeof route>) {
-  const [
-    notifications,
-    { addNotification, removeNotification, retryRemoveNotification, testNotification },
-  ] = createNotifications();
+	const [
+		notifications,
+		{ addNotification, removeNotification, retryRemoveNotification, testNotification },
+	] = createNotifications();
 
-  // Add flow.
-  const [showAdd, setShowAdd] = createSignal(false);
-  const [draft, setDraft] = createStore<Draft>(draftFor());
-  const [submitting, setSubmitting] = createSignal(false);
-  const [actionError, setActionError] = createSignal<string | null>(null);
+	// Add flow.
+	const [showAdd, setShowAdd] = createSignal(false);
+	const [draft, setDraft] = createStore<Draft>(draftFor());
+	const [submitting, setSubmitting] = createSignal(false);
+	const [actionError, setActionError] = createSignal<string | null>(null);
 
-  const valid = createMemo(() => validateDraft(draft).success);
+	const valid = createMemo(() => validateDraft(draft).success);
 
-  const submitAdd = async () => {
-    const parsed = validateDraft(draft);
-    if (!parsed.success) {
-      setActionError(parsed.error);
-      return;
-    }
-    setSubmitting(true);
-    setActionError(null);
-    try {
-      await addNotification(toInput(draft));
-      setShowAdd(false);
-      setDraft(() => draftFor());
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : "Request failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+	const submitAdd = async () => {
+		const parsed = validateDraft(draft);
+		if (!parsed.success) {
+			setActionError(parsed.error);
+			return;
+		}
+		setSubmitting(true);
+		setActionError(null);
+		try {
+			await addNotification(toInput(draft));
+			setShowAdd(false);
+			setDraft(() => draftFor());
+		} catch (e) {
+			setActionError(e instanceof Error ? e.message : "Request failed");
+		} finally {
+			setSubmitting(false);
+		}
+	};
 
-  return (
-    <div>
-      <Title>Notifications · Settings · ReadingRoom</Title>
-      <Errored
-        fallback={(err, reset) => (
-          <p class="text-sm text-red-400 mt-2">
-            Failed to load: {String(err())}{" "}
-            <button onClick={reset} class="text-indigo-400 underline ml-1">
-              Retry
-            </button>
-          </p>
-        )}
-      >
-        <Loading fallback={<p class="text-gray-500">Loading...</p>}>
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h3 class="text-lg font-semibold">Notifications</h3>
-            <button
-              onClick={() => setShowAdd(!showAdd())}
-              class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition-colors"
-            >
-              {showAdd() ? "Cancel" : "Add Notification"}
-            </button>
-          </div>
+	return (
+		<div>
+			<Title>Notifications · Settings · ReadingRoom</Title>
+			<Errored
+				fallback={(err, reset) => (
+					<p class="text-sm text-red-400 mt-2">
+						Failed to load: {String(err())}{" "}
+						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+							Retry
+						</button>
+					</p>
+				)}
+			>
+				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
+					<div class="gap-2 mb-4 flex flex-wrap items-center justify-between">
+						<h3 class="text-lg font-semibold">Notifications</h3>
+						<button
+							onClick={() => setShowAdd(!showAdd())}
+							class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition-colors"
+						>
+							{showAdd() ? "Cancel" : "Add Notification"}
+						</button>
+					</div>
 
-          <Show when={actionError()}>
-            <p class="text-sm text-red-400 mt-2">{actionError()}</p>
-          </Show>
+					<Show when={actionError()}>
+						<p class="text-sm text-red-400 mt-2">{actionError()}</p>
+					</Show>
 
-          <Show when={showAdd()}>
-            <AddNotificationForm
-              draft={draft}
-              setDraft={setDraft}
-              submitting={submitting()}
-              valid={valid()}
-              onSave={() => void submitAdd()}
-              onCancel={() => setShowAdd(false)}
-            />
-          </Show>
+					<Show when={showAdd()}>
+						<AddNotificationForm
+							draft={draft}
+							setDraft={setDraft}
+							submitting={submitting()}
+							valid={valid()}
+							onSave={() => void submitAdd()}
+							onCancel={() => setShowAdd(false)}
+						/>
+					</Show>
 
-          <Show
-            when={notifications.notifications.length > 0}
-            fallback={<p class="text-gray-500 text-sm">No notifications configured.</p>}
-          >
-            <div class="space-y-2">
-              <For each={notifications.notifications}>
-                {(notif) => (
-                  <NotificationCard
-                    notif={notif}
-                    onTest={() => void testNotification(notif.id)}
-                    onRemove={() => void removeNotification(notif)}
-                    onRetry={() => void retryRemoveNotification(notif.id)}
-                  />
-                )}
-              </For>
-            </div>
-          </Show>
-        </Loading>
-      </Errored>
-    </div>
-  );
+					<Show
+						when={notifications.notifications.length > 0}
+						fallback={<p class="text-gray-500 text-sm">No notifications configured.</p>}
+					>
+						<div class="space-y-2">
+							<For each={notifications.notifications}>
+								{(notif) => (
+									<NotificationCard
+										notif={notif}
+										onTest={() => void testNotification(notif.id)}
+										onRemove={() => void removeNotification(notif)}
+										onRetry={() => void retryRemoveNotification(notif.id)}
+									/>
+								)}
+							</For>
+						</div>
+					</Show>
+				</Loading>
+			</Errored>
+		</div>
+	);
 }

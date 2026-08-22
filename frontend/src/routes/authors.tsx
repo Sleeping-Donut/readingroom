@@ -1,5 +1,5 @@
 import type { ParentProps } from "solid-js";
 
 export default function AuthorsLayout(props: ParentProps) {
-  return <>{props.children}</>;
+	return <>{props.children}</>;
 }
