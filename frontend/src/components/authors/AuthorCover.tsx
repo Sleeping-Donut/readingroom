@@ -11,13 +11,13 @@ export function AuthorCover(props: {
 		<Show
 			when={props.src}
 			fallback={
-				props.placeholder ? (
+				<Show when={props.placeholder}>
 					<div class={["flex items-center justify-center bg-gray-800", props.class]}>
 						<span class="text-sm font-medium text-gray-500">
 							{props.name.charAt(0).toUpperCase()}
 						</span>
 					</div>
-				) : null
+				</Show>
 			}
 		>
 			{(img) => <img src={img()} alt={props.alt} class={["object-cover", props.class]} />}

@@ -63,11 +63,7 @@ export default function Activity() {
 													{item.source_title || "-"}
 												</td>
 												<td class="py-3 pr-4 text-gray-400">
-													{item.indexer ? (
-														<span>{item.indexer}</span>
-													) : (
-														<span>-</span>
-													)}
+													{item.indexer || "-"}
 													<Show when={item.download_client}>
 														<span> / {item.download_client}</span>
 													</Show>

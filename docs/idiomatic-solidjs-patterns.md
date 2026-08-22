@@ -252,6 +252,36 @@ Keep preload consistent per route — don't leave pages fetching only on first r
 
 ## Smells to watch for
 
+### JSX ternaries whose branches render elements
+
+A ternary inside `{...}` may only produce **text nodes** on both sides:
+
+```tsx
+// ok — both sides are text:
+<p>{saving() ? "Saving..." : "Save"}</p>
+<button class={active() ? "bg-indigo-600" : "bg-gray-700"}>{label}</button>
+
+// not ok — an element on either side:
+{item.indexer ? <span>{item.indexer}</span> : <span>-</span>}
+```
+
+Element-vs-element and element-vs-null conditionals belong to control-flow components:
+
+- One-sided (`else` renders nothing) → `<Show when={...}>` with `fallback` if needed.
+- Two-sided elements → nested `<Show>`s, or restructure so the branch produces text.
+- Three-plus ways → `<Switch>` with `<Match>` arms.
+
+```tsx
+// element-or-nothing:
+<Show when={props.src} fallback={<Placeholder ... />}>
+	{(src) => <img src={src()} alt={props.alt} />}
+</Show>
+```
+
+Why: control-flow components own their reactivity (a plain ternary only re-evaluates
+when the whole surrounding expression re-runs), they keep conditions readable at the
+call site instead of buried mid-JSX, and they give every branch a name.
+
 ### `try/catch → null` inside `createMemo`, plus `loadingValue`
 
 ```ts
@@ -313,6 +343,8 @@ or a projection for derived views.
 - [ ] Async memos return empty result shapes, not null; "idle" states are gated in JSX.
 - [ ] Route declares `preload` for everything its resource modules will fetch.
 - [ ] No `try/catch → null` in memos; no `loadingValue`; errors reach `<Errored>`.
+- [ ] JSX ternaries produce text on both sides at most; element branches use
+      `<Show>`/`<Switch>`.
 - [ ] No parallel in-flight signals; in-flight state is data (`pending`) or optimistic.
 - [ ] Variant forms are data-driven from declared fields/capabilities; one shared draft
       type; schema generated per variant.
