@@ -9,6 +9,7 @@ import type { Book } from "../../types";
 import { getBooks, bookId, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
+import { Specimen } from "../../components/ui/Specimen";
 import { ViewToggle, createViewPreference } from "../../components/ViewToggle";
 import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
@@ -207,20 +208,20 @@ export default function Books(_props: RouteProps<typeof route>) {
 					<Show
 						when={books.books.length > 0}
 						fallback={
-							<div class="py-12 text-center text-ink-500">
-								<p class="text-lg">No books tracked yet.</p>
-								<p class="mt-2 text-sm">
-									Click "Add Book" to search and start tracking.
-								</p>
-							</div>
+							<Specimen
+								label="The shelves await"
+								detail={'Click "Add Book" to search and start tracking.'}
+							>
+								No books tracked yet.
+							</Specimen>
 						}
 					>
 						<Show
 							when={filteredBooks().length > 0}
 							fallback={
-								<div class="py-12 text-center text-ink-500">
-									<p class="text-lg">No books match your filter.</p>
-								</div>
+								<Specimen label="Nothing found">
+									No books match your filter.
+								</Specimen>
 							}
 						>
 							<Show

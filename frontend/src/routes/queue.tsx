@@ -5,6 +5,7 @@ import { Errored, For, Loading, Show, onSettled } from "solid-js";
 
 import { getQueue } from "../api/queue";
 import { subscribeAll } from "../api/ws";
+import { Specimen } from "../components/ui/Specimen";
 import { createQueue } from "../resources/queue";
 
 export const route = defineFileRoute("/queue", {
@@ -66,12 +67,12 @@ export default function Queue() {
 					<Show
 						when={queue.queue.length > 0}
 						fallback={
-							<div class="py-12 text-center text-ink-500">
-								<p class="text-lg">No active downloads.</p>
-								<p class="mt-2 text-sm">
-									Search for books and start a download to see it here.
-								</p>
-							</div>
+							<Specimen
+								label="In Flight"
+								detail="Search for books and start a download to see it here."
+							>
+								No active downloads.
+							</Specimen>
 						}
 					>
 						<div class="divide-y divide-rule border-y border-rule">

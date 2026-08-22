@@ -164,8 +164,8 @@ export default function Dashboard() {
 							<Show
 								when={stats().recent_history.length > 0}
 								fallback={
-									<p class="py-4 text-center text-sm text-ink-500">
-										No recent activity.
+									<p class="py-6 text-center font-display text-xl text-ink-500">
+										Nothing has happened yet.
 									</p>
 								}
 							>

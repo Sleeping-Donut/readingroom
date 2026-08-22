@@ -9,6 +9,7 @@ import type { Author } from "../../types";
 import { authorId, getAuthors, searchAuthors } from "../../api/authors";
 import { AuthorCard } from "../../components/authors/AuthorCard";
 import { AuthorRow } from "../../components/authors/AuthorRow";
+import { Specimen } from "../../components/ui/Specimen";
 import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import { createAuthors } from "../../resources/authors";
 import { paths } from "../../router";
@@ -197,12 +198,12 @@ export default function Authors(_props: RouteProps<typeof route>) {
 					<Show
 						when={authors.authors.length > 0}
 						fallback={
-							<div class="py-12 text-center text-ink-500">
-								<p class="text-lg">No authors tracked yet.</p>
-								<p class="mt-2 text-sm">
-									Click "Add Author" to search and start tracking.
-								</p>
-							</div>
+							<Specimen
+								label="The roster is empty"
+								detail={String.raw`Click "Add Author" to search and start tracking.`}
+							>
+								No authors tracked yet.
+							</Specimen>
 						}
 					>
 						<div class="mb-4">
