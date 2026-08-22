@@ -26,7 +26,12 @@ export default function Dashboard() {
 	return (
 		<div>
 			<Title>Dashboard · ReadingRoom</Title>
-			<h2 class="mb-6 text-2xl font-bold">Dashboard</h2>
+			<div class="mb-8">
+				<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+					The Library at a Glance
+				</p>
+				<h2 class="font-display text-4xl text-ink-900">Dashboard</h2>
+			</div>
 
 			<Errored
 				fallback={(err, reset) => (
@@ -45,16 +50,20 @@ export default function Dashboard() {
 								href={paths.authors}
 								class="block rounded-lg border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
 							>
-								<p class="text-sm text-ink-700">Total Authors</p>
-								<p class="mt-1 text-2xl font-bold">{stats().total_authors}</p>
+								<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+									Authors
+								</p>
+								<p class="mt-1 font-display text-3xl">{stats().total_authors}</p>
 							</a>
 
 							<a
 								href={paths.books}
 								class="block rounded-lg border border-rule bg-paper-100 p-4 transition-colors hover:border-ink-900"
 							>
-								<p class="text-sm text-ink-700">Total Books</p>
-								<p class="mt-1 text-2xl font-bold">{stats().total_books}</p>
+								<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+									Books
+								</p>
+								<p class="mt-1 font-display text-3xl">{stats().total_books}</p>
 							</a>
 
 							<a
@@ -69,7 +78,9 @@ export default function Dashboard() {
 									},
 								]}
 							>
-								<p class="text-sm text-ink-700">Wanted Books</p>
+								<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+									Wanted
+								</p>
 								<p
 									class={[
 										"mt-1 text-2xl font-bold",
@@ -92,7 +103,9 @@ export default function Dashboard() {
 									},
 								]}
 							>
-								<p class="text-sm text-ink-700">Active Downloads</p>
+								<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+									In the Queue
+								</p>
 								<p
 									class={[
 										"mt-1 text-2xl font-bold",

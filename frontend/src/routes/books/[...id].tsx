@@ -363,14 +363,14 @@ export default function BookDetail() {
 			<Show when={storedBook()}>
 				{(stored) => (
 					<div class="mb-1 flex flex-wrap items-center gap-3">
-						<h2 class="text-3xl font-bold">{stored().title}</h2>
+						<h2 class="font-display text-4xl text-ink-900">{stored().title}</h2>
 						<StatusBadge status={stored().status} />
 						<Show when={stored().author_name}>
 							<a
 								href={paths.authors(
 									stored().author_foreign_id ?? stored().author_id,
 								)}
-								class="text-lg text-accent underline-offset-2 hover:text-ink-900"
+								class="font-display text-lg text-accent italic underline-offset-2 hover:text-ink-900"
 							>
 								{stored().author_name}
 							</a>
@@ -395,7 +395,7 @@ export default function BookDetail() {
 						<BookCover
 							src={book().image_url}
 							alt={book().title}
-							class="aspect-[2/3] w-40 shrink-0 rounded-lg object-contain shadow-lg sm:w-48"
+							class="aspect-[2/3] w-40 shrink-0 rounded-sm object-contain sm:w-48"
 							emojiClass="text-5xl"
 						/>
 						<div class="min-w-0 flex-1">
@@ -403,7 +403,9 @@ export default function BookDetail() {
 								<Show when={!storedBook()}>
 									<div class="min-w-0">
 										<div class="mb-1 flex flex-wrap items-center gap-3">
-											<h2 class="text-3xl font-bold">{book().title}</h2>
+											<h2 class="font-display text-4xl text-ink-900">
+												{book().title}
+											</h2>
 											<StatusBadge status={book().status} />
 										</div>
 										<Show when={book().author_name}>
@@ -411,7 +413,7 @@ export default function BookDetail() {
 												href={paths.authors(
 													book().author_foreign_id ?? book().author_id,
 												)}
-												class="text-lg text-accent underline-offset-2 hover:text-ink-900"
+												class="font-display text-lg text-accent italic underline-offset-2 hover:text-ink-900"
 											>
 												{book().author_name}
 											</a>

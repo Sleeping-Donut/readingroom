@@ -73,7 +73,12 @@ export default function Authors(_props: RouteProps<typeof route>) {
 		<div>
 			<Title>Authors · ReadingRoom</Title>
 			<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-				<h2 class="text-2xl font-bold">Authors</h2>
+				<div>
+					<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+						Contributors
+					</p>
+					<h2 class="font-display text-4xl text-ink-900">Authors</h2>
+				</div>
 				<div class="flex flex-wrap items-center gap-2">
 					<ViewToggle view={view()} onChange={(v) => setView(v)} />
 					<button

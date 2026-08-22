@@ -114,7 +114,7 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
 			<div class="flex-1">
 				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<h2 class="mb-2 text-3xl font-bold">{props.author.name}</h2>
+						<h2 class="mb-2 font-display text-4xl text-ink-900">{props.author.name}</h2>
 						<div class="mb-4 flex gap-4 text-sm text-ink-700">
 							<Show when={props.author.birth_date}>
 								<span>Born: {props.author.birth_date}</span>
@@ -135,7 +135,9 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
 				</div>
 
 				<Show when={props.author.biography}>
-					<p class="leading-relaxed text-ink-900">{props.author.biography}</p>
+					<p class="font-display text-lg leading-relaxed text-ink-700">
+						{props.author.biography}
+					</p>
 				</Show>
 				<Show when={props.author.genres.length > 0}>
 					<div class="mt-4 flex flex-wrap gap-2">
