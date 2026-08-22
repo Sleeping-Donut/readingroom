@@ -1,12 +1,21 @@
 import { Title } from "@solidjs/meta";
 import { revalidate, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import {
+  action,
+  createMemo,
+  createOptimistic,
+  createSignal,
+  Errored,
+  For,
+  Loading,
+  Show,
+} from "solid-js";
 
 import type { Author, Book, Release } from "../../types";
 
 import { getAuthor, getAuthorBooks } from "../../api/authors";
-import { addBook as createBook, bookId, searchBooks } from "../../api/books";
+import { searchBooks, bookId } from "../../api/books";
 import {
   downloadIndexerRelease,
   searchIndexersForAuthor,
@@ -15,6 +24,7 @@ import {
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
 import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
+import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors/:id", {
@@ -149,9 +159,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
     return searchBooks(name);
   });
 
-  const trackedBooks = createMemo(() =>
-    getAuthorBooks(props.params.id).catch(() => ({ books: [] })),
-  );
+  const trackedBooks = createMemo(() => getAuthorBooks(props.params.id));
 
   const dedupedBooks = createMemo(() => {
     const seen = new Set<string>();
@@ -188,12 +196,16 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
     results: ScoredRelease[];
     total: number;
   } | null>(null);
-  const [searching, setSearching] = createSignal(false);
+  // Optimistic: reverts automatically when its action settles.
+  const [searching, setSearching] = createOptimistic(false);
+  // Keyed busy flags for per-row buttons; no store row to hang pending on.
   const [downloadingId, setDownloadingId] = createSignal<number | null>(null);
   const [addingId, setAddingId] = createSignal<string | null>(null);
   const [actionError, setActionError] = createSignal<string | null>(null);
   const [filter, setFilter] = createSignal("");
   const [view, setView] = createViewPreference("author-books");
+
+  const [, { addBook: addBookToLibrary }] = createBooks();
 
   const addBook = action(async function* (book: {
     foreign_id: string;
@@ -204,13 +216,10 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
     setAddingId(book.foreign_id);
     setActionError(null);
     try {
-      await createBook(book);
-      yield;
-      revalidate(getAuthorBooks.keyFor(props.params.id));
+      yield addBookToLibrary(book);
+      yield revalidate(getAuthorBooks.keyFor(props.params.id));
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setAddingId(null);
     }
   });
 
@@ -223,8 +232,6 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
       setIndexerResults(res);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setSearching(false);
     }
   });
 

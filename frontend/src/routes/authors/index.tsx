@@ -1,15 +1,16 @@
 import { Title } from "@solidjs/meta";
-import { revalidate, useSearchParams, type RouteProps } from "@solidjs/router";
+import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
 import * as v from "valibot";
 
 import type { Author } from "../../types";
 
-import { addAuthor as createAuthor, authorId, getAuthors, searchAuthors } from "../../api/authors";
+import { authorId, getAuthors, searchAuthors } from "../../api/authors";
 import { AuthorCard } from "../../components/authors/AuthorCard";
 import { AuthorRow } from "../../components/authors/AuthorRow";
 import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
+import { createAuthors } from "../../resources/authors";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors", {
@@ -38,7 +39,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
 
   const filterQuery = () => search.q ?? "";
 
-  const authors = createMemo(() => getAuthors());
+  const [authors, { addAuthor: addAuthorToLibrary }] = createAuthors();
 
   const searchResults = createMemo(async () => {
     const q = searchQuery();
@@ -48,26 +49,22 @@ export default function Authors(_props: RouteProps<typeof route>) {
 
   const filtered = createMemo(() => {
     const q = filterQuery().trim().toLowerCase();
-    const all = authors()?.authors ?? [];
+    const all = authors.authors;
     if (!q) return all;
     return all.filter((author) => matchesFilter(author, q));
   });
 
-  const addAuthor = action(async function* (author: { foreign_id: string; name: string }) {
+  const submitAdd = async (author: { foreign_id: string; name: string }) => {
     setAddingId(author.foreign_id);
     setActionError(null);
     try {
-      await createAuthor(author);
-      yield;
-      revalidate(getAuthors.key);
+      await addAuthorToLibrary(author);
       setSearchQuery("");
       setShowSearch(false);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setAddingId(null);
     }
-  });
+  };
 
   return (
     <div>
@@ -141,7 +138,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
                             </div>
                             <button
                               onClick={() =>
-                                void addAuthor({
+                                void submitAdd({
                                   foreign_id: author.foreign_id,
                                   name: author.name,
                                 })
@@ -179,7 +176,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
       >
         <Loading fallback={<p class="text-gray-500">Loading...</p>}>
           <Show
-            when={(authors()?.authors ?? []).length > 0}
+            when={authors.authors.length > 0}
             fallback={
               <div class="text-center py-12 text-gray-500">
                 <p class="text-lg">No authors tracked yet.</p>
@@ -208,7 +205,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
             >
               <Show when={filterQuery().trim().length > 0}>
                 <p class="text-sm text-gray-400 mb-3">
-                  Showing {filtered().length} of {authors()?.authors.length ?? 0} authors
+                  Showing {filtered().length} of {authors.authors.length} authors
                 </p>
               </Show>
 
