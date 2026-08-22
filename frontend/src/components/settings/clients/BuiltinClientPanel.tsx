@@ -118,14 +118,14 @@ export function BuiltinClientPanel(props: {
 				<button
 					onClick={props.onSave}
 					disabled={props.saving}
-					class="rounded bg-good px-4 py-2 text-sm transition-colors hover:opacity-90 disabled:opacity-50"
+					class="rounded bg-good px-4 py-2 text-sm text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 				>
 					Save
 				</button>
 				<button
 					onClick={props.onTest}
 					disabled={props.result?.status === "testing"}
-					class="rounded bg-ink-900 px-4 py-2 text-sm transition-colors hover:bg-ink-900"
+					class="rounded bg-ink-900 px-4 py-2 text-sm text-paper-50 transition-colors hover:bg-ink-700"
 				>
 					{props.result?.status === "testing" ? "Testing..." : "Test"}
 				</button>

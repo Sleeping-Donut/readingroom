@@ -66,13 +66,13 @@ export function IndexerCard(props: {
 				<button
 					onClick={props.onTest}
 					disabled={props.idx.test?.status === "testing"}
-					class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900"
+					class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700"
 				>
 					{props.idx.test?.status === "testing" ? "Testing..." : "Test"}
 				</button>
 				<button
 					onClick={props.onEdit}
-					class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900"
+					class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700"
 				>
 					Edit
 				</button>
@@ -90,7 +90,7 @@ export function IndexerCard(props: {
 					<button
 						onClick={props.onRetry}
 						disabled={props.idx.pending}
-						class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900 disabled:bg-paper-200"
+						class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700 disabled:bg-paper-200"
 					>
 						{props.idx.pending ? "Retrying..." : "Retry"}
 					</button>

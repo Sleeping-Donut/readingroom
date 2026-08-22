@@ -94,7 +94,7 @@ function EditionRow(props: {
 					<button
 						onClick={props.onAdd}
 						disabled={props.adding}
-						class="shrink-0 rounded bg-good px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+						class="shrink-0 rounded bg-good px-3 py-1.5 text-xs font-medium text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 					>
 						{props.adding ? "Adding..." : "Add"}
 					</button>
@@ -102,7 +102,7 @@ function EditionRow(props: {
 				<button
 					onClick={props.onInteractiveAdd}
 					disabled={props.searching}
-					class="shrink-0 rounded bg-ink-900 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-ink-700 disabled:opacity-50"
+					class="shrink-0 rounded bg-ink-900 px-3 py-1.5 text-xs font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 				>
 					{props.searching ? "Searching..." : "Interactive Add"}
 				</button>
@@ -156,7 +156,7 @@ function ReleaseRow(props: {
 				<button
 					onClick={props.onDownload}
 					disabled={props.downloading}
-					class="rounded bg-good px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+					class="rounded bg-good px-3 py-1.5 text-xs font-medium text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 				>
 					{props.downloading ? "..." : "Download"}
 				</button>
@@ -425,7 +425,7 @@ export default function BookDetail() {
 										<button
 											onClick={() => void autoSearch()}
 											disabled={autoSearching()}
-											class="rounded-lg bg-good px-4 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+											class="rounded-lg bg-good px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 										>
 											{autoSearching() ? "Searching..." : "Automatic Search"}
 										</button>
@@ -484,7 +484,7 @@ export default function BookDetail() {
 										<button
 											onClick={() => void addToLibrary()}
 											disabled={adding()}
-											class="rounded-lg bg-good px-4 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+											class="rounded-lg bg-good px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 										>
 											{adding() ? "Adding..." : "Add to Library"}
 										</button>
@@ -696,7 +696,7 @@ export default function BookDetail() {
 						<button
 							onClick={() => void indexerSearch()}
 							disabled={searching()}
-							class="rounded bg-ink-900 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-ink-900 disabled:opacity-50"
+							class="rounded bg-ink-900 px-3 py-1.5 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 						>
 							{searching() ? "Searching..." : "Search again"}
 						</button>

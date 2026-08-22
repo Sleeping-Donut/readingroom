@@ -96,14 +96,14 @@ export function ClientCard(props: {
 				</button>
 				<button
 					onClick={props.onEdit}
-					class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900"
+					class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700"
 				>
 					Edit
 				</button>
 				<button
 					onClick={props.onTest}
 					disabled={props.client.test?.status === "testing"}
-					class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900"
+					class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700"
 				>
 					{props.client.test?.status === "testing" ? "Testing..." : "Test"}
 				</button>
@@ -121,7 +121,7 @@ export function ClientCard(props: {
 					<button
 						onClick={props.onRetry}
 						disabled={props.client.pending}
-						class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900 disabled:bg-paper-200"
+						class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700 disabled:bg-paper-200"
 					>
 						{props.client.pending ? "Retrying..." : "Retry"}
 					</button>

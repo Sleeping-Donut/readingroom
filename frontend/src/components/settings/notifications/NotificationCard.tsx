@@ -42,7 +42,7 @@ export function NotificationCard(props: {
 				<button
 					onClick={props.onTest}
 					disabled={props.notif.pending}
-					class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900 disabled:opacity-50"
+					class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 				>
 					Test
 				</button>
@@ -60,7 +60,7 @@ export function NotificationCard(props: {
 					<button
 						onClick={props.onRetry}
 						disabled={props.notif.pending}
-						class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900 disabled:bg-paper-200"
+						class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700 disabled:bg-paper-200"
 					>
 						{props.notif.pending ? "Retrying..." : "Retry"}
 					</button>

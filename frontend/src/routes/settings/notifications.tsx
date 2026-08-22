@@ -72,7 +72,7 @@ export default function NotificationsTab(_props: RouteProps<typeof route>) {
 						<h3 class="font-display text-2xl text-ink-900">Notifications</h3>
 						<button
 							onClick={() => setShowAdd(!showAdd())}
-							class="rounded bg-ink-900 px-3 py-1.5 text-sm transition-colors hover:bg-ink-700"
+							class="rounded bg-ink-900 px-3 py-1.5 text-sm text-paper-50 transition-colors hover:bg-ink-700"
 						>
 							{showAdd() ? "Cancel" : "Add Notification"}
 						</button>

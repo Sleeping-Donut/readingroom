@@ -118,7 +118,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 							!newPassword() ||
 							!!passwordError()
 						}
-						class="rounded bg-ink-900 px-4 py-2 text-sm transition-colors hover:bg-ink-700 disabled:opacity-50"
+						class="rounded bg-ink-900 px-4 py-2 text-sm text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 					>
 						{submitting() ? "Updating..." : "Update Password"}
 					</button>

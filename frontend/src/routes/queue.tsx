@@ -134,7 +134,7 @@ export default function Queue() {
 											<button
 												onClick={() => void retryRemove(entry.id)}
 												disabled={entry.pending}
-												class="rounded bg-ink-900 px-2 py-1 text-xs transition-colors hover:bg-ink-900 disabled:bg-paper-200"
+												class="rounded bg-ink-900 px-2 py-1 text-xs text-paper-50 transition-colors hover:bg-ink-700 disabled:bg-paper-200"
 											>
 												{entry.pending ? "Retrying..." : "Retry"}
 											</button>

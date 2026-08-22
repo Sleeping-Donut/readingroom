@@ -128,7 +128,7 @@ export default function Wanted() {
 											<button
 												onClick={() => void searchBook(book.id)}
 												disabled={searchingBookId() === book.id}
-												class="mt-3 w-full rounded bg-ink-900 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-ink-900 disabled:bg-paper-200"
+												class="mt-3 w-full rounded bg-ink-900 px-3 py-1.5 text-xs font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:bg-paper-200"
 											>
 												{searchingBookId() === book.id
 													? "Searching..."

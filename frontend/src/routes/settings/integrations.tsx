@@ -52,7 +52,7 @@ function copyableRow(props: {
 				</Show>
 				<button
 					onClick={() => void copy()}
-					class="rounded bg-ink-900 px-3 py-2 text-xs font-medium transition-colors hover:bg-ink-700"
+					class="rounded bg-ink-900 px-3 py-2 text-xs font-medium text-paper-50 transition-colors hover:bg-ink-700"
 				>
 					{copied() ? "Copied!" : "Copy"}
 				</button>

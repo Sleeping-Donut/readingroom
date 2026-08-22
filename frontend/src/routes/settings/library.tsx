@@ -194,7 +194,7 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 						<button
 							onClick={() => void save()}
 							disabled={saving()}
-							class="rounded bg-ink-900 px-4 py-2 text-sm transition-colors hover:bg-ink-700 disabled:opacity-50"
+							class="rounded bg-ink-900 px-4 py-2 text-sm text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 						>
 							{saving() ? "Saving..." : "Save"}
 						</button>

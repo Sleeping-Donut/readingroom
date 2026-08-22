@@ -45,7 +45,7 @@ function BookAction(props: {
 					onClick={props.onAdd}
 					disabled={props.adding}
 					class={[
-						"rounded bg-ink-900 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-ink-700 disabled:opacity-50",
+						"rounded bg-ink-900 px-3 py-1.5 text-xs font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50",
 						props.block ? "mt-2 w-full" : "shrink-0",
 					]}
 				>
@@ -91,7 +91,7 @@ function ReleaseRow(props: {
 			<button
 				onClick={props.onDownload}
 				disabled={props.downloading}
-				class="rounded bg-good px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+				class="rounded bg-good px-3 py-1.5 text-xs font-medium text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 			>
 				{props.downloading ? "..." : "Download"}
 			</button>

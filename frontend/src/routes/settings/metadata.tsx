@@ -316,7 +316,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 								<button
 									onClick={() => void save({ dump_url: dumpUrl() })}
 									disabled={saving() || dumpUrl() === data().dump_url}
-									class="rounded bg-ink-900 px-4 py-1.5 text-sm font-medium transition-colors hover:bg-ink-700 disabled:bg-paper-200"
+									class="rounded bg-ink-900 px-4 py-1.5 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:bg-paper-200"
 								>
 									Save
 								</button>
@@ -372,7 +372,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 							<button
 								onClick={() => void runUpload()}
 								disabled={uploading() || !file()}
-								class="rounded-lg bg-good px-4 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:bg-paper-200"
+								class="rounded-lg bg-good px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:opacity-90 disabled:bg-paper-200"
 							>
 								{uploading() ? "Uploading..." : "Upload & Import"}
 							</button>

@@ -218,14 +218,14 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 								<button
 									onClick={() => void runTestAll()}
 									disabled={isTestingAll()}
-									class="rounded bg-ink-900 px-3 py-1.5 text-sm transition-colors hover:bg-ink-900 disabled:opacity-50"
+									class="rounded bg-ink-900 px-3 py-1.5 text-sm text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 								>
 									{isTestingAll() ? "Testing All..." : "Test All"}
 								</button>
 							</Show>
 							<button
 								onClick={() => setShowAdd(!showAdd())}
-								class="rounded bg-ink-900 px-3 py-1.5 text-sm transition-colors hover:bg-ink-700"
+								class="rounded bg-ink-900 px-3 py-1.5 text-sm text-paper-50 transition-colors hover:bg-ink-700"
 							>
 								{showAdd() ? "Cancel" : "Add Client"}
 							</button>

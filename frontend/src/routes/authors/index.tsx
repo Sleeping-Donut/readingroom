@@ -159,7 +159,7 @@ export default function Authors(_props: RouteProps<typeof route>) {
 															})
 														}
 														disabled={addingId() === author.foreign_id}
-														class="rounded bg-ink-900 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-ink-700 disabled:opacity-50"
+														class="rounded bg-ink-900 px-3 py-1.5 text-xs font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 													>
 														{addingId() === author.foreign_id
 															? "Adding..."

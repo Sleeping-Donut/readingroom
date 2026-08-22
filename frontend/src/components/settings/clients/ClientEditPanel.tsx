@@ -24,7 +24,7 @@ export function ClientEditPanel(props: {
 				<button
 					onClick={props.onSave}
 					disabled={props.submitting || !props.valid}
-					class="rounded bg-good px-3 py-1.5 text-sm transition-colors hover:opacity-90 disabled:opacity-50"
+					class="rounded bg-good px-3 py-1.5 text-sm text-paper-50 transition-colors hover:opacity-90 disabled:opacity-50"
 				>
 					Save
 				</button>
