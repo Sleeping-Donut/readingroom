@@ -47,6 +47,21 @@ nix run .# -- --data-dir /tmp/readingroom-data --host 0.0.0.0 --port 8096
 Stop a running instance by sending `C-c` to the same pane. Watch startup with
 capture-pane until you see `Listening on http://0.0.0.0:8096`.
 
+### The cache DB rides inside the data dir
+
+There is no separate cache-db flag. The offline OpenLibrary cache lives at
+`<data-dir>/ol_dump.sqlite` (see `crates/server/src/local_cache.rs`), so
+pointing `--data-dir` at `/tmp/readingroom-data` picks up the existing cache
+DB (`ol_dump.sqlite` + `-wal`/`-shm`) and the Lua plugins dir
+(`<data-dir>/plugins/`) automatically.
+
+Cache-related flags when you need them:
+
+- `--import-dump <file.txt.gz>` — seed/rebuild the cache from a local OL dump
+  file instead of downloading (one-shot, exits after import)
+- `--backfill-fts` — rebuild offline-cache FTS indexes (one-time migration)
+- `--plugin-dir <dir>` — extra plugin dirs beyond `<data-dir>/plugins/`
+
 ## Probe
 
 From the **local machine**, base URL is `http://zwei.time-augmented.ts.net:8096`:
