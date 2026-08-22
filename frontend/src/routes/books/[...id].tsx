@@ -81,20 +81,20 @@ function EditionRow(props: {
 			.join(" · ");
 
 	return (
-		<div class="p-3 bg-gray-900 rounded-lg border-gray-800 space-y-3 border">
+		<div class="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-3">
 			<div class="min-w-0 flex-1">
-				<p class="font-medium truncate">{props.edition.title}</p>
+				<p class="truncate font-medium">{props.edition.title}</p>
 				<p class="text-xs text-gray-400">{meta()}</p>
 				<Show when={props.edition.isbn13}>
 					<p class="text-xs text-gray-500">ISBN: {props.edition.isbn13}</p>
 				</Show>
 			</div>
-			<div class="gap-2 flex items-center">
+			<div class="flex items-center gap-2">
 				<Show when={props.showAdd}>
 					<button
 						onClick={props.onAdd}
 						disabled={props.adding}
-						class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium shrink-0 transition-colors"
+						class="shrink-0 rounded bg-green-700 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
 					>
 						{props.adding ? "Adding..." : "Add"}
 					</button>
@@ -102,7 +102,7 @@ function EditionRow(props: {
 				<button
 					onClick={props.onInteractiveAdd}
 					disabled={props.searching}
-					class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium shrink-0 transition-colors"
+					class="shrink-0 rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
 				>
 					{props.searching ? "Searching..." : "Interactive Add"}
 				</button>
@@ -114,9 +114,9 @@ function EditionRow(props: {
 function InfoRow(props: { label: string; value?: string | number }) {
 	return (
 		<Show when={props.value}>
-			<div class="py-2 border-gray-800 flex justify-between border-b">
+			<div class="flex justify-between border-b border-gray-800 py-2">
 				<span class="text-xs text-gray-400">{props.label}</span>
-				<span class="text-sm text-right">{props.value}</span>
+				<span class="text-right text-sm">{props.value}</span>
 			</div>
 		</Show>
 	);
@@ -135,20 +135,20 @@ function ReleaseRow(props: {
 		props.result.release.seeders != null ? props.result.release.seeders : "—";
 
 	return (
-		<tr class="border-gray-800/50 hover:bg-gray-900/50 border-b">
+		<tr class="border-b border-gray-800/50 hover:bg-gray-900/50">
 			<td class="py-3 pr-4">
-				<p class="font-medium max-w-xs truncate">{props.result.release.title}</p>
+				<p class="max-w-xs truncate font-medium">{props.result.release.title}</p>
 			</td>
 			<td class="py-3 pr-4 text-gray-400">{props.result.release.indexer}</td>
-			<td class="py-3 pr-4 text-gray-400 whitespace-nowrap">{sizeMb()}</td>
-			<td class="py-3 pr-4 text-gray-400 whitespace-nowrap">{seeders()}</td>
+			<td class="py-3 pr-4 whitespace-nowrap text-gray-400">{sizeMb()}</td>
+			<td class="py-3 pr-4 whitespace-nowrap text-gray-400">{seeders()}</td>
 			<td class="py-3 pr-4 whitespace-nowrap">
-				<span class="px-2 py-0.5 bg-indigo-900/40 text-indigo-300 border-indigo-800 rounded text-xs font-semibold border">
+				<span class="rounded border border-indigo-800 bg-indigo-900/40 px-2 py-0.5 text-xs font-semibold text-indigo-300">
 					{props.result.score.toFixed(0)}
 				</span>
 			</td>
 			<td class="py-3 pr-4 whitespace-nowrap">
-				<span class="px-2 py-0.5 bg-gray-800 text-gray-300 border-gray-700 rounded text-xs border">
+				<span class="rounded border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-300">
 					{props.result.release.download_type}
 				</span>
 			</td>
@@ -156,7 +156,7 @@ function ReleaseRow(props: {
 				<button
 					onClick={props.onDownload}
 					disabled={props.downloading}
-					class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+					class="rounded bg-green-700 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
 				>
 					{props.downloading ? "..." : "Download"}
 				</button>
@@ -355,14 +355,14 @@ export default function BookDetail() {
 		<div>
 			<button
 				onClick={back}
-				class="text-sm text-indigo-400 hover:text-indigo-300 mb-4 inline-block"
+				class="mb-4 inline-block text-sm text-indigo-400 hover:text-indigo-300"
 			>
 				&larr; Back
 			</button>
 
 			<Show when={storedBook()}>
 				{(stored) => (
-					<div class="gap-3 mb-1 flex flex-wrap items-center">
+					<div class="mb-1 flex flex-wrap items-center gap-3">
 						<h2 class="text-3xl font-bold">{stored().title}</h2>
 						<StatusBadge status={stored().status} />
 						<Show when={stored().author_name}>
@@ -381,9 +381,9 @@ export default function BookDetail() {
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
@@ -391,18 +391,18 @@ export default function BookDetail() {
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
 					<Title>{book().title} · ReadingRoom</Title>
-					<div class="sm:flex-row gap-6 sm:gap-8 mt-4 flex flex-col">
+					<div class="mt-4 flex flex-col gap-6 sm:flex-row sm:gap-8">
 						<BookCover
 							src={book().image_url}
 							alt={book().title}
-							class="w-40 sm:w-48 rounded-lg shadow-lg aspect-[2/3] shrink-0 object-contain"
+							class="aspect-[2/3] w-40 shrink-0 rounded-lg object-contain shadow-lg sm:w-48"
 							emojiClass="text-5xl"
 						/>
 						<div class="min-w-0 flex-1">
-							<div class="gap-3 flex flex-wrap items-start justify-between">
+							<div class="flex flex-wrap items-start justify-between gap-3">
 								<Show when={!storedBook()}>
 									<div class="min-w-0">
-										<div class="gap-3 mb-1 flex flex-wrap items-center">
+										<div class="mb-1 flex flex-wrap items-center gap-3">
 											<h2 class="text-3xl font-bold">{book().title}</h2>
 											<StatusBadge status={book().status} />
 										</div>
@@ -418,12 +418,12 @@ export default function BookDetail() {
 										</Show>
 									</div>
 								</Show>
-								<div class="gap-2 flex flex-wrap items-center">
+								<div class="flex flex-wrap items-center gap-2">
 									<Show when={book().id > 0}>
 										<button
 											onClick={() => void autoSearch()}
 											disabled={autoSearching()}
-											class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+											class="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
 										>
 											{autoSearching() ? "Searching..." : "Automatic Search"}
 										</button>
@@ -432,10 +432,10 @@ export default function BookDetail() {
 											disabled={savingMonitored()}
 											title={monitored() ? "Unmonitored" : "Monitored"}
 											class={[
-												"w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+												"flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
 												monitored()
-													? "bg-green-700 hover:bg-green-600 text-white"
-													: "bg-gray-700 hover:bg-gray-600 text-gray-300",
+													? "bg-green-700 text-white hover:bg-green-600"
+													: "bg-gray-700 text-gray-300 hover:bg-gray-600",
 											]}
 										>
 											<svg
@@ -444,7 +444,7 @@ export default function BookDetail() {
 												fill={monitored() ? "currentColor" : "none"}
 												stroke="currentColor"
 												stroke-width="2"
-												class="w-5 h-5"
+												class="h-5 w-5"
 											>
 												<path
 													stroke-linecap="round"
@@ -460,11 +460,11 @@ export default function BookDetail() {
 									<button
 										onClick={openSearch}
 										disabled={searching()}
-										class="gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium flex items-center transition-colors"
+										class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
 									>
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
-											class="w-4 h-4"
+											class="h-4 w-4"
 											fill="none"
 											viewBox="0 0 24 24"
 											stroke="currentColor"
@@ -482,7 +482,7 @@ export default function BookDetail() {
 										<button
 											onClick={() => void addToLibrary()}
 											disabled={adding()}
-											class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+											class="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-green-600 disabled:bg-gray-600"
 										>
 											{adding() ? "Adding..." : "Add to Library"}
 										</button>
@@ -503,13 +503,13 @@ export default function BookDetail() {
 								<div
 									class={
 										showAllTags()
-											? "mt-4 gap-2 flex flex-wrap"
-											: "mt-4 gap-2 flex max-h-[2.5rem] flex-wrap overflow-hidden"
+											? "mt-4 flex flex-wrap gap-2"
+											: "mt-4 flex max-h-[2.5rem] flex-wrap gap-2 overflow-hidden"
 									}
 								>
 									<For each={book().genres}>
 										{(g) => (
-											<span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">
+											<span class="rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">
 												{g}
 											</span>
 										)}
@@ -518,7 +518,7 @@ export default function BookDetail() {
 								<Show when={book().genres.length > 6}>
 									<button
 										onClick={() => setShowAllTags((v) => !v)}
-										class="text-xs text-indigo-400 hover:text-indigo-300 mt-1"
+										class="mt-1 text-xs text-indigo-400 hover:text-indigo-300"
 									>
 										{showAllTags()
 											? "Show less"
@@ -528,7 +528,7 @@ export default function BookDetail() {
 							</Show>
 
 							<Show when={book().description}>
-								<p class="mt-4 text-gray-300 leading-relaxed">
+								<p class="mt-4 leading-relaxed text-gray-300">
 									{book().description}
 								</p>
 							</Show>
@@ -540,15 +540,15 @@ export default function BookDetail() {
 			<Errored fallback={null}>
 				<Loading fallback={null}>
 					<Show when={queueEntry() || (book().status === "have" && library())}>
-						<div class="mt-8 gap-6 max-w-3xl sm:grid-cols-2 grid">
+						<div class="mt-8 grid max-w-3xl gap-6 sm:grid-cols-2">
 							<Show when={queueEntry()}>
 								{(entry) => {
 									const size = () => entry().size ?? 0;
 									return (
 										<section>
-											<h3 class="text-xl font-bold mb-4">Download Status</h3>
-											<div class="p-4 bg-gray-900 rounded-lg border-gray-800 space-y-2 border">
-												<div class="gap-2 flex items-center justify-between">
+											<h3 class="mb-4 text-xl font-bold">Download Status</h3>
+											<div class="space-y-2 rounded-lg border border-gray-800 bg-gray-900 p-4">
+												<div class="flex items-center justify-between gap-2">
 													<span class="text-sm font-medium">
 														{QUEUE_LABELS[entry().status] ??
 															entry().status}
@@ -563,7 +563,7 @@ export default function BookDetail() {
 														entry().title !== book().title
 													}
 												>
-													<p class="text-xs text-gray-400 truncate">
+													<p class="truncate text-xs text-gray-400">
 														{entry().title}
 													</p>
 												</Show>
@@ -574,9 +574,9 @@ export default function BookDetail() {
 														entry().status === "seeding"
 													}
 												>
-													<div class="bg-gray-800 h-1.5 w-full rounded-full">
+													<div class="h-1.5 w-full rounded-full bg-gray-800">
 														<div
-															class="bg-indigo-500 h-1.5 rounded-full transition-all"
+															class="h-1.5 rounded-full bg-indigo-500 transition-all"
 															style={{
 																width: `${Math.round(entry().progress * 100)}%`,
 															}}
@@ -600,12 +600,12 @@ export default function BookDetail() {
 							<Show when={book().status === "have" && library()}>
 								{(lib) => (
 									<section>
-										<h3 class="text-xl font-bold mb-4">Files</h3>
-										<div class="p-4 bg-gray-900 rounded-lg border-gray-800 space-y-2 border">
+										<h3 class="mb-4 text-xl font-bold">Files</h3>
+										<div class="space-y-2 rounded-lg border border-gray-800 bg-gray-900 p-4">
 											<p class="text-sm font-medium text-green-400">
 												✓ Saved to library
 											</p>
-											<div class="gap-2 flex items-center justify-between">
+											<div class="flex items-center justify-between gap-2">
 												<span class="text-xs text-gray-400">Status</span>
 												<StatusBadge status={book().status} />
 											</div>
@@ -614,7 +614,7 @@ export default function BookDetail() {
 													<p class="text-xs text-gray-400">
 														Library location
 													</p>
-													<p class="text-xs font-mono text-gray-300 break-all">
+													<p class="font-mono text-xs break-all text-gray-300">
 														{lib().library.root_folder}
 													</p>
 												</div>
@@ -634,10 +634,10 @@ export default function BookDetail() {
 						{(list) => (
 							<Show when={list().editions.length > 0}>
 								<section class="mt-8 max-w-3xl">
-									<div class="gap-3 mb-4 flex flex-wrap items-center justify-between">
+									<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 										<div>
 											<h3 class="text-xl font-bold">Editions</h3>
-											<p class="text-xs text-gray-500 mt-0.5">
+											<p class="mt-0.5 text-xs text-gray-500">
 												{book().title}
 												<Show when={book().id === 0}>
 													{" · add a specific edition to your library"}
@@ -676,15 +676,15 @@ export default function BookDetail() {
 			</Errored>
 
 			<Show when={actionError()}>
-				<p class="text-sm text-red-400 mt-4">{actionError()}</p>
+				<p class="mt-4 text-sm text-red-400">{actionError()}</p>
 			</Show>
 
 			<Show when={searchOpen()}>
 				<section class="mt-8">
-					<div class="gap-3 mb-4 flex flex-wrap items-center justify-between">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<h3 class="text-xl font-bold">Interactive Search</h3>
-							<p class="text-xs text-gray-500 mt-0.5">
+							<p class="mt-0.5 text-xs text-gray-500">
 								{searchTitle() ?? book().title}
 								<Show when={indexerResults()}>
 									{(r) => ` · ${r().total} results`}
@@ -694,7 +694,7 @@ export default function BookDetail() {
 						<button
 							onClick={() => void indexerSearch()}
 							disabled={searching()}
-							class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-sm font-medium transition-colors"
+							class="rounded bg-indigo-700 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-indigo-600 disabled:bg-gray-600"
 						>
 							{searching() ? "Searching..." : "Search again"}
 						</button>
@@ -715,15 +715,15 @@ export default function BookDetail() {
 								fallback={<p class="text-sm text-gray-500">No releases found.</p>}
 							>
 								<div class="overflow-x-auto">
-									<table class="text-sm w-full">
+									<table class="w-full text-sm">
 										<thead>
-											<tr class="text-gray-400 border-gray-800 border-b text-left">
-												<th class="pb-3 pr-4">Title</th>
-												<th class="pb-3 pr-4">Indexer</th>
-												<th class="pb-3 pr-4">Size</th>
-												<th class="pb-3 pr-4">Seeders</th>
-												<th class="pb-3 pr-4">Score</th>
-												<th class="pb-3 pr-4">Type</th>
+											<tr class="border-b border-gray-800 text-left text-gray-400">
+												<th class="pr-4 pb-3">Title</th>
+												<th class="pr-4 pb-3">Indexer</th>
+												<th class="pr-4 pb-3">Size</th>
+												<th class="pr-4 pb-3">Seeders</th>
+												<th class="pr-4 pb-3">Score</th>
+												<th class="pr-4 pb-3">Type</th>
 												<th class="pb-3"></th>
 											</tr>
 										</thead>

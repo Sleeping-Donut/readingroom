@@ -14,19 +14,19 @@ function ParamField(props: {
 	return (
 		<Switch>
 			<Match when={props.p.type === "boolean"}>
-				<label class="gap-2 text-sm flex items-center">
+				<label class="flex items-center gap-2 text-sm">
 					<input
 						type="checkbox"
 						checked={Boolean(props.value)}
 						onChange={(e) => props.onValue(e.currentTarget.checked)}
-						class="rounded bg-gray-800 border-gray-700"
+						class="rounded border-gray-700 bg-gray-800"
 					/>
 					{props.p.label || props.p.name}
 				</label>
 			</Match>
 			<Match when={props.p.type !== "boolean"}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">
+					<label class="mb-1 block text-xs text-gray-400">
 						{props.p.label || props.p.name}
 						{props.p.required ? " *" : ""}
 					</label>
@@ -75,9 +75,9 @@ export function IndexerConfigFields(props: {
 	showPriority: boolean;
 }) {
 	return (
-		<div class="sm:grid-cols-2 gap-3 grid grid-cols-1">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			<div>
-				<label class="text-xs text-gray-400 mb-1 block">Name</label>
+				<label class="mb-1 block text-xs text-gray-400">Name</label>
 				<input
 					value={props.draft.name}
 					onInput={(e) =>
@@ -90,8 +90,8 @@ export function IndexerConfigFields(props: {
 				/>
 			</div>
 			<div>
-				<label class="text-xs text-gray-400 mb-1 block">Type</label>
-				<p class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm text-gray-300 border">
+				<label class="mb-1 block text-xs text-gray-400">Type</label>
+				<p class="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300">
 					{props.impl.label}
 				</p>
 				<p class="mt-1 text-xs text-gray-500">{props.impl.hint}</p>
@@ -111,7 +111,7 @@ export function IndexerConfigFields(props: {
 			</For>
 			<Show when={props.showPriority}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Priority</label>
+					<label class="mb-1 block text-xs text-gray-400">Priority</label>
 					<input
 						type="number"
 						value={props.draft.priority}
@@ -124,9 +124,9 @@ export function IndexerConfigFields(props: {
 					/>
 				</div>
 			</Show>
-			<div class="sm:col-span-2 gap-6 flex items-end">
+			<div class="flex items-end gap-6 sm:col-span-2">
 				<Show when={props.impl.supports_rss}>
-					<label class="gap-2 text-sm flex items-center">
+					<label class="flex items-center gap-2 text-sm">
 						<input
 							type="checkbox"
 							checked={props.draft.enable_rss}
@@ -135,13 +135,13 @@ export function IndexerConfigFields(props: {
 									d.enable_rss = e.currentTarget.checked;
 								})
 							}
-							class="rounded bg-gray-800 border-gray-700"
+							class="rounded border-gray-700 bg-gray-800"
 						/>
 						Enable RSS
 					</label>
 				</Show>
 				<Show when={props.impl.supports_search}>
-					<label class="gap-2 text-sm flex items-center">
+					<label class="flex items-center gap-2 text-sm">
 						<input
 							type="checkbox"
 							checked={props.draft.enable_search}
@@ -150,7 +150,7 @@ export function IndexerConfigFields(props: {
 									d.enable_search = e.currentTarget.checked;
 								})
 							}
-							class="rounded bg-gray-800 border-gray-700"
+							class="rounded border-gray-700 bg-gray-800"
 						/>
 						Enable Search
 					</label>

@@ -33,44 +33,44 @@ export default function Login() {
 	});
 
 	return (
-		<div class="bg-gray-950 flex min-h-screen items-center justify-center">
+		<div class="flex min-h-screen items-center justify-center bg-gray-950">
 			<Title>Sign In · ReadingRoom</Title>
-			<div class="max-w-sm w-full">
-				<h1 class="text-2xl font-bold text-indigo-400 mb-8 text-center">ReadingRoom</h1>
-				<form onSubmit={submit} class="bg-gray-900 rounded-lg p-6 space-y-4">
+			<div class="w-full max-w-sm">
+				<h1 class="mb-8 text-center text-2xl font-bold text-indigo-400">ReadingRoom</h1>
+				<form onSubmit={submit} class="space-y-4 rounded-lg bg-gray-900 p-6">
 					<h2 class="text-lg font-semibold text-gray-100">
 						{isRegister() ? "Create Account" : "Sign In"}
 					</h2>
 
 					<Show when={error()}>
-						<div class="bg-red-900/50 text-red-300 text-sm p-3 rounded border-red-800 border">
+						<div class="rounded border border-red-800 bg-red-900/50 p-3 text-sm text-red-300">
 							{error()}
 						</div>
 					</Show>
 
 					<div>
-						<label class="text-sm text-gray-400 mb-1 block">Username</label>
+						<label class="mb-1 block text-sm text-gray-400">Username</label>
 						<input
 							type="text"
 							value={username()}
 							onInput={(e) => {
 								setUsername(e.currentTarget.value);
 							}}
-							class="bg-gray-800 border-gray-700 rounded px-3 py-2 text-gray-100 focus:border-indigo-500 w-full border focus:outline-none"
+							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-gray-100 focus:border-indigo-500 focus:outline-hidden"
 							required
 							minlength={3}
 						/>
 					</div>
 
 					<div>
-						<label class="text-sm text-gray-400 mb-1 block">Password</label>
+						<label class="mb-1 block text-sm text-gray-400">Password</label>
 						<input
 							type="password"
 							value={password()}
 							onInput={(e) => {
 								setPassword(e.currentTarget.value);
 							}}
-							class="bg-gray-800 border-gray-700 rounded px-3 py-2 text-gray-100 focus:border-indigo-500 w-full border focus:outline-none"
+							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-gray-100 focus:border-indigo-500 focus:outline-hidden"
 							required
 							minlength={8}
 						/>
@@ -79,7 +79,7 @@ export default function Login() {
 					<button
 						type="submit"
 						disabled={loading()}
-						class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white font-medium py-2 rounded w-full transition-colors"
+						class="w-full rounded bg-indigo-600 py-2 font-medium text-white transition-colors hover:bg-indigo-500 disabled:bg-indigo-800"
 					>
 						{loading() ? "Loading..." : isRegister() ? "Register" : "Sign In"}
 					</button>
@@ -90,7 +90,7 @@ export default function Login() {
 							setIsRegister(!isRegister());
 							setError("");
 						}}
-						class="text-sm text-gray-500 hover:text-gray-300 w-full"
+						class="w-full text-sm text-gray-500 hover:text-gray-300"
 					>
 						{isRegister() ? "Already have an account? Sign in" : "No account? Register"}
 					</button>

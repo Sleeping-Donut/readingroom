@@ -18,11 +18,11 @@ export function BookCard(props: {
 		<BookCover
 			src={props.coverSrc}
 			alt={props.title}
-			class="rounded mb-3 aspect-[2/3] w-full"
+			class="mb-3 aspect-[2/3] w-full rounded"
 			emojiClass="text-3xl"
 		/>
 	);
-	const title = <p class="font-medium truncate">{props.title}</p>;
+	const title = <p class="truncate font-medium">{props.title}</p>;
 	const status = (
 		<div class="mt-2">
 			<StatusBadge status={props.status} />
@@ -33,29 +33,29 @@ export function BookCard(props: {
 		return (
 			<a
 				href={props.href}
-				class="p-3 bg-gray-900 rounded-lg border-gray-800 hover:border-indigo-600 block border transition-colors"
+				class="block rounded-lg border border-gray-800 bg-gray-900 p-3 transition-colors hover:border-indigo-600"
 			>
 				{cover}
 				{title}
-				<p class="text-xs text-gray-400 mt-0.5 truncate">{props.subtitle}</p>
+				<p class="mt-0.5 truncate text-xs text-gray-400">{props.subtitle}</p>
 				{status}
 				{props.footer}
 			</a>
 		);
 	}
 	return (
-		<div class="p-3 bg-gray-900 rounded-lg border-gray-800 block border transition-colors">
+		<div class="block rounded-lg border border-gray-800 bg-gray-900 p-3 transition-colors">
 			<Show when={props.href} fallback={cover}>
 				<a href={props.href} class="block">
 					{cover}
 				</a>
 			</Show>
 			<Show when={props.href} fallback={title}>
-				<a href={props.href} class="hover:text-indigo-300 block">
+				<a href={props.href} class="block hover:text-indigo-300">
 					{title}
 				</a>
 			</Show>
-			<p class="text-xs text-gray-400 mt-0.5 truncate">{props.subtitle}</p>
+			<p class="mt-0.5 truncate text-xs text-gray-400">{props.subtitle}</p>
 			{status}
 			{props.footer}
 		</div>

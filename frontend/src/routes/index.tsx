@@ -26,13 +26,13 @@ export default function Dashboard() {
 	return (
 		<div>
 			<Title>Dashboard · ReadingRoom</Title>
-			<h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+			<h2 class="mb-6 text-2xl font-bold">Dashboard</h2>
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
@@ -40,31 +40,31 @@ export default function Dashboard() {
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
 					<div>
-						<div class="sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 grid grid-cols-1">
+						<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 							<a
 								href={paths.authors}
-								class="p-4 bg-gray-900 rounded-lg border-gray-800 hover:border-indigo-600 block border transition-colors"
+								class="block rounded-lg border border-gray-800 bg-gray-900 p-4 transition-colors hover:border-indigo-600"
 							>
 								<p class="text-sm text-gray-400">Total Authors</p>
-								<p class="text-2xl font-bold mt-1">{stats().total_authors}</p>
+								<p class="mt-1 text-2xl font-bold">{stats().total_authors}</p>
 							</a>
 
 							<a
 								href={paths.books}
-								class="p-4 bg-gray-900 rounded-lg border-gray-800 hover:border-indigo-600 block border transition-colors"
+								class="block rounded-lg border border-gray-800 bg-gray-900 p-4 transition-colors hover:border-indigo-600"
 							>
 								<p class="text-sm text-gray-400">Total Books</p>
-								<p class="text-2xl font-bold mt-1">{stats().total_books}</p>
+								<p class="mt-1 text-2xl font-bold">{stats().total_books}</p>
 							</a>
 
 							<a
 								href={paths.wanted}
 								class={[
-									"p-4 rounded-lg block border transition-colors",
+									"block rounded-lg border p-4 transition-colors",
 									{
-										"bg-yellow-900/30 border-yellow-700 hover:border-yellow-500":
+										"border-yellow-700 bg-yellow-900/30 hover:border-yellow-500":
 											stats().wanted_books > 0,
-										"bg-gray-900 border-gray-800 hover:border-indigo-600":
+										"border-gray-800 bg-gray-900 hover:border-indigo-600":
 											stats().wanted_books <= 0,
 									},
 								]}
@@ -72,7 +72,7 @@ export default function Dashboard() {
 								<p class="text-sm text-gray-400">Wanted Books</p>
 								<p
 									class={[
-										"text-2xl font-bold mt-1",
+										"mt-1 text-2xl font-bold",
 										{ "text-yellow-400": stats().wanted_books > 0 },
 									]}
 								>
@@ -83,11 +83,11 @@ export default function Dashboard() {
 							<a
 								href={paths.queue}
 								class={[
-									"p-4 rounded-lg block border transition-colors",
+									"block rounded-lg border p-4 transition-colors",
 									{
-										"bg-blue-900/30 border-blue-700 hover:border-blue-500":
+										"border-blue-700 bg-blue-900/30 hover:border-blue-500":
 											stats().active_queue > 0,
-										"bg-gray-900 border-gray-800 hover:border-indigo-600":
+										"border-gray-800 bg-gray-900 hover:border-indigo-600":
 											stats().active_queue <= 0,
 									},
 								]}
@@ -95,7 +95,7 @@ export default function Dashboard() {
 								<p class="text-sm text-gray-400">Active Downloads</p>
 								<p
 									class={[
-										"text-2xl font-bold mt-1",
+										"mt-1 text-2xl font-bold",
 										{ "text-blue-400": stats().active_queue > 0 },
 									]}
 								>
@@ -104,9 +104,9 @@ export default function Dashboard() {
 							</a>
 						</div>
 
-						<div class="md:grid-cols-2 gap-4 mb-4 grid grid-cols-1">
-							<div class="p-4 bg-gray-900 rounded-lg border-gray-800 border">
-								<p class="text-sm text-gray-400 mb-3">Library</p>
+						<div class="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+							<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+								<p class="mb-3 text-sm text-gray-400">Library</p>
 								<div class="space-y-2">
 									<div class="flex justify-between">
 										<span class="text-gray-400">Total Files</span>
@@ -121,8 +121,8 @@ export default function Dashboard() {
 								</div>
 							</div>
 
-							<div class="p-4 bg-gray-900 rounded-lg border-gray-800 border">
-								<p class="text-sm text-gray-400 mb-3">System</p>
+							<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+								<p class="mb-3 text-sm text-gray-400">System</p>
 								<div class="space-y-2">
 									<div class="flex justify-between">
 										<span class="text-gray-400">Version</span>
@@ -146,38 +146,38 @@ export default function Dashboard() {
 							</div>
 						</div>
 
-						<div class="p-4 bg-gray-900 rounded-lg border-gray-800 border">
-							<h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+						<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+							<h3 class="mb-4 text-lg font-semibold">Recent Activity</h3>
 							<Show
 								when={stats().recent_history.length > 0}
 								fallback={
-									<p class="text-gray-500 text-sm py-4 text-center">
+									<p class="py-4 text-center text-sm text-gray-500">
 										No recent activity.
 									</p>
 								}
 							>
 								<div class="overflow-x-auto">
-									<table class="text-sm w-full">
+									<table class="w-full text-sm">
 										<thead>
-											<tr class="text-gray-400 border-gray-800 border-b text-left">
-												<th class="pb-3 pr-4">Event</th>
-												<th class="pb-3 pr-4">Title</th>
-												<th class="pb-3 pr-4">Date</th>
+											<tr class="border-b border-gray-800 text-left text-gray-400">
+												<th class="pr-4 pb-3">Event</th>
+												<th class="pr-4 pb-3">Title</th>
+												<th class="pr-4 pb-3">Date</th>
 											</tr>
 										</thead>
 										<tbody>
 											<For each={stats().recent_history}>
 												{(item) => (
-													<tr class="border-gray-800/50 hover:bg-gray-800/30 border-b">
+													<tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
 														<td class="py-3 pr-4">
-															<span class="text-xs font-medium px-2 py-0.5 rounded bg-gray-800 text-gray-300">
+															<span class="rounded bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-300">
 																{item.event_type}
 															</span>
 														</td>
-														<td class="py-3 pr-4 text-gray-200 max-w-xs truncate">
+														<td class="max-w-xs truncate py-3 pr-4 text-gray-200">
 															{item.source_title || "-"}
 														</td>
-														<td class="py-3 pr-4 text-gray-400 whitespace-nowrap">
+														<td class="py-3 pr-4 whitespace-nowrap text-gray-400">
 															{new Date(
 																item.date,
 															).toLocaleDateString()}

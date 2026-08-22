@@ -13,7 +13,7 @@ export function BookCover(props: {
 		<Show
 			when={props.src}
 			fallback={
-				<div class={["bg-gray-800 flex items-center justify-center", props.class]}>
+				<div class={["flex items-center justify-center bg-gray-800", props.class]}>
 					<span class={["text-gray-600", props.emojiClass ?? ""]}>📖</span>
 				</div>
 			}

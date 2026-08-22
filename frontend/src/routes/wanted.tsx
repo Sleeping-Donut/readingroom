@@ -56,21 +56,21 @@ export default function Wanted() {
 				<button
 					onClick={() => void searchAll()}
 					disabled={searchingAll()}
-					class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+					class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
 				>
 					{searchingAll() ? "Searching..." : "Search All"}
 				</button>
 			</div>
 
 			<Show when={actionError()}>
-				<p class="text-sm text-red-400 mb-4">{actionError()}</p>
+				<p class="mb-4 text-sm text-red-400">{actionError()}</p>
 			</Show>
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
@@ -78,43 +78,43 @@ export default function Wanted() {
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
 					<>
-						<span class="text-sm text-gray-400 mb-6 block">
+						<span class="mb-6 block text-sm text-gray-400">
 							{wanted().total} missing
 						</span>
 						<Show
 							when={wanted().books.length > 0}
 							fallback={
-								<div class="py-12 text-gray-500 text-center">
+								<div class="py-12 text-center text-gray-500">
 									<p class="text-lg">All monitored books have files.</p>
-									<p class="text-sm mt-2">No missing books to search for.</p>
+									<p class="mt-2 text-sm">No missing books to search for.</p>
 								</div>
 							}
 						>
-							<div class="sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 grid grid-cols-1">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 								<For each={wanted().books}>
 									{(book) => (
-										<div class="p-4 bg-gray-900 rounded-lg border-gray-800 group relative border">
-											<span class="top-2 right-2 text-xs font-medium px-2 py-0.5 rounded bg-yellow-700 text-yellow-200 absolute">
+										<div class="group relative rounded-lg border border-gray-800 bg-gray-900 p-4">
+											<span class="absolute top-2 right-2 rounded bg-yellow-700 px-2 py-0.5 text-xs font-medium text-yellow-200">
 												Wanted
 											</span>
 											<a
 												href={paths.books(bookId(book))}
-												class="hover:border-indigo-600 block transition-colors"
+												class="block transition-colors hover:border-indigo-600"
 											>
 												<Show when={book.image_url}>
 													{(img) => (
 														<img
 															src={img()}
 															alt={book.title}
-															class="h-48 rounded mb-3 w-full object-cover"
+															class="mb-3 h-48 w-full rounded object-cover"
 														/>
 													)}
 												</Show>
-												<p class="font-medium truncate">{book.title}</p>
+												<p class="truncate font-medium">{book.title}</p>
 												<div class="mt-1.5">
 													<StatusBadge status={book.status} />
 												</div>
-												<p class="text-xs text-gray-400 mt-1">
+												<p class="mt-1 text-xs text-gray-400">
 													{book.genres.length > 0
 														? book.genres.slice(0, 2).join(", ")
 														: "No genres"}
@@ -123,7 +123,7 @@ export default function Wanted() {
 											<button
 												onClick={() => void searchBook(book.id)}
 												disabled={searchingBookId() === book.id}
-												class="mt-3 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-700 rounded text-xs font-medium w-full transition-colors"
+												class="mt-3 w-full rounded bg-indigo-700 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-indigo-600 disabled:bg-gray-700"
 											>
 												{searchingBookId() === book.id
 													? "Searching..."

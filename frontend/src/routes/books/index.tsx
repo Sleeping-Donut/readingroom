@@ -76,13 +76,13 @@ export default function Books(_props: RouteProps<typeof route>) {
 	return (
 		<div>
 			<Title>Books · ReadingRoom</Title>
-			<div class="gap-3 mb-6 flex flex-wrap items-center justify-between">
+			<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
 				<h2 class="text-2xl font-bold">Books</h2>
-				<div class="gap-2 flex flex-wrap items-center">
+				<div class="flex flex-wrap items-center gap-2">
 					<ViewToggle view={view()} onChange={(v) => setView(v)} />
 					<button
 						onClick={() => setShowSearch(!showSearch())}
-						class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors"
+						class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500"
 					>
 						{showSearch() ? "Cancel" : "Add Book"}
 					</button>
@@ -90,55 +90,55 @@ export default function Books(_props: RouteProps<typeof route>) {
 			</div>
 
 			<Show when={showSearch()}>
-				<div class="mb-6 p-4 bg-gray-900 rounded-lg border-gray-800 border">
+				<div class="mb-6 rounded-lg border border-gray-800 bg-gray-900 p-4">
 					<input
 						type="text"
 						placeholder="Search for a book by title..."
 						value={searchQuery()}
 						onInput={(e) => setSearchQuery(e.currentTarget.value)}
-						class="px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-indigo-500 w-full border focus:border-transparent focus:ring-2 focus:outline-none"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-gray-100 placeholder-gray-500 focus:border-transparent focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
 						autofocus
 					/>
 
 					<Show when={searchQuery().trim()}>
 						<Errored
 							fallback={(err, reset) => (
-								<p class="text-sm text-red-400 mt-2">
+								<p class="mt-2 text-sm text-red-400">
 									Search failed: {String(err())}{" "}
 									<button
 										onClick={reset}
-										class="text-indigo-400 hover:text-indigo-300 ml-1 underline"
+										class="ml-1 text-indigo-400 underline hover:text-indigo-300"
 									>
 										Retry
 									</button>
 								</p>
 							)}
 						>
-							<Loading fallback={<p class="text-gray-500 text-sm">Searching...</p>}>
+							<Loading fallback={<p class="text-sm text-gray-500">Searching...</p>}>
 								<Show
 									when={searchResults().books.length > 0}
 									fallback={
-										<p class="mt-4 text-gray-500 text-sm">No books found.</p>
+										<p class="mt-4 text-sm text-gray-500">No books found.</p>
 									}
 								>
 									<div class="mt-4 space-y-2">
 										<For each={searchResults().books}>
 											{(book) => (
-												<div class="gap-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 flex items-center transition-colors">
+												<div class="hover:bg-gray-750 flex items-center gap-4 rounded-lg bg-gray-800 p-3 transition-colors">
 													<Show when={book.image_url}>
 														{(img) => (
 															<img
 																src={img()}
 																alt={book.title}
-																class="w-10 h-14 rounded object-cover"
+																class="h-14 w-10 rounded object-cover"
 															/>
 														)}
 													</Show>
 													<div class="min-w-0 flex-1">
-														<p class="font-medium truncate">
+														<p class="truncate font-medium">
 															{book.title}
 														</p>
-														<p class="text-xs text-gray-400 truncate">
+														<p class="truncate text-xs text-gray-400">
 															{book.publish_date &&
 																`${book.publish_date}`}
 															{book.genres.length > 0 &&
@@ -155,7 +155,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 															})
 														}
 														disabled={addingId() === book.foreign_id}
-														class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-xs font-medium transition-colors"
+														class="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
 													>
 														{addingId() === book.foreign_id
 															? "Adding..."
@@ -171,18 +171,18 @@ export default function Books(_props: RouteProps<typeof route>) {
 					</Show>
 
 					<Show when={actionError()}>
-						<p class="text-sm text-red-400 mt-2">{actionError()}</p>
+						<p class="mt-2 text-sm text-red-400">{actionError()}</p>
 					</Show>
 				</div>
 			</Show>
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load books: {String(err())}{" "}
 						<button
 							onClick={reset}
-							class="text-indigo-400 hover:text-indigo-300 ml-1 underline"
+							class="ml-1 text-indigo-400 underline hover:text-indigo-300"
 						>
 							Retry
 						</button>
@@ -196,15 +196,15 @@ export default function Books(_props: RouteProps<typeof route>) {
 							placeholder="Filter tracked books by title or author..."
 							value={filterQuery()}
 							onInput={(e) => setSearch({ q: e.currentTarget.value })}
-							class="sm:w-72 px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-indigo-500 w-full border focus:border-transparent focus:ring-2 focus:outline-none"
+							class="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-gray-100 placeholder-gray-500 focus:border-transparent focus:ring-2 focus:ring-indigo-500 focus:outline-hidden sm:w-72"
 						/>
 					</div>
 					<Show
 						when={books.books.length > 0}
 						fallback={
-							<div class="py-12 text-gray-500 text-center">
+							<div class="py-12 text-center text-gray-500">
 								<p class="text-lg">No books tracked yet.</p>
-								<p class="text-sm mt-2">
+								<p class="mt-2 text-sm">
 									Click "Add Book" to search and start tracking.
 								</p>
 							</div>
@@ -213,7 +213,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 						<Show
 							when={filteredBooks().length > 0}
 							fallback={
-								<div class="py-12 text-gray-500 text-center">
+								<div class="py-12 text-center text-gray-500">
 									<p class="text-lg">No books match your filter.</p>
 								</div>
 							}
@@ -237,7 +237,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 									</div>
 								}
 							>
-								<div class="sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 grid grid-cols-2">
+								<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
 									<For each={filteredBooks()}>
 										{(book) => (
 											<BookCard

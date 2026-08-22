@@ -47,13 +47,13 @@ export default function Queue() {
 	return (
 		<div>
 			<Title>Queue · ReadingRoom</Title>
-			<h2 class="text-2xl font-bold mb-6">Download Queue</h2>
+			<h2 class="mb-6 text-2xl font-bold">Download Queue</h2>
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
@@ -63,9 +63,9 @@ export default function Queue() {
 					<Show
 						when={queue.queue.length > 0}
 						fallback={
-							<div class="py-12 text-gray-500 text-center">
+							<div class="py-12 text-center text-gray-500">
 								<p class="text-lg">No active downloads.</p>
-								<p class="text-sm mt-2">
+								<p class="mt-2 text-sm">
 									Search for books and start a download to see it here.
 								</p>
 							</div>
@@ -76,7 +76,7 @@ export default function Queue() {
 								{(entry) => (
 									<div
 										class={[
-											"gap-4 p-4 bg-gray-900 rounded-lg flex items-center border transition-colors",
+											"flex items-center gap-4 rounded-lg border bg-gray-900 p-4 transition-colors",
 											{
 												"border-red-800": !!entry.error,
 												"border-gray-800": !entry.error,
@@ -84,8 +84,8 @@ export default function Queue() {
 										]}
 									>
 										<div class="min-w-0 flex-1">
-											<p class="font-medium truncate">{entry.title}</p>
-											<p class="text-xs text-gray-400 mt-1">
+											<p class="truncate font-medium">{entry.title}</p>
+											<p class="mt-1 text-xs text-gray-400">
 												{entry.download_client} &middot; {entry.status}
 												{entry.size
 													? ` \u00b7 ${(entry.size / 1_000_000).toFixed(1)} MB`
@@ -97,9 +97,9 @@ export default function Queue() {
 													entry.progress > 0
 												}
 											>
-												<div class="mt-2 bg-gray-800 h-1.5 w-full rounded-full">
+												<div class="mt-2 h-1.5 w-full rounded-full bg-gray-800">
 													<div
-														class="bg-indigo-500 h-1.5 rounded-full transition-all"
+														class="h-1.5 rounded-full bg-indigo-500 transition-all"
 														style={{
 															width: `${Math.round(entry.progress * 100)}%`,
 														}}
@@ -107,7 +107,7 @@ export default function Queue() {
 												</div>
 											</Show>
 											<Show when={entry.error}>
-												<p class="text-xs text-red-400 mt-1">
+												<p class="mt-1 text-xs text-red-400">
 													Failed to remove — click Retry
 												</p>
 											</Show>
@@ -125,7 +125,7 @@ export default function Queue() {
 											fallback={
 												<button
 													onClick={() => void remove(entry)}
-													class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+													class="rounded bg-red-700 px-2 py-1 text-xs transition-colors hover:bg-red-600"
 												>
 													Remove
 												</button>
@@ -134,7 +134,7 @@ export default function Queue() {
 											<button
 												onClick={() => void retryRemove(entry.id)}
 												disabled={entry.pending}
-												class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs disabled:bg-gray-700 transition-colors"
+												class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600 disabled:bg-gray-700"
 											>
 												{entry.pending ? "Retrying..." : "Retry"}
 											</button>

@@ -59,27 +59,27 @@ export default function NotificationsTab(_props: RouteProps<typeof route>) {
 			<Title>Notifications · Settings · ReadingRoom</Title>
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
-					<div class="gap-2 mb-4 flex flex-wrap items-center justify-between">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 						<h3 class="text-lg font-semibold">Notifications</h3>
 						<button
 							onClick={() => setShowAdd(!showAdd())}
-							class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition-colors"
+							class="rounded bg-indigo-600 px-3 py-1.5 text-sm transition-colors hover:bg-indigo-500"
 						>
 							{showAdd() ? "Cancel" : "Add Notification"}
 						</button>
 					</div>
 
 					<Show when={actionError()}>
-						<p class="text-sm text-red-400 mt-2">{actionError()}</p>
+						<p class="mt-2 text-sm text-red-400">{actionError()}</p>
 					</Show>
 
 					<Show when={showAdd()}>
@@ -95,7 +95,7 @@ export default function NotificationsTab(_props: RouteProps<typeof route>) {
 
 					<Show
 						when={notifications.notifications.length > 0}
-						fallback={<p class="text-gray-500 text-sm">No notifications configured.</p>}
+						fallback={<p class="text-sm text-gray-500">No notifications configured.</p>}
 					>
 						<div class="space-y-2">
 							<For each={notifications.notifications}>

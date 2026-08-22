@@ -31,13 +31,13 @@ function App() {
 	return (
 		<Errored
 			fallback={(err, reset) => (
-				<div class="bg-gray-950 text-gray-100 flex min-h-screen items-center justify-center">
-					<div class="max-w-md p-6 bg-gray-900 rounded-lg border-red-800 border text-center">
-						<p class="text-lg font-semibold text-red-400 mb-2">Something went wrong</p>
-						<p class="text-sm text-gray-400 mb-4 break-words">{String(err())}</p>
+				<div class="flex min-h-screen items-center justify-center bg-gray-950 text-gray-100">
+					<div class="max-w-md rounded-lg border border-red-800 bg-gray-900 p-6 text-center">
+						<p class="mb-2 text-lg font-semibold text-red-400">Something went wrong</p>
+						<p class="mb-4 text-sm break-words text-gray-400">{String(err())}</p>
 						<button
 							onClick={reset}
-							class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors"
+							class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500"
 						>
 							Reset
 						</button>

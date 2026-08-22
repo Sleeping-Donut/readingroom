@@ -19,13 +19,13 @@ export function ClientCard(props: {
 	return (
 		<div
 			class={[
-				"sm:flex-row sm:items-center gap-3 p-3 bg-gray-900 rounded-lg flex flex-col border transition-colors",
+				"flex flex-col gap-3 rounded-lg border bg-gray-900 p-3 transition-colors sm:flex-row sm:items-center",
 				{ "border-red-800": !!props.client.error, "border-gray-800": !props.client.error },
 			]}
 		>
 			<StatusDot status={props.client.test?.status ?? "idle"} />
 			<div class="min-w-0 flex-1">
-				<p class="font-medium truncate">
+				<p class="truncate font-medium">
 					<span class={props.client.enabled ? "" : "text-gray-500"}>
 						{props.client.name}
 					</span>
@@ -50,12 +50,12 @@ export function ClientCard(props: {
 					<Show when={props.client.test}>
 						<Switch>
 							<Match when={props.client.test?.status === "success"}>
-								<span class="ml-1.5 text-xs bg-green-900/40 text-green-400 border-green-800 rounded px-1.5 py-0.5 border">
+								<span class="ml-1.5 rounded border border-green-800 bg-green-900/40 px-1.5 py-0.5 text-xs text-green-400">
 									Connected
 								</span>
 							</Match>
 							<Match when={props.client.test?.status === "error"}>
-								<span class="ml-1.5 text-xs bg-red-900/40 text-red-400 border-red-800 rounded px-1.5 py-0.5 border">
+								<span class="ml-1.5 rounded border border-red-800 bg-red-900/40 px-1.5 py-0.5 text-xs text-red-400">
 									Disconnected
 								</span>
 							</Match>
@@ -63,7 +63,7 @@ export function ClientCard(props: {
 					</Show>
 				</p>
 				<Show when={props.client.test?.status === "success"}>
-					<p class="text-xs text-green-400 mt-1">
+					<p class="mt-1 text-xs text-green-400">
 						✓ Connected
 						<Show when={props.client.test?.version}>
 							{" "}
@@ -76,17 +76,17 @@ export function ClientCard(props: {
 					</p>
 				</Show>
 				<Show when={props.client.test?.status === "error"}>
-					<p class="text-xs text-red-400 mt-1">✗ {props.client.test?.message}</p>
+					<p class="mt-1 text-xs text-red-400">✗ {props.client.test?.message}</p>
 				</Show>
 				<Show when={props.client.error}>
-					<p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
+					<p class="mt-1 text-xs text-red-400">Failed to remove — click Retry</p>
 				</Show>
 			</div>
-			<div class="gap-2 flex shrink-0 flex-wrap">
+			<div class="flex shrink-0 flex-wrap gap-2">
 				<button
 					onClick={() => props.onToggleEnabled(!props.client.enabled)}
 					class={[
-						"px-2 py-1 rounded text-xs transition-colors",
+						"rounded px-2 py-1 text-xs transition-colors",
 						props.client.enabled
 							? "bg-green-700 hover:bg-green-600"
 							: "bg-gray-700 hover:bg-gray-600",
@@ -96,14 +96,14 @@ export function ClientCard(props: {
 				</button>
 				<button
 					onClick={props.onEdit}
-					class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
+					class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600"
 				>
 					Edit
 				</button>
 				<button
 					onClick={props.onTest}
 					disabled={props.client.test?.status === "testing"}
-					class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
+					class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600"
 				>
 					{props.client.test?.status === "testing" ? "Testing..." : "Test"}
 				</button>
@@ -112,7 +112,7 @@ export function ClientCard(props: {
 					fallback={
 						<button
 							onClick={props.onRemove}
-							class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+							class="rounded bg-red-700 px-2 py-1 text-xs transition-colors hover:bg-red-600"
 						>
 							Remove
 						</button>
@@ -121,7 +121,7 @@ export function ClientCard(props: {
 					<button
 						onClick={props.onRetry}
 						disabled={props.client.pending}
-						class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs disabled:bg-gray-700 transition-colors"
+						class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600 disabled:bg-gray-700"
 					>
 						{props.client.pending ? "Retrying..." : "Retry"}
 					</button>

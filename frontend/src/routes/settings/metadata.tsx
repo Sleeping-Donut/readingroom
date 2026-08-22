@@ -74,18 +74,18 @@ function StatusCard(props: {
 		liveFailed() ? state() : (props.meta?.last_error ?? "Import failed");
 
 	return (
-		<div class="bg-gray-900 rounded-lg border-gray-800 p-4 border">
+		<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
 			<div class="mb-3 flex items-center justify-between">
 				<h4 class="font-semibold text-gray-200">Local dump cache</h4>
-				<span class={["px-2 py-1 rounded text-xs font-medium", badgeClass()]}>
+				<span class={["rounded px-2 py-1 text-xs font-medium", badgeClass()]}>
 					{label()}
 				</span>
 			</div>
 
 			<Show when={failed()}>
-				<p class="text-sm text-red-400 mb-2 break-all">{errorMessage()}</p>
+				<p class="mb-2 text-sm break-all text-red-400">{errorMessage()}</p>
 				<Show when={persistedFailed() && props.meta?.last_attempt}>
-					<p class="text-xs text-gray-500 mb-2">
+					<p class="mb-2 text-xs text-gray-500">
 						Last attempt: {fmtDate(props.meta?.last_attempt ?? null)}
 					</p>
 				</Show>
@@ -93,7 +93,7 @@ function StatusCard(props: {
 
 			<Show when={running()}>
 				<div class="mb-3">
-					<div class="text-xs text-gray-400 mb-1 flex justify-between">
+					<div class="mb-1 flex justify-between text-xs text-gray-400">
 						<span>
 							{fmtBytes(phaseBytes())}
 							{props.status.total_bytes
@@ -104,30 +104,30 @@ function StatusCard(props: {
 							<span>{props.status.rows.toLocaleString()} rows</span>
 						</Show>
 					</div>
-					<div class="bg-gray-800 rounded h-2 w-full">
+					<div class="h-2 w-full rounded bg-gray-800">
 						<div
-							class="bg-indigo-500 h-2 rounded transition-all"
+							class="h-2 rounded bg-indigo-500 transition-all"
 							style={{ width: `${pct()}%` }}
 						/>
 					</div>
 				</div>
 			</Show>
 
-			<dl class="sm:grid-cols-4 gap-3 text-sm grid grid-cols-2">
+			<dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
 				<div>
-					<dt class="text-gray-500 text-xs">Works</dt>
+					<dt class="text-xs text-gray-500">Works</dt>
 					<dd class="font-medium">{(props.counts?.works ?? 0).toLocaleString()}</dd>
 				</div>
 				<div>
-					<dt class="text-gray-500 text-xs">Editions</dt>
+					<dt class="text-xs text-gray-500">Editions</dt>
 					<dd class="font-medium">{(props.counts?.editions ?? 0).toLocaleString()}</dd>
 				</div>
 				<div>
-					<dt class="text-gray-500 text-xs">Authors</dt>
+					<dt class="text-xs text-gray-500">Authors</dt>
 					<dd class="font-medium">{(props.counts?.authors ?? 0).toLocaleString()}</dd>
 				</div>
 				<div>
-					<dt class="text-gray-500 text-xs">Redirects</dt>
+					<dt class="text-xs text-gray-500">Redirects</dt>
 					<dd class="font-medium">{(props.counts?.redirects ?? 0).toLocaleString()}</dd>
 				</div>
 			</dl>
@@ -243,24 +243,24 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 				fallback={(err, reset) => (
 					<p class="text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
-					<div class="bg-gray-900 rounded-lg border-gray-800 p-4 border">
-						<h4 class="font-semibold text-gray-200 mb-1">Metadata source</h4>
-						<p class="text-sm text-gray-500 mb-4">
+					<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+						<h4 class="mb-1 font-semibold text-gray-200">Metadata source</h4>
+						<p class="mb-4 text-sm text-gray-500">
 							Use the OpenLibrary website API, or a local offline cache built from the
 							full <code class="text-gray-400">ol_dump_all_latest.txt.gz</code> dump
 							(~12 GB compressed). Enabling the local cache downloads and imports the
 							dump in the background.
 						</p>
 
-						<div class="sm:flex-row gap-6 flex flex-col">
-							<label class="gap-3 flex items-center">
+						<div class="flex flex-col gap-6 sm:flex-row">
+							<label class="flex items-center gap-3">
 								<input
 									type="checkbox"
 									checked={data().mode === "offline"}
@@ -270,11 +270,11 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 										})
 									}
 									disabled={saving()}
-									class="w-4 h-4 rounded"
+									class="h-4 w-4 rounded"
 								/>
 								<span class="text-sm">
 									Local cache (offline) metadata source
-									<span class="text-xs text-gray-500 block">
+									<span class="block text-xs text-gray-500">
 										{data().mode === "offline"
 											? "Disabled the online API; uses the dump cache."
 											: "Uses the online OpenLibrary API."}
@@ -282,7 +282,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 								</span>
 							</label>
 
-							<label class="gap-3 flex items-center">
+							<label class="flex items-center gap-3">
 								<input
 									type="checkbox"
 									checked={data().auto_update}
@@ -290,11 +290,11 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 										void save({ auto_update: e.currentTarget.checked })
 									}
 									disabled={saving()}
-									class="w-4 h-4 rounded"
+									class="h-4 w-4 rounded"
 								/>
 								<span class="text-sm">
 									Check periodically for a newer dump
-									<span class="text-xs text-gray-500 block">
+									<span class="block text-xs text-gray-500">
 										Re-imports automatically when a new dump is published.
 									</span>
 								</span>
@@ -302,22 +302,22 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 						</div>
 
 						<div class="mt-4">
-							<label for="metadata-dump-url" class="text-sm text-gray-400 mb-1 block">
+							<label for="metadata-dump-url" class="mb-1 block text-sm text-gray-400">
 								Dump URL
 							</label>
-							<div class="sm:flex-row gap-2 flex flex-col">
+							<div class="flex flex-col gap-2 sm:flex-row">
 								<input
 									id="metadata-dump-url"
 									name="dump_url"
 									type="text"
 									value={dumpUrl()}
 									onInput={(e) => setDumpUrl(e.currentTarget.value)}
-									class="px-3 py-1.5 bg-gray-800 border-gray-700 rounded text-sm text-gray-200 focus:border-indigo-500 flex-1 border focus:outline-none"
+									class="flex-1 rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 focus:border-indigo-500 focus:outline-hidden"
 								/>
 								<button
 									onClick={() => void save({ dump_url: dumpUrl() })}
 									disabled={saving() || dumpUrl() === data().dump_url}
-									class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 rounded text-sm font-medium transition-colors"
+									class="rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-700"
 								>
 									Save
 								</button>
@@ -339,41 +339,41 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 						<p class="text-sm text-gray-400">{notice()}</p>
 					</Show>
 
-					<div class="gap-3 flex">
+					<div class="flex gap-3">
 						<button
 							onClick={() => void runDownload()}
 							disabled={saving()}
-							class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+							class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500 disabled:bg-gray-700"
 						>
 							Download / Re-import now
 						</button>
 						<button
 							onClick={() => void runCheck()}
 							disabled={saving()}
-							class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 rounded-lg text-sm font-medium transition-colors"
+							class="rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-600 disabled:bg-gray-800"
 						>
 							Check for updates
 						</button>
 					</div>
 
-					<div class="bg-gray-900 rounded-lg border-gray-800 p-4 border">
-						<h4 class="font-semibold text-gray-200 mb-1">Upload dump file</h4>
-						<p class="text-sm text-gray-500 mb-3">
+					<div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+						<h4 class="mb-1 font-semibold text-gray-200">Upload dump file</h4>
+						<p class="mb-3 text-sm text-gray-500">
 							Download the dump yourself (e.g.{" "}
 							<code class="text-gray-400">ol_dump_latest.txt.gz</code>) and upload it
 							here to build the local cache. Import runs in the background.
 						</p>
-						<div class="sm:flex-row gap-2 flex flex-col">
+						<div class="flex flex-col gap-2 sm:flex-row">
 							<input
 								type="file"
 								accept=".gz,application/gzip"
 								onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)}
-								class="text-sm text-gray-300 file:mr-3 file:px-3 file:py-1.5 file:bg-gray-800 file:border-gray-700 file:rounded file:text-gray-200 flex-1 file:border"
+								class="flex-1 text-sm text-gray-300 file:mr-3 file:rounded file:border file:border-gray-700 file:bg-gray-800 file:px-3 file:py-1.5 file:text-gray-200"
 							/>
 							<button
 								onClick={() => void runUpload()}
 								disabled={uploading() || !file()}
-								class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+								class="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-green-600 disabled:bg-gray-700"
 							>
 								{uploading() ? "Uploading..." : "Upload & Import"}
 							</button>

@@ -181,23 +181,23 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 			<Title>Indexers · Settings · ReadingRoom</Title>
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
-					<div class="gap-2 mb-4 flex flex-wrap items-center justify-between">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 						<h3 class="text-lg font-semibold">Indexers</h3>
-						<div class="gap-2 flex">
+						<div class="flex gap-2">
 							<Show when={indexers.indexers.length > 0}>
 								<button
 									onClick={() => void runTestAll()}
 									disabled={isTestingAll()}
-									class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+									class="rounded bg-indigo-700 px-3 py-1.5 text-sm transition-colors hover:bg-indigo-600 disabled:bg-gray-600"
 								>
 									{isTestingAll() ? "Testing All..." : "Test All"}
 								</button>
@@ -206,7 +206,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 								onClick={() =>
 									setAddStep(addStep() === "closed" ? "pick" : "closed")
 								}
-								class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition-colors"
+								class="rounded bg-indigo-600 px-3 py-1.5 text-sm transition-colors hover:bg-indigo-500"
 							>
 								{addStep() !== "closed" ? "Cancel" : "Add Indexer"}
 							</button>
@@ -214,11 +214,11 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 					</div>
 
 					<Show when={actionError()}>
-						<p class="text-sm text-red-400 mt-2">{actionError()}</p>
+						<p class="mt-2 text-sm text-red-400">{actionError()}</p>
 					</Show>
 
 					<Show when={addStep() !== "closed"}>
-						<div class="mb-4 p-4 bg-gray-900 rounded-lg border-gray-800 border">
+						<div class="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
 							<Show
 								when={addStep() === "configure"}
 								fallback={
@@ -238,23 +238,23 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 									setDraft={setDraft}
 									showPriority={false}
 								/>
-								<div class="gap-3 mt-4 flex items-center">
+								<div class="mt-4 flex items-center gap-3">
 									<button
 										onClick={() => setAddStep("pick")}
-										class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+										class="rounded bg-gray-700 px-4 py-2 text-sm transition-colors hover:bg-gray-600"
 									>
 										Back
 									</button>
 									<button
 										onClick={() => void submitAdd()}
 										disabled={submitting() || !addValid()}
-										class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+										class="rounded bg-green-700 px-4 py-2 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
 									>
 										Save
 									</button>
 									<button
 										onClick={() => setAddStep("closed")}
-										class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+										class="rounded bg-gray-700 px-4 py-2 text-sm transition-colors hover:bg-gray-600"
 									>
 										Cancel
 									</button>
@@ -265,7 +265,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 
 					<Show
 						when={indexers.indexers.length > 0}
-						fallback={<p class="text-gray-500 text-sm">No indexers configured.</p>}
+						fallback={<p class="text-sm text-gray-500">No indexers configured.</p>}
 					>
 						<div class="space-y-2">
 							<For each={indexers.indexers}>

@@ -40,7 +40,7 @@ export function ViewToggle(props: { view: ViewMode; onChange: (view: ViewMode) =
 		<button
 			onClick={() => props.onChange(mode)}
 			class={[
-				"px-2.5 py-1.5 rounded text-xs font-medium transition-colors",
+				"rounded px-2.5 py-1.5 text-xs font-medium transition-colors",
 				props.view === mode
 					? "bg-indigo-600 text-white"
 					: "bg-gray-800 text-gray-400 hover:text-gray-200",
@@ -51,7 +51,7 @@ export function ViewToggle(props: { view: ViewMode; onChange: (view: ViewMode) =
 	);
 
 	return (
-		<div class="gap-1 bg-gray-900 border-gray-800 rounded-lg p-1 flex border">
+		<div class="flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">
 			{button("grid", "Grid")}
 			{button("list", "List")}
 		</div>

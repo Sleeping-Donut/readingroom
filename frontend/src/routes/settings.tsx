@@ -35,9 +35,9 @@ export default function SettingsLayout(props: RouteProps<typeof route>) {
 	return (
 		<div>
 			<Title>Settings · ReadingRoom</Title>
-			<h2 class="text-2xl font-bold mb-6">Settings</h2>
+			<h2 class="mb-6 text-2xl font-bold">Settings</h2>
 
-			<div class="gap-3 mb-6 border-gray-800 pb-4 flex flex-wrap border-b">
+			<div class="mb-6 flex flex-wrap gap-3 border-b border-gray-800 pb-4">
 				<For each={TABS}>
 					{(tab) => {
 						const isActive = () => activeSlug() === tab.slug;
@@ -47,7 +47,7 @@ export default function SettingsLayout(props: RouteProps<typeof route>) {
 								href={tab.href()}
 								aria-current={isActive() ? "page" : undefined}
 								class={[
-									"px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+									"rounded-lg px-4 py-2 text-sm font-medium transition-colors",
 									isActive()
 										? "bg-indigo-600 text-white"
 										: "text-gray-400 hover:text-gray-200",

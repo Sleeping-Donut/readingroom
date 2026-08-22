@@ -202,30 +202,30 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 			<Title>Download Clients · Settings · ReadingRoom</Title>
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
-					<div class="gap-2 mb-4 flex flex-wrap items-center justify-between">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 						<h3 class="text-lg font-semibold">Download Clients</h3>
-						<div class="gap-2 flex">
+						<div class="flex gap-2">
 							<Show when={configurableClients().length > 0}>
 								<button
 									onClick={() => void runTestAll()}
 									disabled={isTestingAll()}
-									class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+									class="rounded bg-indigo-700 px-3 py-1.5 text-sm transition-colors hover:bg-indigo-600 disabled:bg-gray-600"
 								>
 									{isTestingAll() ? "Testing All..." : "Test All"}
 								</button>
 							</Show>
 							<button
 								onClick={() => setShowAdd(!showAdd())}
-								class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition-colors"
+								class="rounded bg-indigo-600 px-3 py-1.5 text-sm transition-colors hover:bg-indigo-500"
 							>
 								{showAdd() ? "Cancel" : "Add Client"}
 							</button>
@@ -233,7 +233,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 					</div>
 
 					<Show when={actionError()}>
-						<p class="text-sm text-red-400 mt-2">{actionError()}</p>
+						<p class="mt-2 text-sm text-red-400">{actionError()}</p>
 					</Show>
 
 					<BuiltinClientPanel
@@ -260,7 +260,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 					<Show
 						when={configurableClients().length > 0}
 						fallback={
-							<p class="text-gray-500 text-sm">No download clients configured.</p>
+							<p class="text-sm text-gray-500">No download clients configured.</p>
 						}
 					>
 						<div class="space-y-2">

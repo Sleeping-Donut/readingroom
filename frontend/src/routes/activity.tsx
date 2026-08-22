@@ -16,13 +16,13 @@ export default function Activity() {
 	return (
 		<div>
 			<Title>Activity · ReadingRoom</Title>
-			<h2 class="text-2xl font-bold mb-6">Activity</h2>
+			<h2 class="mb-6 text-2xl font-bold">Activity</h2>
 
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
@@ -32,34 +32,34 @@ export default function Activity() {
 					<Show
 						when={history().history.length > 0}
 						fallback={
-							<div class="py-12 text-gray-500 text-center">
+							<div class="py-12 text-center text-gray-500">
 								<p class="text-lg">No history yet.</p>
-								<p class="text-sm mt-2">
+								<p class="mt-2 text-sm">
 									Download and import activity will appear here.
 								</p>
 							</div>
 						}
 					>
 						<div class="overflow-x-auto">
-							<table class="text-sm w-full">
+							<table class="w-full text-sm">
 								<thead>
-									<tr class="text-gray-400 border-gray-800 border-b text-left">
-										<th class="pb-3 pr-4">Event</th>
-										<th class="pb-3 pr-4">Title</th>
-										<th class="pb-3 pr-4">Details</th>
-										<th class="pb-3 pr-4">Date</th>
+									<tr class="border-b border-gray-800 text-left text-gray-400">
+										<th class="pr-4 pb-3">Event</th>
+										<th class="pr-4 pb-3">Title</th>
+										<th class="pr-4 pb-3">Details</th>
+										<th class="pr-4 pb-3">Date</th>
 									</tr>
 								</thead>
 								<tbody>
 									<For each={history().history}>
 										{(item) => (
-											<tr class="border-gray-800/50 hover:bg-gray-900/50 border-b">
+											<tr class="border-b border-gray-800/50 hover:bg-gray-900/50">
 												<td class="py-3 pr-4">
-													<span class="text-xs font-medium px-2 py-0.5 rounded bg-gray-800 text-gray-300">
+													<span class="rounded bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-300">
 														{item.event_type}
 													</span>
 												</td>
-												<td class="py-3 pr-4 text-gray-200 max-w-xs truncate">
+												<td class="max-w-xs truncate py-3 pr-4 text-gray-200">
 													{item.source_title || "-"}
 												</td>
 												<td class="py-3 pr-4 text-gray-400">
@@ -79,7 +79,7 @@ export default function Activity() {
 														</span>
 													</Show>
 												</td>
-												<td class="py-3 pr-4 text-gray-400 whitespace-nowrap">
+												<td class="py-3 pr-4 whitespace-nowrap text-gray-400">
 													{new Date(item.date).toLocaleDateString()}
 												</td>
 											</tr>

@@ -20,7 +20,7 @@ export function StatusBadge(props: { status?: string }) {
 	return (
 		<Show when={entry()}>
 			{(s) => (
-				<span class={["px-2 py-0.5 rounded text-xs font-medium inline-block", s().class]}>
+				<span class={["inline-block rounded px-2 py-0.5 text-xs font-medium", s().class]}>
 					{s().label}
 				</span>
 			)}

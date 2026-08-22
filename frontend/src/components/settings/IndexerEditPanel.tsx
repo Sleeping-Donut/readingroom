@@ -22,24 +22,24 @@ export function IndexerEditPanel(props: {
 	onSave: () => void;
 }) {
 	return (
-		<div class="p-3 bg-gray-900 rounded-lg border-gray-800 border">
+		<div class="rounded-lg border border-gray-800 bg-gray-900 p-3">
 			<IndexerConfigFields
 				impl={props.impl}
 				draft={props.draft}
 				setDraft={props.setDraft}
 				showPriority={props.showPriority ?? false}
 			/>
-			<div class="gap-2 mt-3 flex justify-end">
+			<div class="mt-3 flex justify-end gap-2">
 				<button
 					onClick={props.onCancel}
-					class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+					class="rounded bg-gray-700 px-3 py-1.5 text-sm transition-colors hover:bg-gray-600"
 				>
 					Cancel
 				</button>
 				<button
 					onClick={props.onSave}
 					disabled={props.submitting || !props.valid}
-					class="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+					class="rounded bg-green-700 px-3 py-1.5 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
 				>
 					Save
 				</button>

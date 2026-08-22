@@ -18,21 +18,21 @@ export function BuiltinClientPanel(props: {
 	onTest: () => void;
 }) {
 	return (
-		<div class="mb-4 p-4 bg-gray-900 rounded-lg border-gray-800 border">
-			<div class="gap-2 mb-3 flex flex-wrap items-center justify-between">
-				<div class="gap-2 flex items-center">
+		<div class="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+				<div class="flex items-center gap-2">
 					<StatusDot status={props.result?.status ?? "idle"} />
 					<h4 class="font-medium">HTTP (Direct)</h4>
-					<span class="text-xs bg-gray-800 text-gray-400 border-gray-700 rounded px-1.5 py-0.5 border">
+					<span class="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
 						Built-in
 					</span>
 					<Show when={props.result?.status === "success"}>
-						<span class="text-xs bg-green-900/40 text-green-400 border-green-800 rounded px-1.5 py-0.5 border">
+						<span class="rounded border border-green-800 bg-green-900/40 px-1.5 py-0.5 text-xs text-green-400">
 							Connected
 						</span>
 					</Show>
 					<Show when={props.result?.status === "error"}>
-						<span class="text-xs bg-red-900/40 text-red-400 border-red-800 rounded px-1.5 py-0.5 border">
+						<span class="rounded border border-red-800 bg-red-900/40 px-1.5 py-0.5 text-xs text-red-400">
 							Disconnected
 						</span>
 					</Show>
@@ -40,7 +40,7 @@ export function BuiltinClientPanel(props: {
 				<button
 					onClick={() => props.onToggleEnabled(!props.form.enabled)}
 					class={[
-						"px-3 py-1.5 rounded text-sm transition-colors",
+						"rounded px-3 py-1.5 text-sm transition-colors",
 						props.form.enabled
 							? "bg-green-700 hover:bg-green-600"
 							: "bg-gray-700 hover:bg-gray-600",
@@ -49,9 +49,9 @@ export function BuiltinClientPanel(props: {
 					{props.form.enabled ? "Enabled" : "Disabled"}
 				</button>
 			</div>
-			<div class="sm:grid-cols-3 gap-3 grid grid-cols-1">
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Download Directory</label>
+					<label class="mb-1 block text-xs text-gray-400">Download Directory</label>
 					<input
 						value={props.form.download_dir}
 						onInput={(e) =>
@@ -64,7 +64,7 @@ export function BuiltinClientPanel(props: {
 					/>
 				</div>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Rate Limit (KB/s)</label>
+					<label class="mb-1 block text-xs text-gray-400">Rate Limit (KB/s)</label>
 					<input
 						type="number"
 						value={props.form.rate_limit_kb}
@@ -78,7 +78,7 @@ export function BuiltinClientPanel(props: {
 					/>
 				</div>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Concurrent Downloads</label>
+					<label class="mb-1 block text-xs text-gray-400">Concurrent Downloads</label>
 					<input
 						type="number"
 						value={props.form.concurrent}
@@ -93,7 +93,7 @@ export function BuiltinClientPanel(props: {
 				</div>
 			</div>
 			<Show when={props.result?.status === "success"}>
-				<p class="text-xs text-green-400 mt-2">
+				<p class="mt-2 text-xs text-green-400">
 					✓ Connected
 					<Show when={props.result?.version}> · v{props.result?.version}</Show>
 					<Show when={props.result?.default_save_path}>
@@ -103,20 +103,20 @@ export function BuiltinClientPanel(props: {
 				</p>
 			</Show>
 			<Show when={props.result?.status === "error"}>
-				<p class="text-xs text-red-400 mt-2">✗ {props.result?.message}</p>
+				<p class="mt-2 text-xs text-red-400">✗ {props.result?.message}</p>
 			</Show>
-			<div class="gap-3 mt-3 flex items-center">
+			<div class="mt-3 flex items-center gap-3">
 				<button
 					onClick={props.onSave}
 					disabled={props.saving}
-					class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+					class="rounded bg-green-700 px-4 py-2 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
 				>
 					Save
 				</button>
 				<button
 					onClick={props.onTest}
 					disabled={props.result?.status === "testing"}
-					class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded text-sm transition-colors"
+					class="rounded bg-indigo-700 px-4 py-2 text-sm transition-colors hover:bg-indigo-600"
 				>
 					{props.result?.status === "testing" ? "Testing..." : "Test"}
 				</button>

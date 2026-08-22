@@ -1,18 +1,18 @@
 onlyBuiltDependencies:
-    - esbuild
+  - esbuild
 catalog:
-    vite: npm:@voidzero-dev/vite-plus-core@0.2.6
-    vite-plus: 0.2.6
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.6
+  vite-plus: 0.2.6
 overrides:
-    vite: "catalog:"
+  vite: "catalog:"
 peerDependencyRules:
-    allowAny:
-        - vite
-    allowedVersions:
-        vite: "*"
+  allowAny:
+    - vite
+  allowedVersions:
+    vite: "*"
 minimumReleaseAgeExclude:
-    - "@solidjs/signals@2.0.0-rc.0"
-    - "@solidjs/vite-plugin@3.0.0-next.28"
-    - "@solidjs/web@2.0.0-rc.0"
-    - babel-preset-solid@2.0.0-rc.0
-    - solid-js@2.0.0-rc.0
+  - "@solidjs/signals@2.0.0-rc.0"
+  - "@solidjs/vite-plugin@3.0.0-next.28"
+  - "@solidjs/web@2.0.0-rc.0"
+  - babel-preset-solid@2.0.0-rc.0
+  - solid-js@2.0.0-rc.0

@@ -21,11 +21,11 @@ export function AddNotificationForm(props: {
 	onCancel: () => void;
 }) {
 	return (
-		<div class="mb-4 p-4 bg-gray-900 rounded-lg border-gray-800 border">
-			<div class="gap-3 flex flex-col">
-				<div class="gap-3 flex items-end">
+		<div class="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+			<div class="flex flex-col gap-3">
+				<div class="flex items-end gap-3">
 					<div class="flex-1">
-						<label class="text-xs text-gray-400 mb-1 block">Name</label>
+						<label class="mb-1 block text-xs text-gray-400">Name</label>
 						<input
 							value={props.draft.name}
 							onInput={(e) =>
@@ -38,7 +38,7 @@ export function AddNotificationForm(props: {
 						/>
 					</div>
 					<div>
-						<label class="text-xs text-gray-400 mb-1 block">Implementation</label>
+						<label class="mb-1 block text-xs text-gray-400">Implementation</label>
 						<select
 							value={props.draft.implementation}
 							onChange={(e) =>
@@ -46,14 +46,14 @@ export function AddNotificationForm(props: {
 									d.implementation = e.currentTarget.value;
 								})
 							}
-							class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm border"
+							class="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 						>
 							<option value="apprise">Apprise</option>
 						</select>
 					</div>
 				</div>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Webhook URL</label>
+					<label class="mb-1 block text-xs text-gray-400">Webhook URL</label>
 					<input
 						value={props.draft.webhook_url}
 						onInput={(e) =>
@@ -65,10 +65,10 @@ export function AddNotificationForm(props: {
 						placeholder="https://hooks.example.com/..."
 					/>
 				</div>
-				<div class="gap-6 flex flex-wrap items-center">
+				<div class="flex flex-wrap items-center gap-6">
 					<For each={EVENT_TOGGLES}>
 						{(toggle) => (
-							<label class="gap-2 text-sm flex items-center">
+							<label class="flex items-center gap-2 text-sm">
 								<input
 									type="checkbox"
 									checked={props.draft[toggle.key]}
@@ -77,7 +77,7 @@ export function AddNotificationForm(props: {
 											d[toggle.key] = e.currentTarget.checked;
 										})
 									}
-									class="rounded bg-gray-800 border-gray-700"
+									class="rounded border-gray-700 bg-gray-800"
 								/>
 								{toggle.label}
 							</label>
@@ -86,7 +86,7 @@ export function AddNotificationForm(props: {
 					<button
 						onClick={props.onSave}
 						disabled={props.submitting || !props.valid}
-						class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+						class="rounded bg-green-700 px-4 py-2 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
 					>
 						Save
 					</button>

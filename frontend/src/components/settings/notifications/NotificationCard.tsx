@@ -18,31 +18,31 @@ export function NotificationCard(props: {
 	return (
 		<div
 			class={[
-				"sm:flex-row sm:items-center gap-3 p-3 bg-gray-900 rounded-lg flex flex-col border transition-colors",
+				"flex flex-col gap-3 rounded-lg border bg-gray-900 p-3 transition-colors sm:flex-row sm:items-center",
 				{ "border-red-800": !!props.notif.error, "border-gray-800": !props.notif.error },
 			]}
 		>
 			<div class="min-w-0 flex-1">
-				<p class="font-medium truncate">{props.notif.name}</p>
+				<p class="truncate font-medium">{props.notif.name}</p>
 				<p class="text-xs text-gray-400">
 					{props.notif.implementation}
 					{settings().webhook_url && ` · ${settings().webhook_url}`}
 				</p>
-				<div class="gap-3 mt-1 text-xs flex">
+				<div class="mt-1 flex gap-3 text-xs">
 					{event(props.notif.on_grab, "Grab")}
 					{event(props.notif.on_import, "Import")}
 					{event(props.notif.on_upgrade, "Upgrade")}
 					{event(props.notif.on_health_issue, "Health")}
 				</div>
 				<Show when={props.notif.error}>
-					<p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
+					<p class="mt-1 text-xs text-red-400">Failed to remove — click Retry</p>
 				</Show>
 			</div>
-			<div class="gap-2 flex shrink-0 flex-wrap">
+			<div class="flex shrink-0 flex-wrap gap-2">
 				<button
 					onClick={props.onTest}
 					disabled={props.notif.pending}
-					class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-600 rounded text-xs transition-colors"
+					class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600 disabled:bg-gray-600"
 				>
 					Test
 				</button>
@@ -51,7 +51,7 @@ export function NotificationCard(props: {
 					fallback={
 						<button
 							onClick={props.onRemove}
-							class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+							class="rounded bg-red-700 px-2 py-1 text-xs transition-colors hover:bg-red-600"
 						>
 							Remove
 						</button>
@@ -60,7 +60,7 @@ export function NotificationCard(props: {
 					<button
 						onClick={props.onRetry}
 						disabled={props.notif.pending}
-						class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs disabled:bg-gray-700 transition-colors"
+						class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600 disabled:bg-gray-700"
 					>
 						{props.notif.pending ? "Retrying..." : "Retry"}
 					</button>

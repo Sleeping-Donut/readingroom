@@ -16,34 +16,34 @@ export function IndexerCard(props: {
 	return (
 		<div
 			class={[
-				"sm:flex-row sm:items-center gap-3 p-3 bg-gray-900 rounded-lg flex flex-col border transition-colors",
+				"flex flex-col gap-3 rounded-lg border bg-gray-900 p-3 transition-colors sm:flex-row sm:items-center",
 				{ "border-red-800": !!props.idx.error, "border-gray-800": !props.idx.error },
 			]}
 		>
 			<StatusDot status={props.idx.test?.status ?? "idle"} />
 			<div class="min-w-0 flex-1">
-				<p class="font-medium truncate">{props.idx.name}</p>
-				<div class="gap-1.5 mt-1 flex flex-wrap">
-					<span class="text-xs bg-indigo-900/40 text-indigo-400 border-indigo-800 rounded px-1.5 py-0.5 border">
+				<p class="truncate font-medium">{props.idx.name}</p>
+				<div class="mt-1 flex flex-wrap gap-1.5">
+					<span class="rounded border border-indigo-800 bg-indigo-900/40 px-1.5 py-0.5 text-xs text-indigo-400">
 						{props.implLabel}
 					</span>
 					<Show when={props.idx.enable_rss}>
-						<span class="text-xs bg-green-900/40 text-green-400 border-green-800 rounded px-1.5 py-0.5 border">
+						<span class="rounded border border-green-800 bg-green-900/40 px-1.5 py-0.5 text-xs text-green-400">
 							RSS
 						</span>
 					</Show>
 					<Show when={props.idx.enable_search}>
-						<span class="text-xs bg-green-900/40 text-green-400 border-green-800 rounded px-1.5 py-0.5 border">
+						<span class="rounded border border-green-800 bg-green-900/40 px-1.5 py-0.5 text-xs text-green-400">
 							Search
 						</span>
 					</Show>
 					<Show when={!props.idx.enable_rss && !props.idx.enable_search}>
-						<span class="text-xs bg-gray-800 text-gray-500 border-gray-700 rounded px-1.5 py-0.5 border">
+						<span class="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-xs text-gray-500">
 							Disabled
 						</span>
 					</Show>
 					<Show when={props.idx.priority !== 0}>
-						<span class="text-xs bg-gray-800 text-gray-400 border-gray-700 rounded px-1.5 py-0.5 border">
+						<span class="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
 							Priority: {props.idx.priority}
 						</span>
 					</Show>
@@ -51,28 +51,28 @@ export function IndexerCard(props: {
 				<Show when={props.idx.test}>
 					<Switch>
 						<Match when={props.idx.test?.status === "success"}>
-							<p class="text-xs text-green-400 mt-1">✓ {props.idx.test?.message}</p>
+							<p class="mt-1 text-xs text-green-400">✓ {props.idx.test?.message}</p>
 						</Match>
 						<Match when={props.idx.test?.status === "error"}>
-							<p class="text-xs text-red-400 mt-1">✗ {props.idx.test?.message}</p>
+							<p class="mt-1 text-xs text-red-400">✗ {props.idx.test?.message}</p>
 						</Match>
 					</Switch>
 				</Show>
 				<Show when={props.idx.error}>
-					<p class="text-xs text-red-400 mt-1">Failed to remove — click Retry</p>
+					<p class="mt-1 text-xs text-red-400">Failed to remove — click Retry</p>
 				</Show>
 			</div>
-			<div class="gap-2 flex shrink-0 flex-wrap">
+			<div class="flex shrink-0 flex-wrap gap-2">
 				<button
 					onClick={props.onTest}
 					disabled={props.idx.test?.status === "testing"}
-					class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
+					class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600"
 				>
 					{props.idx.test?.status === "testing" ? "Testing..." : "Test"}
 				</button>
 				<button
 					onClick={props.onEdit}
-					class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs transition-colors"
+					class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600"
 				>
 					Edit
 				</button>
@@ -81,7 +81,7 @@ export function IndexerCard(props: {
 					fallback={
 						<button
 							onClick={props.onRemove}
-							class="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs transition-colors"
+							class="rounded bg-red-700 px-2 py-1 text-xs transition-colors hover:bg-red-600"
 						>
 							Remove
 						</button>
@@ -90,7 +90,7 @@ export function IndexerCard(props: {
 					<button
 						onClick={props.onRetry}
 						disabled={props.idx.pending}
-						class="px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-xs disabled:bg-gray-700 transition-colors"
+						class="rounded bg-indigo-700 px-2 py-1 text-xs transition-colors hover:bg-indigo-600 disabled:bg-gray-700"
 					>
 						{props.idx.pending ? "Retrying..." : "Retry"}
 					</button>

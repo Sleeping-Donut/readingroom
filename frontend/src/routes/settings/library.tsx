@@ -79,21 +79,21 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 	return (
 		<div>
 			<Title>Library · Settings · ReadingRoom</Title>
-			<h3 class="text-lg font-semibold mb-4">Library</h3>
+			<h3 class="mb-4 text-lg font-semibold">Library</h3>
 			<Errored
 				fallback={(err, reset) => (
-					<p class="text-sm text-red-400 mt-2">
+					<p class="mt-2 text-sm text-red-400">
 						Failed to load: {String(err())}{" "}
-						<button onClick={reset} class="text-indigo-400 ml-1 underline">
+						<button onClick={reset} class="ml-1 text-indigo-400 underline">
 							Retry
 						</button>
 					</p>
 				)}
 			>
 				<Loading fallback={<p class="text-gray-500">Loading...</p>}>
-					<div class="max-w-md p-4 bg-gray-900 rounded-lg border-gray-800 space-y-3 border">
+					<div class="max-w-md space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
 						<div>
-							<label class="text-xs text-gray-400 mb-1 block">
+							<label class="mb-1 block text-xs text-gray-400">
 								Root folder (ebooks)
 							</label>
 							<input
@@ -103,12 +103,12 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.root_folder = e.currentTarget.value;
 									})
 								}
-								class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm w-full border"
+								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 								placeholder="/data/books"
 							/>
 						</div>
 						<div>
-							<label class="text-xs text-gray-400 mb-1 block">Audiobook folder</label>
+							<label class="mb-1 block text-xs text-gray-400">Audiobook folder</label>
 							<input
 								value={form.audiobook_folder}
 								onInput={(e) =>
@@ -116,11 +116,11 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.audiobook_folder = e.currentTarget.value;
 									})
 								}
-								class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm w-full border"
+								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 								placeholder="/data/audiobooks"
 							/>
 						</div>
-						<label class="gap-2 text-sm flex cursor-pointer items-center">
+						<label class="flex cursor-pointer items-center gap-2 text-sm">
 							<input
 								type="checkbox"
 								checked={form.rename_files}
@@ -134,7 +134,7 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 							Rename imported files
 						</label>
 						<div>
-							<label class="text-xs text-gray-400 mb-1 block">
+							<label class="mb-1 block text-xs text-gray-400">
 								Author folder format
 							</label>
 							<input
@@ -144,12 +144,12 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.author_folder_format = e.currentTarget.value;
 									})
 								}
-								class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm font-mono w-full border"
+								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm"
 								placeholder="{author_name}"
 							/>
 						</div>
 						<div>
-							<label class="text-xs text-gray-400 mb-1 block">Book file format</label>
+							<label class="mb-1 block text-xs text-gray-400">Book file format</label>
 							<input
 								value={form.book_file_format}
 								onInput={(e) =>
@@ -157,13 +157,13 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 										st.book_file_format = e.currentTarget.value;
 									})
 								}
-								class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm font-mono w-full border"
+								class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm"
 								placeholder="{book_title} ({author_name}).{ext}"
 							/>
 						</div>
-						<div class="px-3 py-2 bg-gray-950 rounded border-gray-800 border">
-							<p class="text-xs text-gray-500 mb-1">Preview</p>
-							<p class="text-xs text-gray-300 font-mono break-all">{preview()}</p>
+						<div class="rounded border border-gray-800 bg-gray-950 px-3 py-2">
+							<p class="mb-1 text-xs text-gray-500">Preview</p>
+							<p class="font-mono text-xs break-all text-gray-300">{preview()}</p>
 						</div>
 						<Show when={error()}>
 							<p class="text-sm text-red-400">{error()}</p>
@@ -174,7 +174,7 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 						<button
 							onClick={() => void save()}
 							disabled={saving()}
-							class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-sm transition-colors"
+							class="rounded bg-indigo-600 px-4 py-2 text-sm transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
 						>
 							{saving() ? "Saving..." : "Save"}
 						</button>

@@ -49,43 +49,43 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 	return (
 		<div>
 			<Title>Account · Settings · ReadingRoom</Title>
-			<h3 class="text-lg font-semibold mb-4">Account</h3>
+			<h3 class="mb-4 text-lg font-semibold">Account</h3>
 			<Show
 				when={authEnabled()}
 				fallback={<p class="text-sm text-gray-500">Authentication is disabled.</p>}
 			>
-				<div class="max-w-md p-4 bg-gray-900 rounded-lg border-gray-800 space-y-3 border">
+				<div class="max-w-md space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
 					<div>
-						<label class="text-xs text-gray-400 mb-1 block">Username</label>
+						<label class="mb-1 block text-xs text-gray-400">Username</label>
 						<p class="text-sm">{user()?.username ?? "unknown"}</p>
 					</div>
 					<div>
-						<label class="text-xs text-gray-400 mb-1 block">Current Password</label>
+						<label class="mb-1 block text-xs text-gray-400">Current Password</label>
 						<input
 							type="password"
 							value={currentPassword()}
 							onInput={(e) => setCurrentPassword(e.currentTarget.value)}
-							class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm w-full border"
+							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 							autocomplete="current-password"
 						/>
 					</div>
 					<div>
-						<label class="text-xs text-gray-400 mb-1 block">New Password</label>
+						<label class="mb-1 block text-xs text-gray-400">New Password</label>
 						<input
 							type="password"
 							value={newPassword()}
 							onInput={(e) => setNewPassword(e.currentTarget.value)}
-							class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm w-full border"
+							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 							autocomplete="new-password"
 						/>
 					</div>
 					<div>
-						<label class="text-xs text-gray-400 mb-1 block">Confirm New Password</label>
+						<label class="mb-1 block text-xs text-gray-400">Confirm New Password</label>
 						<input
 							type="password"
 							value={confirmPassword()}
 							onInput={(e) => setConfirmPassword(e.currentTarget.value)}
-							class="px-3 py-2 bg-gray-800 border-gray-700 rounded text-sm w-full border"
+							class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 							autocomplete="new-password"
 						/>
 					</div>
@@ -103,7 +103,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 							!newPassword() ||
 							!!passwordError()
 						}
-						class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 rounded text-sm transition-colors"
+						class="rounded bg-indigo-600 px-4 py-2 text-sm transition-colors hover:bg-indigo-500 disabled:bg-gray-600"
 					>
 						{submitting() ? "Updating..." : "Update Password"}
 					</button>

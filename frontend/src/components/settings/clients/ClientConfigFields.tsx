@@ -20,9 +20,9 @@ function ClientConfigFields(props: {
 }) {
 	const isHttp = () => props.draft.implementation === "http";
 	return (
-		<div class="sm:grid-cols-2 gap-3 grid grid-cols-1">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			<div>
-				<label class="text-xs text-gray-400 mb-1 block">Name</label>
+				<label class="mb-1 block text-xs text-gray-400">Name</label>
 				<input
 					value={props.draft.name}
 					onInput={(e) =>
@@ -35,7 +35,7 @@ function ClientConfigFields(props: {
 				/>
 			</div>
 			<div>
-				<label class="text-xs text-gray-400 mb-1 block">Type</label>
+				<label class="mb-1 block text-xs text-gray-400">Type</label>
 				<select
 					value={props.draft.implementation}
 					onChange={(e) =>
@@ -52,7 +52,7 @@ function ClientConfigFields(props: {
 			</div>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Host</label>
+					<label class="mb-1 block text-xs text-gray-400">Host</label>
 					<input
 						value={props.draft.host}
 						onInput={(e) =>
@@ -67,7 +67,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Port</label>
+					<label class="mb-1 block text-xs text-gray-400">Port</label>
 					<input
 						type="number"
 						value={props.draft.port}
@@ -83,7 +83,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Username</label>
+					<label class="mb-1 block text-xs text-gray-400">Username</label>
 					<input
 						value={props.draft.username}
 						onInput={(e) =>
@@ -98,7 +98,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Password</label>
+					<label class="mb-1 block text-xs text-gray-400">Password</label>
 					<input
 						type="password"
 						value={props.draft.password}
@@ -114,7 +114,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">URL Base</label>
+					<label class="mb-1 block text-xs text-gray-400">URL Base</label>
 					<input
 						value={props.draft.url_base}
 						onInput={(e) =>
@@ -129,7 +129,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={!isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Category</label>
+					<label class="mb-1 block text-xs text-gray-400">Category</label>
 					<input
 						value={props.draft.category}
 						onInput={(e) =>
@@ -143,7 +143,7 @@ function ClientConfigFields(props: {
 				</div>
 			</Show>
 			<div>
-				<label class="text-xs text-gray-400 mb-1 block">Download Directory</label>
+				<label class="mb-1 block text-xs text-gray-400">Download Directory</label>
 				<input
 					value={props.draft.download_dir}
 					onInput={(e) =>
@@ -157,7 +157,7 @@ function ClientConfigFields(props: {
 			</div>
 			<Show when={isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Rate Limit (KB/s)</label>
+					<label class="mb-1 block text-xs text-gray-400">Rate Limit (KB/s)</label>
 					<input
 						type="number"
 						value={props.draft.rate_limit_kb}
@@ -173,7 +173,7 @@ function ClientConfigFields(props: {
 			</Show>
 			<Show when={isHttp()}>
 				<div>
-					<label class="text-xs text-gray-400 mb-1 block">Concurrent Downloads</label>
+					<label class="mb-1 block text-xs text-gray-400">Concurrent Downloads</label>
 					<input
 						type="number"
 						value={props.draft.concurrent_downloads}

@@ -13,19 +13,19 @@ export function AddClientForm(props: {
 	onCancel: () => void;
 }) {
 	return (
-		<div class="mb-4 p-4 bg-gray-900 rounded-lg border-gray-800 border">
+		<div class="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
 			<ClientConfigFields draft={props.draft} setDraft={props.setDraft} />
-			<div class="gap-3 mt-4 flex items-center">
+			<div class="mt-4 flex items-center gap-3">
 				<button
 					onClick={props.onSave}
 					disabled={props.submitting || !props.valid}
-					class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded text-sm transition-colors"
+					class="rounded bg-green-700 px-4 py-2 text-sm transition-colors hover:bg-green-600 disabled:bg-gray-600"
 				>
 					Save
 				</button>
 				<button
 					onClick={props.onCancel}
-					class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors"
+					class="rounded bg-gray-700 px-4 py-2 text-sm transition-colors hover:bg-gray-600"
 				>
 					Cancel
 				</button>

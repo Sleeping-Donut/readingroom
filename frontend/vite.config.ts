@@ -1,4 +1,5 @@
 import solid from "@solidjs/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
 import { fileRoutes } from "filesystem-routing/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
@@ -7,6 +8,13 @@ export default defineConfig({
 		ignorePatterns: ["src/file-routes.d.ts"],
 		useTabs: true,
 		tabWidth: 4,
+		// Tabs are for the JS/TS side only; data formats stay at two spaces.
+		overrides: [
+			{
+				files: ["*.json", "*.yaml", "*.yml"],
+				options: { useTabs: false, tabWidth: 2 },
+			},
+		],
 		sortTailwindcss: {
 			stylesheet: "./src/index.css",
 		},
@@ -34,6 +42,7 @@ export default defineConfig({
 		options: { typeAware: true, typeCheck: true },
 	},
 	plugins: lazyPlugins(() => [
+		tailwindcss(),
 		solid({ start: true }),
 		fileRoutes({ types: "src/file-routes.d.ts" }),
 	]),
