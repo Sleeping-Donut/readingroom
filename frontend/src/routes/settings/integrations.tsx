@@ -7,6 +7,9 @@ import { getIntegrationSettings } from "../../api/settings";
 
 export const route = defineFileRoute("/settings/integrations", {
   info: { label: "Integrations" },
+  preload: () => {
+    void getIntegrationSettings();
+  },
 });
 
 function copyableRow(props: {

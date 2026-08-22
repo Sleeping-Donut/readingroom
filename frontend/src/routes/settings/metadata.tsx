@@ -1,6 +1,6 @@
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { Errored, Show, createMemo, createSignal, onSettled } from "solid-js";
+import { Errored, Loading, Show, createMemo, createSignal, onSettled } from "solid-js";
 
 import type { CacheMeta, ImportCounts, MetadataStatus } from "../../api/settings";
 
@@ -8,30 +8,10 @@ import * as settingsApi from "../../api/settings";
 
 export const route = defineFileRoute("/settings/metadata", {
   info: { label: "Metadata" },
+  preload: () => {
+    void settingsApi.getMetadataSettings();
+  },
 });
-
-const DEFAULT_DUMP_URL = "https://openlibrary.org/data/ol_dump_all_latest.txt.gz";
-
-const DEFAULT_RESPONSE: settingsApi.MetadataSettingsResponse = {
-  success: true,
-  mode: "online",
-  auto_update: true,
-  dump_url: DEFAULT_DUMP_URL,
-  offline_ready: false,
-  status: {
-    state: "Idle",
-    bytes_downloaded: 0,
-    total_bytes: null,
-    import_bytes: 0,
-    rows: 0,
-    counts: { works: 0, editions: 0, authors: 0, redirects: 0 },
-    started_at: null,
-  },
-  stats: {
-    counts: { works: 0, editions: 0, authors: 0, redirects: 0 },
-    meta: { imported_at: null, last_status: null, last_error: null, last_attempt: null },
-  },
-};
 
 function fmtBytes(bytes: number): string {
   if (!bytes) return "0 B";
@@ -157,19 +137,17 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
   // Settings + status are a single derived async value. A tick signal re-reads
   // the source when a download/import is in flight (see onSettled below).
   const [tick, setTick] = createSignal(0);
-  const data = createMemo(
-    async () => {
-      tick();
-      return settingsApi.getMetadataSettings();
-    },
-    { loadingValue: DEFAULT_RESPONSE },
-  );
+  const data = createMemo(async () => {
+    tick();
+    return settingsApi.getMetadataSettings();
+  });
   const running = createMemo(() => {
     const s = data().status.state;
     return s === "Downloading" || s === "Importing";
   });
-  // Writable derived signal: server value with a local edit override.
-  const [dumpUrl, setDumpUrl] = createSignal(() => data().dump_url);
+  // Local edit override for the dump URL; null means "mirror the server value".
+  const [dumpUrlOverride, setDumpUrl] = createSignal<string | null>(null);
+  const dumpUrl = () => dumpUrlOverride() ?? data().dump_url;
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [notice, setNotice] = createSignal<string | null>(null);
@@ -263,130 +241,132 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
           </p>
         )}
       >
-        <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-          <h4 class="font-semibold text-gray-200 mb-1">Metadata source</h4>
-          <p class="text-sm text-gray-500 mb-4">
-            Use the OpenLibrary website API, or a local offline cache built from the full{" "}
-            <code class="text-gray-400">ol_dump_all_latest.txt.gz</code> dump (~12 GB compressed).
-            Enabling the local cache downloads and imports the dump in the background.
-          </p>
+        <Loading fallback={<p class="text-gray-500">Loading...</p>}>
+          <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+            <h4 class="font-semibold text-gray-200 mb-1">Metadata source</h4>
+            <p class="text-sm text-gray-500 mb-4">
+              Use the OpenLibrary website API, or a local offline cache built from the full{" "}
+              <code class="text-gray-400">ol_dump_all_latest.txt.gz</code> dump (~12 GB compressed).
+              Enabling the local cache downloads and imports the dump in the background.
+            </p>
 
-          <div class="flex flex-col sm:flex-row gap-6">
-            <label class="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={data().mode === "offline"}
-                onChange={(e) =>
-                  void save({ mode: e.currentTarget.checked ? "offline" : "online" })
-                }
-                disabled={saving()}
-                class="w-4 h-4 rounded"
-              />
-              <span class="text-sm">
-                Local cache (offline) metadata source
-                <span class="block text-xs text-gray-500">
-                  {data().mode === "offline"
-                    ? "Disabled the online API; uses the dump cache."
-                    : "Uses the online OpenLibrary API."}
+            <div class="flex flex-col sm:flex-row gap-6">
+              <label class="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={data().mode === "offline"}
+                  onChange={(e) =>
+                    void save({ mode: e.currentTarget.checked ? "offline" : "online" })
+                  }
+                  disabled={saving()}
+                  class="w-4 h-4 rounded"
+                />
+                <span class="text-sm">
+                  Local cache (offline) metadata source
+                  <span class="block text-xs text-gray-500">
+                    {data().mode === "offline"
+                      ? "Disabled the online API; uses the dump cache."
+                      : "Uses the online OpenLibrary API."}
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
 
-            <label class="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={data().auto_update}
-                onChange={(e) => void save({ auto_update: e.currentTarget.checked })}
-                disabled={saving()}
-                class="w-4 h-4 rounded"
-              />
-              <span class="text-sm">
-                Check periodically for a newer dump
-                <span class="block text-xs text-gray-500">
-                  Re-imports automatically when a new dump is published.
+              <label class="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={data().auto_update}
+                  onChange={(e) => void save({ auto_update: e.currentTarget.checked })}
+                  disabled={saving()}
+                  class="w-4 h-4 rounded"
+                />
+                <span class="text-sm">
+                  Check periodically for a newer dump
+                  <span class="block text-xs text-gray-500">
+                    Re-imports automatically when a new dump is published.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            </div>
+
+            <div class="mt-4">
+              <label for="metadata-dump-url" class="block text-sm text-gray-400 mb-1">
+                Dump URL
+              </label>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input
+                  id="metadata-dump-url"
+                  name="dump_url"
+                  type="text"
+                  value={dumpUrl()}
+                  onInput={(e) => setDumpUrl(e.currentTarget.value)}
+                  class="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                  onClick={() => void save({ dump_url: dumpUrl() })}
+                  disabled={saving() || dumpUrl() === data().dump_url}
+                  class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 rounded text-sm font-medium transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div class="mt-4">
-            <label for="metadata-dump-url" class="block text-sm text-gray-400 mb-1">
-              Dump URL
-            </label>
+          <StatusCard
+            status={data().status}
+            meta={data().stats?.meta ?? null}
+            counts={data().stats?.counts ?? null}
+            ready={data().offline_ready}
+          />
+
+          <Show when={error()}>
+            <p class="text-sm text-red-400">{error()}</p>
+          </Show>
+          <Show when={notice()}>
+            <p class="text-sm text-gray-400">{notice()}</p>
+          </Show>
+
+          <div class="flex gap-3">
+            <button
+              onClick={() => void runDownload()}
+              disabled={saving()}
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+            >
+              Download / Re-import now
+            </button>
+            <button
+              onClick={() => void runCheck()}
+              disabled={saving()}
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              Check for updates
+            </button>
+          </div>
+
+          <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+            <h4 class="font-semibold text-gray-200 mb-1">Upload dump file</h4>
+            <p class="text-sm text-gray-500 mb-3">
+              Download the dump yourself (e.g.{" "}
+              <code class="text-gray-400">ol_dump_latest.txt.gz</code>) and upload it here to build
+              the local cache. Import runs in the background.
+            </p>
             <div class="flex flex-col sm:flex-row gap-2">
               <input
-                id="metadata-dump-url"
-                name="dump_url"
-                type="text"
-                value={dumpUrl()}
-                onInput={(e) => setDumpUrl(e.currentTarget.value)}
-                class="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:outline-none focus:border-indigo-500"
+                type="file"
+                accept=".gz,application/gzip"
+                onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)}
+                class="flex-1 text-sm text-gray-300 file:mr-3 file:px-3 file:py-1.5 file:bg-gray-800 file:border file:border-gray-700 file:rounded file:text-gray-200"
               />
               <button
-                onClick={() => void save({ dump_url: dumpUrl() })}
-                disabled={saving() || dumpUrl() === data().dump_url}
-                class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 rounded text-sm font-medium transition-colors"
+                onClick={() => void runUpload()}
+                disabled={uploading() || !file()}
+                class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
               >
-                Save
+                {uploading() ? "Uploading..." : "Upload & Import"}
               </button>
             </div>
           </div>
-        </div>
-
-        <StatusCard
-          status={data().status}
-          meta={data().stats?.meta ?? null}
-          counts={data().stats?.counts ?? null}
-          ready={data().offline_ready}
-        />
-
-        <Show when={error()}>
-          <p class="text-sm text-red-400">{error()}</p>
-        </Show>
-        <Show when={notice()}>
-          <p class="text-sm text-gray-400">{notice()}</p>
-        </Show>
-
-        <div class="flex gap-3">
-          <button
-            onClick={() => void runDownload()}
-            disabled={saving()}
-            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
-          >
-            Download / Re-import now
-          </button>
-          <button
-            onClick={() => void runCheck()}
-            disabled={saving()}
-            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 rounded-lg text-sm font-medium transition-colors"
-          >
-            Check for updates
-          </button>
-        </div>
-
-        <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-          <h4 class="font-semibold text-gray-200 mb-1">Upload dump file</h4>
-          <p class="text-sm text-gray-500 mb-3">
-            Download the dump yourself (e.g.{" "}
-            <code class="text-gray-400">ol_dump_latest.txt.gz</code>) and upload it here to build
-            the local cache. Import runs in the background.
-          </p>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <input
-              type="file"
-              accept=".gz,application/gzip"
-              onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)}
-              class="flex-1 text-sm text-gray-300 file:mr-3 file:px-3 file:py-1.5 file:bg-gray-800 file:border file:border-gray-700 file:rounded file:text-gray-200"
-            />
-            <button
-              onClick={() => void runUpload()}
-              disabled={uploading() || !file()}
-              class="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
-            >
-              {uploading() ? "Uploading..." : "Upload & Import"}
-            </button>
-          </div>
-        </div>
+        </Loading>
       </Errored>
     </div>
   );

@@ -9,6 +9,9 @@ import * as settingsApi from "../../api/settings";
 
 export const route = defineFileRoute("/settings/library", {
   info: { label: "Library" },
+  preload: () => {
+    void settingsApi.getLibrarySettings();
+  },
 });
 
 const DEFAULTS: LibrarySettings = {

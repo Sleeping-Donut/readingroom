@@ -243,9 +243,10 @@ export const route = defineFileRoute("/things", {
 });
 ```
 
-Preload everything the resource modules will need — the calls dedupe against the stores'
-async sources, and navigation feels instant instead of showing a loading flash on every
-visit.
+Preload everything the page will need. Calls wrapped in the router's `query()`
+(`api/books.ts` style) dedupe against later reads through the router cache; for plain
+client functions preload still starts the work at navigation intent rather than mount.
+Keep preload consistent per route — don't leave pages fetching only on first render.
 
 ---
 
