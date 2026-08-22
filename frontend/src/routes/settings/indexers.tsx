@@ -191,7 +191,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 			>
 				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-						<h3 class="text-lg font-semibold">Indexers</h3>
+						<h3 class="font-display text-2xl text-ink-900">Indexers</h3>
 						<div class="flex gap-2">
 							<Show when={indexers.indexers.length > 0}>
 								<button

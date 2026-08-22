@@ -212,7 +212,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 			>
 				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-						<h3 class="text-lg font-semibold">Download Clients</h3>
+						<h3 class="font-display text-2xl text-ink-900">Download Clients</h3>
 						<div class="flex gap-2">
 							<Show when={configurableClients().length > 0}>
 								<button

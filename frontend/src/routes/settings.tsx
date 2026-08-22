@@ -33,34 +33,45 @@ export default function SettingsLayout(props: RouteProps<typeof route>) {
 	const activeLabel = () => matches()[matches().length - 1]?.route.info?.label;
 
 	return (
-		<div>
+		<div class="lg:grid lg:grid-cols-[14rem_1fr] lg:gap-12">
 			<Title>Settings · ReadingRoom</Title>
-			<h2 class="mb-6 text-2xl font-bold">Settings</h2>
+			<header class="mb-8">
+				<p class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+					The Fine Print
+				</p>
+				<h2 class="font-display text-4xl text-ink-900">Settings</h2>
 
-			<div class="mb-6 flex flex-wrap gap-3 border-b border-rule pb-4">
-				<For each={TABS}>
-					{(tab) => {
-						const isActive = () => activeSlug() === tab.slug;
-						const label = isActive() ? (activeLabel() ?? tab.label) : tab.label;
-						return (
-							<a
-								href={tab.href()}
-								aria-current={isActive() ? "page" : undefined}
-								class={[
-									"rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-									isActive()
-										? "bg-ink-900 text-paper-50"
-										: "text-ink-700 hover:text-ink-900",
-								]}
-							>
-								{label}
-							</a>
-						);
-					}}
-				</For>
-			</div>
+				<nav
+					class="mt-6 flex flex-wrap gap-x-6 gap-y-2 lg:flex-col lg:gap-3"
+					aria-label="Settings sections"
+				>
+					<For each={TABS}>
+						{(tab, i) => {
+							const isActive = () => activeSlug() === tab.slug;
+							const label = isActive() ? (activeLabel() ?? tab.label) : tab.label;
+							return (
+								<a
+									href={tab.href()}
+									aria-current={isActive() ? "page" : undefined}
+									class={[
+										"border-b-2 pb-1 font-meta text-xs tracking-widest uppercase transition-colors",
+										isActive()
+											? "border-ink-900 text-ink-900"
+											: "border-transparent text-ink-500 hover:text-ink-900",
+									]}
+								>
+									<span class="mr-2 text-accent" aria-hidden="true">
+										{String(i() + 1).padStart(2, "0")}
+									</span>
+									{label}
+								</a>
+							);
+						}}
+					</For>
+				</nav>
+			</header>
 
-			{props.children}
+			<div>{props.children}</div>
 		</div>
 	);
 }

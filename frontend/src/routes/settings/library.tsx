@@ -79,7 +79,7 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 	return (
 		<div>
 			<Title>Library · Settings · ReadingRoom</Title>
-			<h3 class="mb-4 text-lg font-semibold">Library</h3>
+			<h3 class="mb-4 font-display text-2xl text-ink-900">Library</h3>
 			<Errored
 				fallback={(err, reset) => (
 					<p class="mt-2 text-sm text-bad">

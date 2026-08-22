@@ -49,7 +49,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 	return (
 		<div>
 			<Title>Account · Settings · ReadingRoom</Title>
-			<h3 class="mb-4 text-lg font-semibold">Account</h3>
+			<h3 class="mb-4 font-display text-2xl text-ink-900">Account</h3>
 			<Show
 				when={authEnabled()}
 				fallback={<p class="text-sm text-ink-500">Authentication is disabled.</p>}

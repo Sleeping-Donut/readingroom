@@ -72,7 +72,7 @@ export default function IntegrationsTab(_props: RouteProps<typeof route>) {
 	return (
 		<div>
 			<Title>Integrations · Settings · ReadingRoom</Title>
-			<h3 class="mb-4 text-lg font-semibold">Prowlarr Integration</h3>
+			<h3 class="mb-4 font-display text-2xl text-ink-900">Prowlarr Integration</h3>
 			<p class="mb-4 text-sm text-ink-700">
 				Add ReadingRoom as a <span class="text-ink-900">Readarr</span> app in Prowlarr
 				(Settings → Apps) and use these values. Prowlarr will then push and manage

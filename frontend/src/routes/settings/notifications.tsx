@@ -69,7 +69,7 @@ export default function NotificationsTab(_props: RouteProps<typeof route>) {
 			>
 				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
 					<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-						<h3 class="text-lg font-semibold">Notifications</h3>
+						<h3 class="font-display text-2xl text-ink-900">Notifications</h3>
 						<button
 							onClick={() => setShowAdd(!showAdd())}
 							class="rounded bg-ink-900 px-3 py-1.5 text-sm transition-colors hover:bg-ink-700"
