@@ -368,7 +368,9 @@ export default function BookDetail() {
 						<Show when={stored().author_name}>
 							<a
 								href={paths.authors(
-									stored().author_foreign_id ?? stored().author_id,
+									book().author_foreign_id ??
+										stored().author_foreign_id ??
+										stored().author_id,
 								)}
 								class="font-display text-lg text-accent italic underline-offset-2 hover:text-ink-900"
 							>
