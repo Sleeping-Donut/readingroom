@@ -88,7 +88,7 @@ export function ClientCard(props: {
 					class={[
 						"rounded px-2 py-1 text-xs transition-colors",
 						props.client.enabled
-							? "bg-good hover:opacity-90"
+							? "bg-good text-paper-50 hover:opacity-90"
 							: "bg-paper-200 hover:bg-paper-200",
 					]}
 				>

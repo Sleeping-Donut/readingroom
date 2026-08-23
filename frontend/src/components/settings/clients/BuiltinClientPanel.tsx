@@ -42,7 +42,7 @@ export function BuiltinClientPanel(props: {
 					class={[
 						"rounded px-3 py-1.5 text-sm transition-colors",
 						props.form.enabled
-							? "bg-good hover:opacity-90"
+							? "bg-good text-paper-50 hover:opacity-90"
 							: "bg-paper-200 hover:bg-paper-200",
 					]}
 				>
