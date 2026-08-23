@@ -2,6 +2,7 @@ import { Title } from "@solidjs/meta";
 import { useBeforeLeave, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
+	action,
 	Errored,
 	For,
 	Loading,
@@ -79,7 +80,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 		enable_search: true,
 		priority: 0,
 	});
-	const [submitting, setSubmitting] = createSignal(false);
+	const [submitting, setSubmitting] = createOptimistic(false);
 	const [isTestingAll, setIsTestingAll] = createOptimistic(false);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 
@@ -124,7 +125,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 		return validateDraft(impl, draft).success;
 	});
 
-	const submitAdd = async () => {
+	const submitAdd = action(async function* () {
 		const impl = configureImpl();
 		if (!impl) return;
 		const parsed = validateDraft(impl, draft);
@@ -135,17 +136,15 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 		setSubmitting(true);
 		setActionError(null);
 		try {
-			await addIndexer(toInput(impl, { ...draft, name: parsed.output.name }));
+			yield addIndexer(toInput(impl, { ...draft, name: parsed.output.name }));
 			setAddStep("closed");
 			setDraft(() => draftFor(impl));
 		} catch (e) {
 			setActionError(e instanceof Error ? e.message : "Request failed");
-		} finally {
-			setSubmitting(false);
 		}
-	};
+	});
 
-	const submitEdit = async () => {
+	const submitEdit = action(async function* () {
 		const editingState = editing();
 		const impl = editingImpl();
 		if (!editingState || !impl) return;
@@ -157,17 +156,15 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 		setSubmitting(true);
 		setActionError(null);
 		try {
-			await updateIndexer(
+			yield updateIndexer(
 				editingState.id,
 				toInput(impl, { ...draft, name: parsed.output.name }),
 			);
 			setEditing(null);
 		} catch (e) {
 			setActionError(e instanceof Error ? e.message : "Request failed");
-		} finally {
-			setSubmitting(false);
 		}
-	};
+	});
 
 	const startEdit = (idx: (typeof indexers.indexers)[number]) => {
 		const impl = implById(idx.implementation);

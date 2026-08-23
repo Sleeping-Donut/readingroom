@@ -1,6 +1,6 @@
 import { Title } from "@solidjs/meta";
 import { useNavigate } from "@solidjs/router";
-import { action, createSignal, Show } from "solid-js";
+import { action, createOptimistic, createSignal, Show } from "solid-js";
 
 import { login, register } from "../api/auth";
 import { paths } from "../router";
@@ -9,9 +9,9 @@ export default function Login() {
 	const navigate = useNavigate();
 	const [username, setUsername] = createSignal("");
 	const [password, setPassword] = createSignal("");
-	const [error, setError] = createSignal("");
+	const [error, setError] = createSignal<string | null>(null);
 	const [isRegister, setIsRegister] = createSignal(false);
-	const [loading, setLoading] = createSignal(false);
+	const [loading, setLoading] = createOptimistic(false);
 
 	const submit = action(async function* (e: Event) {
 		e.preventDefault();

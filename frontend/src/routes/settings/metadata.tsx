@@ -1,6 +1,15 @@
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { Errored, Loading, Show, createMemo, createSignal, onSettled } from "solid-js";
+import {
+	action,
+	createMemo,
+	createOptimistic,
+	createSignal,
+	Errored,
+	Loading,
+	onSettled,
+	Show,
+} from "solid-js";
 
 import type { CacheMeta, ImportCounts, MetadataStatus } from "../../api/settings";
 
@@ -154,7 +163,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 	// Local edit override for the dump URL; null means "mirror the server value".
 	const [dumpUrlOverride, setDumpUrl] = createSignal<string | null>(null);
 	const dumpUrl = () => dumpUrlOverride() ?? data().dump_url;
-	const [saving, setSaving] = createSignal(false);
+	const [saving, setSaving] = createOptimistic(false);
 	const [error, setError] = createSignal<string | null>(null);
 	const [notice, setNotice] = createSignal<string | null>(null);
 
@@ -167,23 +176,21 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 
 	const refresh = () => setTick((t) => t + 1);
 
-	const save = async (body: {
+	const save = action(async function* (body: {
 		mode?: "online" | "offline";
 		auto_update?: boolean;
 		dump_url?: string;
-	}) => {
+	}) {
 		setSaving(true);
 		setError(null);
 		setNotice(null);
 		try {
-			await settingsApi.updateMetadataSettings(body);
+			yield settingsApi.updateMetadataSettings(body);
 			refresh();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Request failed");
-		} finally {
-			setSaving(false);
 		}
-	};
+	});
 
 	const runDownload = async () => {
 		setError(null);
@@ -215,26 +222,24 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 	};
 
 	const [file, setFile] = createSignal<File | null>(null);
-	const [uploading, setUploading] = createSignal(false);
+	const [uploading, setUploading] = createOptimistic(false);
 
-	const runUpload = async () => {
+	const runUpload = action(async function* () {
 		const f = file();
 		if (!f) return;
 		setUploading(true);
 		setError(null);
 		setNotice(null);
 		try {
-			const res = await settingsApi.uploadMetadataDump(f);
+			const res = yield settingsApi.uploadMetadataDump(f);
 			setFile(null);
 			refresh();
 			if (res.started) setNotice("Dump uploaded — importing in the background.");
 			else setError("A download/import is already running.");
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Upload failed");
-		} finally {
-			setUploading(false);
 		}
-	};
+	});
 
 	return (
 		<div class="space-y-6">

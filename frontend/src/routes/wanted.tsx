@@ -1,7 +1,16 @@
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { action, createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import {
+	action,
+	createMemo,
+	createOptimistic,
+	createSignal,
+	Errored,
+	For,
+	Loading,
+	Show,
+} from "solid-js";
 
 import { bookId } from "../api/books";
 import { getWanted, searchWantedAll, searchWantedBook } from "../api/wanted";
@@ -16,8 +25,8 @@ export const route = defineFileRoute("/wanted", {
 
 export default function Wanted() {
 	const wanted = createMemo(() => getWanted());
-	const [searchingAll, setSearchingAll] = createSignal(false);
-	const [searchingBookId, setSearchingBookId] = createSignal<number | null>(null);
+	const [searchingAll, setSearchingAll] = createOptimistic(false);
+	const [searchingBookId, setSearchingBookId] = createOptimistic<number | null>(null);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 
 	const searchAll = action(async function* () {
@@ -29,8 +38,6 @@ export default function Wanted() {
 			revalidate(getWanted.key);
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
-		} finally {
-			setSearchingAll(false);
 		}
 	});
 
@@ -43,8 +50,6 @@ export default function Wanted() {
 			revalidate(getWanted.key);
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
-		} finally {
-			setSearchingBookId(null);
 		}
 	});
 

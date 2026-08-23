@@ -11,6 +11,7 @@ import {
 	For,
 	Loading,
 	Show,
+	action,
 } from "solid-js";
 
 import type { TestResult } from "../../types";
@@ -71,7 +72,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 	const [builtinTestResult, setBuiltinTestResult] = createSignal<TestResult | undefined>(
 		undefined,
 	);
-	const [savingBuiltin, setSavingBuiltin] = createSignal(false);
+	const [savingBuiltin, setSavingBuiltin] = createOptimistic(false);
 
 	// Add flow.
 	const [showAdd, setShowAdd] = createSignal(false);
@@ -80,7 +81,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 
 	// One draft store serves both flows; reseeded when a flow opens.
 	const [draft, setDraft] = createStore<Draft>(draftFor());
-	const [submitting, setSubmitting] = createSignal(false);
+	const [submitting, setSubmitting] = createOptimistic(false);
 	// Optimistic: reverts to false automatically when the action settles.
 	const [isTestingAll, setIsTestingAll] = createOptimistic(false);
 	const [actionError, setActionError] = createSignal<string | null>(null);
@@ -117,7 +118,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 		}
 	};
 
-	const submitAdd = async () => {
+	const submitAdd = action(async function* () {
 		const parsed = validateDraft(draft);
 		if (!parsed.success) {
 			setActionError(parsed.error);
@@ -126,30 +127,26 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 		setSubmitting(true);
 		setActionError(null);
 		try {
-			await addClient(toInput(draft));
+			yield addClient(toInput(draft));
 			setShowAdd(false);
 			setDraft(() => draftFor());
 		} catch (e) {
 			setActionError(e instanceof Error ? e.message : "Request failed");
-		} finally {
-			setSubmitting(false);
 		}
-	};
+	});
 
-	const submitEdit = async () => {
+	const submitEdit = action(async function* () {
 		const id = editingClientId();
 		if (!id) return;
 		setSubmitting(true);
 		setActionError(null);
 		try {
-			await updateClient(id, toInput(draft));
+			yield updateClient(id, toInput(draft));
 			setEditingClientId(null);
 		} catch (e) {
 			setActionError(e instanceof Error ? e.message : "Request failed");
-		} finally {
-			setSubmitting(false);
 		}
-	};
+	});
 
 	const toggleEnabled = async (row: ClientRow, enabled: boolean) => {
 		setActionError(null);
@@ -175,17 +172,15 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 		}
 	};
 
-	const saveBuiltin = async () => {
+	const saveBuiltin = action(async function* () {
 		setSavingBuiltin(true);
 		setActionError(null);
 		try {
-			await upsertBuiltin(builtinInput(builtinForm));
+			yield upsertBuiltin(builtinInput(builtinForm));
 		} catch (e) {
 			setActionError(e instanceof Error ? e.message : "Request failed");
-		} finally {
-			setSavingBuiltin(false);
 		}
-	};
+	});
 
 	const runTestBuiltin = async () => {
 		setBuiltinTestResult({ status: "testing" });

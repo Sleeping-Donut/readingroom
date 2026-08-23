@@ -212,8 +212,8 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 	// Optimistic: reverts automatically when its action settles.
 	const [searching, setSearching] = createOptimistic(false);
 	// Keyed busy flags for per-row buttons; no store row to hang pending on.
-	const [downloadingId, setDownloadingId] = createSignal<number | null>(null);
-	const [addingId, setAddingId] = createSignal<string | null>(null);
+	const [downloadingId, setDownloadingId] = createOptimistic<number | null>(null);
+	const [addingId, setAddingId] = createOptimistic<string | null>(null);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 	const [filter, setFilter] = createSignal("");
 	const [view, setView] = createViewPreference("author-books");
@@ -264,8 +264,6 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 			yield;
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
-		} finally {
-			setDownloadingId(null);
 		}
 	});
 

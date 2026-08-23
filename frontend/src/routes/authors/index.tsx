@@ -1,7 +1,16 @@
 import { Title } from "@solidjs/meta";
 import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import {
+	action,
+	createMemo,
+	createOptimistic,
+	createSignal,
+	Errored,
+	For,
+	Loading,
+	Show,
+} from "solid-js";
 import * as v from "valibot";
 
 import type { Author } from "../../types";
@@ -33,7 +42,7 @@ const rowSubtitle = (author: Author) => {
 export default function Authors(_props: RouteProps<typeof route>) {
 	const [searchQuery, setSearchQuery] = createSignal("");
 	const [showSearch, setShowSearch] = createSignal(false);
-	const [addingId, setAddingId] = createSignal<string | null>(null);
+	const [addingId, setAddingId] = createOptimistic<string | null>(null);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 	const [view, setView] = createViewPreference("authors");
 	const [search, setSearch] = useSearchParams(paths.authors);
@@ -58,17 +67,17 @@ export default function Authors(_props: RouteProps<typeof route>) {
 		return all.filter((author) => matchesFilter(author, q));
 	});
 
-	const submitAdd = async (author: { foreign_id: string; name: string }) => {
+	const submitAdd = action(async function* (author: { foreign_id: string; name: string }) {
 		setAddingId(author.foreign_id);
 		setActionError(null);
 		try {
-			await addAuthorToLibrary(author);
+			yield addAuthorToLibrary(author);
 			setSearchQuery("");
 			setShowSearch(false);
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
 		}
-	};
+	});
 
 	return (
 		<div>

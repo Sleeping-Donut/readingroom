@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { action, createMemo, createSignal, Show } from "solid-js";
+import { action, createMemo, createOptimistic, createSignal, Show } from "solid-js";
 
 import { user, authEnabled, changePassword } from "../../api/auth";
 
@@ -13,7 +13,7 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 	const [currentPassword, setCurrentPassword] = createSignal("");
 	const [newPassword, setNewPassword] = createSignal("");
 	const [confirmPassword, setConfirmPassword] = createSignal("");
-	const [submitting, setSubmitting] = createSignal(false);
+	const [submitting, setSubmitting] = createOptimistic(false);
 	const [error, setError] = createSignal<string | null>(null);
 	const [success, setSuccess] = createSignal(false);
 

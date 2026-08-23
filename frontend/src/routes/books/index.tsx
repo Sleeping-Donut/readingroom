@@ -1,7 +1,16 @@
 import { Title } from "@solidjs/meta";
 import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { createMemo, createSignal, Errored, For, Loading, Show } from "solid-js";
+import {
+	action,
+	createMemo,
+	createOptimistic,
+	createSignal,
+	Errored,
+	For,
+	Loading,
+	Show,
+} from "solid-js";
 import * as v from "valibot";
 
 import type { Book } from "../../types";
@@ -32,7 +41,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 	const [showSearch, setShowSearch] = createSignal(false);
 	// Busy flag for a search-result row; search results aren't store rows, so
 	// there's no pending affordance to hang this on.
-	const [addingId, setAddingId] = createSignal<string | null>(null);
+	const [addingId, setAddingId] = createOptimistic<string | null>(null);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 	const [view, setView] = createViewPreference("books");
 	const [search, setSearch] = useSearchParams(paths.books);
@@ -62,17 +71,21 @@ export default function Books(_props: RouteProps<typeof route>) {
 		);
 	});
 
-	const submitAdd = async (book: { foreign_id: string; author_id: number; title: string }) => {
+	const submitAdd = action(async function* (book: {
+		foreign_id: string;
+		author_id: number;
+		title: string;
+	}) {
 		setAddingId(book.foreign_id);
 		setActionError(null);
 		try {
-			await addBook(book);
+			yield addBook(book);
 			setSearchQuery("");
 			setShowSearch(false);
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
 		}
-	};
+	});
 
 	return (
 		<div>

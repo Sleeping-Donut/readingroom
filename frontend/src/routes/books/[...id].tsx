@@ -207,13 +207,13 @@ export default function BookDetail() {
 	// Optimistic booleans: revert automatically when their action settles.
 	const [searching, setSearching] = createOptimistic(false);
 	// Keyed busy flags for per-row buttons; no store row to hang pending on.
-	const [downloadingId, setDownloadingId] = createSignal<number | null>(null);
+	const [downloadingId, setDownloadingId] = createOptimistic<number | null>(null);
 	const [adding, setAdding] = createOptimistic(false);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 	const [autoSearching, setAutoSearching] = createOptimistic(false);
 	const [savingMonitored, setSavingMonitored] = createOptimistic(false);
 	const [showAllTags, setShowAllTags] = createSignal(false);
-	const [addingEditionId, setAddingEditionId] = createSignal<string | null>(null);
+	const [addingEditionId, setAddingEditionId] = createOptimistic<string | null>(null);
 	const [searchTitle, setSearchTitle] = createSignal<string | null>(null);
 
 	// Optimistic view of the book's monitored flag: mirrors the server value
@@ -279,8 +279,6 @@ export default function BookDetail() {
 			yield;
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
-		} finally {
-			setDownloadingId(null);
 		}
 	});
 
@@ -315,8 +313,6 @@ export default function BookDetail() {
 			navigate(paths.books(created.book.id));
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
-		} finally {
-			setAddingEditionId(null);
 		}
 	});
 

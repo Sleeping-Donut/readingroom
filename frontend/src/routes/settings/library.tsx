@@ -1,7 +1,16 @@
 import { Title } from "@solidjs/meta";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { action, createMemo, createSignal, createStore, Errored, Loading, Show } from "solid-js";
+import {
+	action,
+	createMemo,
+	createOptimistic,
+	createSignal,
+	createStore,
+	Errored,
+	Loading,
+	Show,
+} from "solid-js";
 
 import type { LibrarySettings } from "../../api/settings";
 
@@ -44,7 +53,7 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 		},
 		{ ...DEFAULTS },
 	);
-	const [saving, setSaving] = createSignal(false);
+	const [saving, setSaving] = createOptimistic(false);
 	const [error, setError] = createSignal<string | null>(null);
 	const [success, setSuccess] = createSignal(false);
 

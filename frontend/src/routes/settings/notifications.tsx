@@ -1,7 +1,17 @@
 import { Title } from "@solidjs/meta";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { createMemo, createSignal, createStore, Errored, For, Loading, Show } from "solid-js";
+import {
+	action,
+	createMemo,
+	createOptimistic,
+	createSignal,
+	createStore,
+	Errored,
+	For,
+	Loading,
+	Show,
+} from "solid-js";
 
 import * as settingsApi from "../../api/settings";
 import { AddNotificationForm } from "../../components/settings/notifications/AddNotificationForm";
@@ -30,12 +40,12 @@ export default function NotificationsTab(_props: RouteProps<typeof route>) {
 	// Add flow.
 	const [showAdd, setShowAdd] = createSignal(false);
 	const [draft, setDraft] = createStore<Draft>(draftFor());
-	const [submitting, setSubmitting] = createSignal(false);
+	const [submitting, setSubmitting] = createOptimistic(false);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 
 	const valid = createMemo(() => validateDraft(draft).success);
 
-	const submitAdd = async () => {
+	const submitAdd = action(async function* () {
 		const parsed = validateDraft(draft);
 		if (!parsed.success) {
 			setActionError(parsed.error);
@@ -44,15 +54,13 @@ export default function NotificationsTab(_props: RouteProps<typeof route>) {
 		setSubmitting(true);
 		setActionError(null);
 		try {
-			await addNotification(toInput(draft));
+			yield addNotification(toInput(draft));
 			setShowAdd(false);
 			setDraft(() => draftFor());
 		} catch (e) {
 			setActionError(e instanceof Error ? e.message : "Request failed");
-		} finally {
-			setSubmitting(false);
 		}
-	};
+	});
 
 	return (
 		<div>
