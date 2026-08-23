@@ -29,45 +29,47 @@ export const Layout: Component<ParentProps> = (props) => {
 			<header>
 				{/* Masthead row */}
 				<div class="relative flex items-center justify-center border-b border-rule px-4 py-4">
-					<button
-						type="button"
-						onClick={() => setOpen(!open())}
-						aria-label="Toggle navigation menu"
-						aria-expanded={open() ? "true" : "false"}
-						aria-controls="mobile-menu"
-						class="absolute left-4 inline-flex h-10 w-10 items-center justify-center rounded-sm text-ink-700 transition-colors hover:bg-paper-200 md:hidden"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							class="h-6 w-6"
+					<div class="relative mx-auto flex w-full max-w-7xl items-center justify-center">
+						<button
+							type="button"
+							onClick={() => setOpen(!open())}
+							aria-label="Toggle navigation menu"
+							aria-expanded={open() ? "true" : "false"}
+							aria-controls="mobile-menu"
+							class="absolute left-4 inline-flex h-10 w-10 items-center justify-center rounded-sm text-ink-700 transition-colors hover:bg-paper-200 md:hidden"
 						>
-							<Show when={!open()} fallback={<path d="M6 6l12 12M6 18L18 6" />}>
-								<path d="M3 6h18M3 12h18M3 18h18" />
-							</Show>
-						</svg>
-					</button>
-
-					<a href={String(paths())} class="font-display text-3xl text-ink-900">
-						ReadingRoom
-					</a>
-
-					{/* Desktop user controls */}
-					<div class="absolute right-4 hidden items-center gap-3 md:flex">
-						<Show when={authEnabled() && user()}>
-							<span class="font-meta text-xs tracking-widest text-ink-500 uppercase">
-								{user()?.username}
-							</span>
-							<button
-								onClick={handleLogout}
-								class="text-sm text-ink-500 underline-offset-4 hover:text-ink-900 hover:underline"
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								class="h-6 w-6"
 							>
-								Logout
-							</button>
-						</Show>
+								<Show when={!open()} fallback={<path d="M6 6l12 12M6 18L18 6" />}>
+									<path d="M3 6h18M3 12h18M3 18h18" />
+								</Show>
+							</svg>
+						</button>
+
+						<a href={String(paths())} class="font-display text-3xl text-ink-900">
+							ReadingRoom
+						</a>
+
+						{/* Desktop user controls */}
+						<div class="absolute right-4 hidden items-center gap-3 md:flex">
+							<Show when={authEnabled() && user()}>
+								<span class="font-meta text-xs tracking-widest text-ink-500 uppercase">
+									{user()?.username}
+								</span>
+								<button
+									onClick={handleLogout}
+									class="text-sm text-ink-500 underline-offset-4 hover:text-ink-900 hover:underline"
+								>
+									Logout
+								</button>
+							</Show>
+						</div>
 					</div>
 				</div>
 
@@ -123,7 +125,7 @@ export const Layout: Component<ParentProps> = (props) => {
 					</div>
 				</Show>
 			</header>
-			<main class="p-4 sm:p-8">{props.children}</main>
+			<main class="mx-auto w-full max-w-7xl p-4 sm:p-8">{props.children}</main>
 		</div>
 	);
 };
