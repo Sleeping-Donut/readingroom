@@ -503,7 +503,7 @@ export default function BookDetail() {
 								<InfoRow label="Rating" value={book().ratings?.toFixed(1)} />
 							</div>
 
-							<Show when={book().genres.length > 0}>
+							<Show when={(book().genres?.length ?? 0) > 0}>
 								<div
 									class={
 										showAllTags()
@@ -511,7 +511,7 @@ export default function BookDetail() {
 											: "mt-4 flex max-h-[2.5rem] flex-wrap gap-2 overflow-hidden"
 									}
 								>
-									<For each={book().genres}>
+									<For each={book().genres ?? []}>
 										{(g) => (
 											<span class="rounded-sm bg-paper-200 px-2 py-1 font-meta text-xs text-ink-700 uppercase">
 												{g}
@@ -519,14 +519,14 @@ export default function BookDetail() {
 										)}
 									</For>
 								</div>
-								<Show when={book().genres.length > 6}>
+								<Show when={(book().genres?.length ?? 0) > 6}>
 									<button
 										onClick={() => setShowAllTags((v) => !v)}
 										class="mt-1 text-xs text-accent underline-offset-2 hover:text-ink-900"
 									>
 										{showAllTags()
 											? "Show less"
-											: `Show all (${book().genres.length})`}
+											: `Show all (${book().genres?.length ?? 0})`}
 									</button>
 								</Show>
 							</Show>
