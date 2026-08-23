@@ -126,7 +126,7 @@ export default function Queue() {
 											fallback={
 												<button
 													onClick={() => void remove(entry)}
-													class="rounded bg-bad px-2 py-1 text-xs transition-colors hover:opacity-90"
+													class="rounded bg-bad px-2 py-1 text-xs text-paper-50 transition-colors hover:opacity-90"
 												>
 													Remove
 												</button>

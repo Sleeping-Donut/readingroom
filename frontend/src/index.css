@@ -12,7 +12,7 @@
 	--color-rule: #ddd4c2;
 	--color-ink-900: #211d17;
 	--color-ink-700: #4a443b;
-	--color-ink-500: #857c6d;
+	--color-ink-500: #6b6450; /* metadata/muted — ≥4.5:1 on every paper surface */
 	--color-accent: #9f3b3b;
 	--color-accent-wash: #9f3b3b14;
 	--color-good: #4a7c59;
