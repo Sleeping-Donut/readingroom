@@ -15,6 +15,7 @@ import {
 
 import type { Edition } from "../../types";
 
+import { authorId } from "../../api/authors";
 import {
 	addBook,
 	bookId,
@@ -179,15 +180,11 @@ export default function BookDetail() {
 	// The tracked book from the shared books store, so the stored title/status
 	// render immediately instead of blanking the whole page on the detail load.
 	const [tracked] = createBooks();
+	// Tracked-book lookup by the canonical bare OL id — the only param shape
+	// the app generates. Null = untracked (metadata-only) book.
 	const storedBook = createMemo(() => {
-		const list = tracked.books;
 		const p = params.id;
-		return (
-			list.find((b) => String(b.id) === p) ??
-			list.find((b) => bookId(b) === p) ??
-			list.find((b) => b.foreign_id === p) ??
-			null
-		);
+		return tracked.books.find((b) => bookId(b) === p) ?? null;
 	});
 
 	const queue = createMemo(() => getQueue());
@@ -368,9 +365,10 @@ export default function BookDetail() {
 						<Show when={stored().author_name}>
 							<a
 								href={paths.authors(
-									book().author_foreign_id ??
-										stored().author_foreign_id ??
-										stored().author_id,
+									authorId({
+										foreign_id:
+											book().author_foreign_id ?? stored().author_foreign_id,
+									}),
 								)}
 								class="font-display text-lg text-accent italic underline-offset-2 hover:text-ink-900"
 							>
@@ -413,7 +411,9 @@ export default function BookDetail() {
 										<Show when={book().author_name}>
 											<a
 												href={paths.authors(
-													book().author_foreign_id ?? book().author_id,
+													authorId({
+														foreign_id: book().author_foreign_id,
+													}),
 												)}
 												class="font-display text-lg text-accent italic underline-offset-2 hover:text-ink-900"
 											>

@@ -6,12 +6,12 @@ import { api } from "./client";
 
 /**
  * Canonical id for author detail routes = the bare OpenLibrary author id
- * (e.g. "OL123A", no "authors/" prefix). Falls back to the numeric DB id.
+ * (e.g. "OL123A", no "authors/" prefix). Strictly OL: every author carries a
+ * foreign_id, so links never use numeric DB ids. Returns "" when a record
+ * somehow lacks one (data bug; fix the data).
  */
-export function authorId(author: { id: number; foreign_id?: string | null }): string {
-	const foreign = author.foreign_id ?? "";
-	if (foreign) return foreign.replace(/^authors\//, "");
-	return String(author.id);
+export function authorId(author: { foreign_id?: string | null }): string {
+	return (author.foreign_id ?? "").replace(/^authors\//, "");
 }
 
 export const getAuthors = query(
