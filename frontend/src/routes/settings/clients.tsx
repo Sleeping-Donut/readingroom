@@ -109,14 +109,10 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 	// The edit flow historically only requires a name.
 	const editValid = createMemo(() => draft.name.trim().length > 0);
 
-	const runTestAll = async () => {
+	const runTestAll = action(async function* () {
 		setIsTestingAll(true);
-		try {
-			await testAllClients();
-		} finally {
-			setIsTestingAll(false);
-		}
-	};
+		yield testAllClients();
+	});
 
 	const submitAdd = action(async function* () {
 		const parsed = validateDraft(draft);

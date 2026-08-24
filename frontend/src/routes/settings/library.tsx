@@ -80,8 +80,6 @@ export default function LibraryTab(_props: RouteProps<typeof route>) {
 			setSuccess(true);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Request failed");
-		} finally {
-			setSaving(false);
 		}
 	});
 

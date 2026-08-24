@@ -41,8 +41,6 @@ export default function AccountTab(_props: RouteProps<typeof route>) {
 			setConfirmPassword("");
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Request failed");
-		} finally {
-			setSubmitting(false);
 		}
 	});
 

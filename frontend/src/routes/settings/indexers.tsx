@@ -84,14 +84,10 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 	const [isTestingAll, setIsTestingAll] = createOptimistic(false);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 
-	const runTestAll = async () => {
+	const runTestAll = action(async function* () {
 		setIsTestingAll(true);
-		try {
-			await testAllIndexers();
-		} finally {
-			setIsTestingAll(false);
-		}
-	};
+		yield testAllIndexers();
+	});
 
 	useBeforeLeave((event) => {
 		if (!editing()) return;

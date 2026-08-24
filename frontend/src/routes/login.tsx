@@ -27,8 +27,6 @@ export default function Login() {
 			navigate(paths(), { replace: true });
 		} catch (err: unknown) {
 			setError(err instanceof Error ? err.message : "An error occurred");
-		} finally {
-			setLoading(false);
 		}
 	});
 
