@@ -1,4 +1,4 @@
-import { makeTimer } from "@solid-primitives/timer";
+import { createTimer } from "@solid-primitives/timer";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
@@ -170,7 +170,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 	const [notice, setNotice] = createSignal<string | null>(null);
 
 	onSettled(() => {
-		makeTimer(
+		createTimer(
 			() => {
 				if (running()) setTick((t) => t + 1);
 			},

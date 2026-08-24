@@ -1,4 +1,4 @@
-import { makeTimer } from "@solid-primitives/timer";
+import { createTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -38,7 +38,7 @@ export default function Queue() {
 	// WS push is the primary update source; keep a slow poll as a fallback in
 	// case WS drops. Revalidating the query retriggers the store's source.
 	onSettled(() => {
-		makeTimer(() => revalidate(getQueue.key), 30_000, setInterval);
+		createTimer(() => revalidate(getQueue.key), 30_000, setInterval);
 		const unsub = subscribeAll(() => revalidate(getQueue.key));
 		return unsub;
 	});

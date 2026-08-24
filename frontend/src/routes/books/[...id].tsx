@@ -1,4 +1,4 @@
-import { makeTimer } from "@solid-primitives/timer";
+import { createTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { revalidate, useNavigate, useParams } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -223,7 +223,7 @@ export default function BookDetail() {
 	const [monitored, setMonitored] = createOptimistic(() => book().monitored);
 
 	onSettled(() => {
-		makeTimer(() => revalidate(getQueue.key), 30_000, setInterval);
+		createTimer(() => revalidate(getQueue.key), 30_000, setInterval);
 		const unsub = subscribeAll(() => revalidate(getQueue.key));
 		return unsub;
 	});

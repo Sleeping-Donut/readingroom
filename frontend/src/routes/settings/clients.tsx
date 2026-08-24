@@ -1,4 +1,4 @@
-import { makeTimer } from "@solid-primitives/timer";
+import { createTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { useBeforeLeave, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -100,7 +100,7 @@ export default function DownloadClientsTab(_props: RouteProps<typeof route>) {
 		(list) => {
 			if (autoTested() || list.length === 0) return;
 			setAutoTested(true);
-			list.map((cl, i) => makeTimer(() => void testClient(cl.id), i * 300, setTimeout));
+			list.map((cl, i) => createTimer(() => void testClient(cl.id), i * 300, setTimeout));
 		},
 	);
 
