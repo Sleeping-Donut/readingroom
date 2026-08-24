@@ -17,12 +17,19 @@ function wsUrl(): string {
 }
 
 // App-lifetime singleton in a never-disposed root: the primitive owns
-// reconnection (5s backoff, retries while anyone is listening).
-const ws = createRoot(() =>
-	createReconnectingWS(wsUrl(), undefined, { delay: 5000, retries: Infinity }),
-);
+// reconnection (5s backoff, retries while anyone is listening). Created
+// lazily — module scope runs during SSR where `window` does not exist.
+let ws: ReturnType<typeof createReconnectingWS> | null = null;
+function getWs() {
+	if (!ws) {
+		ws = createRoot(() =>
+			createReconnectingWS(wsUrl(), undefined, { delay: 5000, retries: Infinity }),
+		);
+	}
+	return ws;
+}
 
-ws.addEventListener("message", (event) => {
+getWs().addEventListener("message", (event) => {
 	const parsed = v.safeParse(
 		WS_MESSAGE_SCHEMA,
 		(() => {

@@ -7,7 +7,8 @@ import { paths } from "../router";
 
 export const Layout: Component<ParentProps> = (props) => {
 	const navigate = useNavigate();
-	const isOnline = createConnectivitySignal();
+	// SSR guard: the connectivity primitive touches window at setup.
+	const isOnline = typeof window !== "undefined" ? createConnectivitySignal() : () => true;
 	const [open, setOpen] = createSignal(false);
 
 	function handleLogout() {
