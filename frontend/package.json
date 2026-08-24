@@ -21,7 +21,6 @@
     "@solid-primitives/notification": "1.0.0-next.0",
     "@solid-primitives/pagination": "1.0.0-next.6",
     "@solid-primitives/scheduled": "2.0.0-next.2",
-    "@solid-primitives/sortable": "1.0.0-next.0",
     "@solid-primitives/storage": "5.0.0-next.4",
     "@solid-primitives/timer": "1.4.5-next.1",
     "@solid-primitives/websocket": "2.0.0-next.3",

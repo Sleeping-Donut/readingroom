@@ -243,9 +243,6 @@ importers:
       '@solid-primitives/scheduled':
         specifier: 2.0.0-next.2
         version: 2.0.0-next.2(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
-      '@solid-primitives/sortable':
-        specifier: 1.0.0-next.0
-        version: 1.0.0-next.0(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
       '@solid-primitives/storage':
         specifier: 5.0.0-next.4
         version: 5.0.0-next.4(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
@@ -1149,17 +1146,6 @@ packages:
 
   '@solid-primitives/scroll@3.0.0-next.4':
     resolution: {integrity: sha512-6Zod2Q2YPnkZhijVMSOhU2e1ip5hzOSQNhZIaKh7Kx7HcocYrzhn1NqYJlaUr464o1hFZweEQVkhALi9EHvt/Q==}
-    peerDependencies:
-      '@solidjs/web': ^2.0.0-rc.0
-      solid-js: ^2.0.0-rc.0
-
-  '@solid-primitives/signal-builders@1.0.0-next.4':
-    resolution: {integrity: sha512-OOBGqXNVa7wvjPL+DAAlYUdVznGIClMSvoylnHt8FpC2SsdBHpQPq7k6jMUoeK6AGVMnoAT5abbL971z0+SlZQ==}
-    peerDependencies:
-      solid-js: ^2.0.0-rc.0
-
-  '@solid-primitives/sortable@1.0.0-next.0':
-    resolution: {integrity: sha512-86tLOWTpGznhVND1BNiQNpCIu+hT90y/9Wm0Bh8HUSZki2Fimk61YzR9aHdtwhuiWB4CK7n4nBJLrx/8Gtjcrw==}
     peerDependencies:
       '@solidjs/web': ^2.0.0-rc.0
       solid-js: ^2.0.0-rc.0
@@ -3135,20 +3121,6 @@ snapshots:
       '@solid-primitives/event-listener': 3.0.0-next.3(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
       '@solid-primitives/rootless': 2.0.0-next.2(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
       '@solid-primitives/static-store': 1.0.0-next.2(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
-      '@solid-primitives/utils': 7.0.0-next.4(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
-      '@solidjs/web': 2.0.0-rc.0(solid-js@2.0.0-rc.0)
-      solid-js: 2.0.0-rc.0
-
-  '@solid-primitives/signal-builders@1.0.0-next.4(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)':
-    dependencies:
-      '@solid-primitives/utils': 7.0.0-next.4(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
-      solid-js: 2.0.0-rc.0
-    transitivePeerDependencies:
-      - '@solidjs/web'
-
-  '@solid-primitives/sortable@1.0.0-next.0(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)':
-    dependencies:
-      '@solid-primitives/signal-builders': 1.0.0-next.4(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
       '@solid-primitives/utils': 7.0.0-next.4(@solidjs/web@2.0.0-rc.0(solid-js@2.0.0-rc.0))(solid-js@2.0.0-rc.0)
       '@solidjs/web': 2.0.0-rc.0(solid-js@2.0.0-rc.0)
       solid-js: 2.0.0-rc.0

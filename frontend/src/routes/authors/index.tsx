@@ -1,5 +1,4 @@
 import { debounce } from "@solid-primitives/scheduled";
-import { by, createSorted, descending } from "@solid-primitives/sortable";
 import { Title } from "@solidjs/meta";
 import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -72,10 +71,14 @@ export default function Authors(_props: RouteProps<typeof route>) {
 	});
 
 	const [nameDesc, setNameDesc] = createSignal(false);
-	const sorted = createSorted(
-		filtered,
-		createMemo(() => by((a) => a.name.toLowerCase(), nameDesc() ? descending : undefined)),
-	);
+	// Plain memo sort — @solid-primitives/sortable overflows Solid 2's
+	// staged-write queue (see books/index).
+	const sorted = createMemo(() => {
+		const list = [...filtered()];
+		if (nameDesc())
+			return list.sort((a, b) => b.name.toLowerCase().localeCompare(a.name.toLowerCase()));
+		return list.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+	});
 
 	const submitAdd = action(async function* (author: { foreign_id: string; name: string }) {
 		setAddingId(author.foreign_id);
