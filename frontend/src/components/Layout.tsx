@@ -1,3 +1,4 @@
+import { createConnectivitySignal } from "@solid-primitives/connectivity";
 import { useNavigate } from "@solidjs/router";
 import { createSignal, type Component, type ParentProps, For, Show } from "solid-js";
 
@@ -6,6 +7,7 @@ import { paths } from "../router";
 
 export const Layout: Component<ParentProps> = (props) => {
 	const navigate = useNavigate();
+	const isOnline = createConnectivitySignal();
 	const [open, setOpen] = createSignal(false);
 
 	function handleLogout() {
@@ -26,6 +28,11 @@ export const Layout: Component<ParentProps> = (props) => {
 
 	return (
 		<div class="min-h-screen bg-paper-50 text-ink-900">
+			<Show when={!isOnline()}>
+				<div class="bg-pending/10 px-4 py-1.5 text-center font-meta text-xs tracking-widest text-pending uppercase">
+					Offline — live updates paused
+				</div>
+			</Show>
 			<header>
 				{/* Masthead row */}
 				<div class="relative flex items-center justify-center border-b border-rule px-4 py-4">

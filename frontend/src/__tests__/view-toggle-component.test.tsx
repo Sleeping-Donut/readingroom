@@ -59,7 +59,7 @@ describe("createViewPreference", () => {
 		flush();
 
 		expect(view()).toBe("list");
-		expect(localStorage.getItem(PREFIX + TEST_KEY)).toBe("list");
+		expect(localStorage.getItem(PREFIX + TEST_KEY)).toBe(JSON.stringify("list"));
 	});
 
 	test("clicking the toggle persists the preference to localStorage", () => {
@@ -74,6 +74,6 @@ describe("createViewPreference", () => {
 		flush();
 
 		expect(view()).toBe("list");
-		expect(localStorage.getItem(PREFIX + TEST_KEY)).toBe("list");
+		expect(localStorage.getItem(PREFIX + TEST_KEY)).toBe(JSON.stringify("list"));
 	});
 });

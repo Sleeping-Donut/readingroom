@@ -1,8 +1,12 @@
+import { createPagination, createSegment } from "@solid-primitives/pagination";
+import { debounce } from "@solid-primitives/scheduled";
+import { by, createSorted, descending } from "@solid-primitives/sortable";
 import { Title } from "@solidjs/meta";
 import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
 	action,
+	createEffect,
 	createMemo,
 	createOptimistic,
 	createSignal,
@@ -49,6 +53,9 @@ export default function Books(_props: RouteProps<typeof route>) {
 	const [books, { addBook }] = createBooks();
 
 	const filterQuery = () => search.q ?? "";
+	// Immediate display value; the URL (and thus the list) updates debounced.
+	const [filterInput, setFilterInput] = createSignal(filterQuery());
+	const pushFilter = debounce((q: string) => setSearch({ q }), 300);
 
 	// Empty result (not null) while the query is empty; the JSX gates "idle"
 	// on the query so an open panel doesn't read as "no matches".
@@ -70,6 +77,32 @@ export default function Books(_props: RouteProps<typeof route>) {
 				b.genres.some((g) => g.toLowerCase().includes(q)),
 		);
 	});
+
+	type SortKey = "title" | "author" | "recent";
+	const [sortKey, setSortKey] = createSignal<SortKey>("title");
+	const comparator = createMemo(() => {
+		switch (sortKey()) {
+			case "author":
+				return by((b: Book) => (b.author_name ?? "").toLowerCase());
+			case "recent":
+				return by((b: Book) => b.added_at, descending);
+			default:
+				return by((b: Book) => b.title.toLowerCase());
+		}
+	});
+	const sortedBooks = createSorted(filteredBooks, comparator);
+
+	const PAGE_SIZE = 24;
+	const [paginationProps, page, setPage] = createPagination(() => ({
+		pages: Math.max(1, Math.ceil(sortedBooks().length / PAGE_SIZE)),
+	}));
+	const pagedBooks = createSegment(sortedBooks, PAGE_SIZE, page);
+	// Reset to the first page whenever the (sorted) list changes. Solid 2
+	// compute/apply form — `on` was removed (see migration guide).
+	createEffect(
+		() => sortedBooks().length,
+		() => setPage(1),
+	);
 
 	const submitAdd = action(async function* (book: {
 		foreign_id: string;
@@ -99,6 +132,16 @@ export default function Books(_props: RouteProps<typeof route>) {
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
 					<ViewToggle view={view()} onChange={(v) => setView(v)} />
+					<select
+						value={sortKey()}
+						onChange={(e) => setSortKey(e.currentTarget.value as SortKey)}
+						aria-label="Sort books"
+						class="rounded-sm border border-rule bg-paper-100 px-3 py-2 text-sm text-ink-900"
+					>
+						<option value="title">Sort: Title</option>
+						<option value="author">Sort: Author</option>
+						<option value="recent">Sort: Recently added</option>
+					</select>
 					<button
 						onClick={() => setShowSearch(!showSearch())}
 						class="rounded-sm bg-ink-900 px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700"
@@ -213,8 +256,11 @@ export default function Books(_props: RouteProps<typeof route>) {
 						<input
 							type="text"
 							placeholder="Filter tracked books by title or author..."
-							value={filterQuery()}
-							onInput={(e) => setSearch({ q: e.currentTarget.value })}
+							value={filterInput()}
+							onInput={(e) => {
+								setFilterInput(e.currentTarget.value);
+								pushFilter(e.currentTarget.value);
+							}}
 							class="w-full rounded-sm border border-rule bg-paper-200 px-4 py-2 text-ink-900 placeholder:text-ink-500 focus:border-ink-900 focus:outline-hidden sm:w-72"
 						/>
 					</div>
@@ -248,6 +294,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 													cardLink
 													coverSrc={book.image_url}
 													title={book.title}
+													highlight={filterQuery().trim() || undefined}
 													subtitle={listSubtitle(book)}
 													status={book.status}
 												/>
@@ -257,7 +304,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 								}
 							>
 								<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-									<For each={filteredBooks()}>
+									<For each={pagedBooks()}>
 										{(book) => (
 											<BookCard
 												href={paths.books(bookId(book))}
@@ -276,6 +323,19 @@ export default function Books(_props: RouteProps<typeof route>) {
 								</div>
 							</Show>
 						</Show>
+					</Show>
+
+					<Show when={Math.ceil(sortedBooks().length / 24) > 1}>
+						<nav class="mt-6 flex items-center justify-center gap-1">
+							<For each={paginationProps()}>
+								{(props) => (
+									<button
+										{...props}
+										class="rounded-sm border border-rule px-3 py-1.5 font-meta text-xs text-ink-700 disabled:opacity-40 aria-[current]:border-ink-900 aria-[current]:font-medium aria-[current]:text-ink-900"
+									/>
+								)}
+							</For>
+						</nav>
 					</Show>
 				</Loading>
 			</Errored>

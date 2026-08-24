@@ -13,6 +13,42 @@ function getToken(): string | null {
 	}
 }
 
+export function authHeaders(): Record<string, string> {
+	const token = getToken();
+	return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/// Multipart upload with progress. The fetch-based request() cannot report
+/// upload progress, so file uploads go through XHR.
+export function uploadWithProgress<T = unknown>(
+	path: string,
+	file: File,
+	onProgress: (percentage: number) => void,
+): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST", `${BASE}${path}`);
+		for (const [k, v] of Object.entries(authHeaders())) xhr.setRequestHeader(k, v);
+		xhr.upload.onprogress = (e) => {
+			if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+		};
+		xhr.onload = () => {
+			let parsed: unknown = null;
+			try {
+				parsed = JSON.parse(xhr.responseText);
+			} catch {
+				/* non-JSON body */
+			}
+			if (xhr.status >= 200 && xhr.status < 300) resolve(parsed as T);
+			else reject(new Error((parsed as { error?: string })?.error ?? `HTTP ${xhr.status}`));
+		};
+		xhr.onerror = () => reject(new Error("Upload failed"));
+		const form = new FormData();
+		form.append("file", file);
+		xhr.send(form);
+	});
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const token = getToken();
 	const headers = new Headers();

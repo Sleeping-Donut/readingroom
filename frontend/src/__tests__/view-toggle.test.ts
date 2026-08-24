@@ -30,6 +30,6 @@ describe("createViewPreference", () => {
 		setView("list");
 		flush();
 		expect(view()).toBe("list");
-		expect(ls.getItem(PREFIX + "regression-test")).toBe("list");
+		expect(ls.getItem(PREFIX + "regression-test")).toBe(JSON.stringify("list"));
 	});
 });

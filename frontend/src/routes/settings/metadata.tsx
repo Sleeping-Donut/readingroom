@@ -1,3 +1,4 @@
+import { makeTimer } from "@solid-primitives/timer";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
@@ -13,6 +14,7 @@ import {
 
 import type { CacheMeta, ImportCounts, MetadataStatus } from "../../api/settings";
 
+import { uploadWithProgress } from "../../api/client";
 import * as settingsApi from "../../api/settings";
 
 export const route = defineFileRoute("/settings/metadata", {
@@ -168,10 +170,13 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 	const [notice, setNotice] = createSignal<string | null>(null);
 
 	onSettled(() => {
-		const poll = setInterval(() => {
-			if (running()) setTick((t) => t + 1);
-		}, 5000);
-		return () => clearInterval(poll);
+		makeTimer(
+			() => {
+				if (running()) setTick((t) => t + 1);
+			},
+			5000,
+			setInterval,
+		);
 	});
 
 	const refresh = () => setTick((t) => t + 1);
@@ -223,6 +228,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 
 	const [file, setFile] = createSignal<File | null>(null);
 	const [uploading, setUploading] = createOptimistic(false);
+	const [uploadProgress, setUploadProgress] = createSignal(0);
 
 	const runUpload = action(async function* () {
 		const f = file();
@@ -231,10 +237,13 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 		setError(null);
 		setNotice(null);
 		try {
-			const res = yield settingsApi.uploadMetadataDump(f);
+			const res = yield uploadWithProgress<{ success: boolean; started: boolean }>(
+				f,
+				setUploadProgress,
+			);
 			setFile(null);
 			refresh();
-			if (res.started) setNotice("Dump uploaded — importing in the background.");
+			if (res?.started) setNotice("Dump uploaded — importing in the background.");
 			else setError("A download/import is already running.");
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Upload failed");
@@ -379,7 +388,9 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 								disabled={uploading() || !file()}
 								class="rounded-lg bg-good px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:opacity-90 disabled:bg-paper-200"
 							>
-								{uploading() ? "Uploading..." : "Upload & Import"}
+								{uploading()
+									? `Uploading ${uploadProgress().toFixed(0)}%`
+									: "Upload & Import"}
 							</button>
 						</div>
 					</div>

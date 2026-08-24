@@ -1,38 +1,15 @@
+import { makePersisted } from "@solid-primitives/storage";
 import { createSignal, type Accessor, type Setter } from "solid-js";
 
 export type ViewMode = "grid" | "list";
 
 const PREFIX = "readingroom.view.";
 
-function readStored(key: string): ViewMode | null {
-	if (typeof localStorage === "undefined") return null;
-	try {
-		return localStorage.getItem(PREFIX + key) as ViewMode;
-	} catch {
-		return null;
-	}
-}
-
-function writeStored(key: string, view: ViewMode) {
-	if (typeof localStorage === "undefined") return;
-	try {
-		localStorage.setItem(PREFIX + key, view);
-	} catch {
-		/* ignore */
-	}
-}
-
 export function createViewPreference(key: string): [Accessor<ViewMode>, Setter<ViewMode>] {
-	const [view, setView] = createSignal<ViewMode>(readStored(key) === "list" ? "list" : "grid");
-
-	const setViewPersisted: Setter<ViewMode> = (value) => {
-		const next =
-			typeof value === "function" ? (value as (prev: ViewMode) => ViewMode)(view()) : value;
-		writeStored(key, next);
-		return setView(next);
-	};
-
-	return [view, setViewPersisted];
+	const [view, setView] = makePersisted(createSignal<ViewMode>("grid"), {
+		name: PREFIX + key,
+	});
+	return [view, setView];
 }
 
 export function ViewToggle(props: { view: ViewMode; onChange: (view: ViewMode) => void }) {

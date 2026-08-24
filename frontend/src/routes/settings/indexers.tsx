@@ -1,3 +1,4 @@
+import { makeTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { useBeforeLeave, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -102,10 +103,7 @@ export default function IndexersTab(_props: RouteProps<typeof route>) {
 		(list) => {
 			if (autoTested() || list.length === 0) return;
 			setAutoTested(true);
-			const timers = list.map((idx, i) =>
-				setTimeout(() => void testIndexer(idx.id), i * 300),
-			);
-			return () => timers.forEach(clearTimeout);
+			list.map((idx, i) => makeTimer(() => void testIndexer(idx.id), i * 300, setTimeout));
 		},
 	);
 

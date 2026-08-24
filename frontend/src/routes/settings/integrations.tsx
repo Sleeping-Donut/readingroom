@@ -1,3 +1,5 @@
+import { writeClipboard } from "@solid-primitives/clipboard";
+import { makeTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -23,9 +25,9 @@ function copyableRow(props: {
 
 	async function copy() {
 		try {
-			await navigator.clipboard.writeText(props.value);
+			await writeClipboard(props.value);
 			setCopied(true);
-			setTimeout(() => setCopied(false), 1500);
+			makeTimer(() => setCopied(false), 1500, setTimeout);
 		} catch {
 			/* clipboard unavailable */
 		}

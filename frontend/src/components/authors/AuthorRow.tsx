@@ -1,13 +1,19 @@
 import type { JSX } from "@solidjs/web";
 
+import { createMarker, makeSearchRegex } from "@solid-primitives/marker";
+
 import { AuthorCover } from "./AuthorCover";
 
 export function AuthorRow(props: {
+	highlight?: string;
 	href: JSX.AnchorHTMLAttributes<HTMLAnchorElement>["href"];
 	name: string;
 	subtitle: string;
 	imageUrl?: string;
 }) {
+	const mark = createMarker((m) => (
+		<mark class="rounded-sm bg-accent-wash px-0.5 text-ink-900">{m()}</mark>
+	));
 	return (
 		<a
 			href={props.href}
@@ -21,7 +27,11 @@ export function AuthorRow(props: {
 				placeholder
 			/>
 			<div class="min-w-0 flex-1">
-				<p class="truncate font-medium">{props.name}</p>
+				<p class="truncate font-medium">
+					{props.highlight
+						? mark(props.name, makeSearchRegex(props.highlight))
+						: props.name}
+				</p>
 				<p class="truncate text-xs text-ink-700">{props.subtitle}</p>
 			</div>
 			<span class="shrink-0 text-ink-500">›</span>

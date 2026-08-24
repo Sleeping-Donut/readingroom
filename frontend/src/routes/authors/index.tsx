@@ -1,3 +1,5 @@
+import { debounce } from "@solid-primitives/scheduled";
+import { by, createSorted, descending } from "@solid-primitives/sortable";
 import { Title } from "@solidjs/meta";
 import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -48,6 +50,8 @@ export default function Authors(_props: RouteProps<typeof route>) {
 	const [search, setSearch] = useSearchParams(paths.authors);
 
 	const filterQuery = () => search.q ?? "";
+	const [filterInput, setFilterInput] = createSignal(filterQuery());
+	const pushFilter = debounce((q: string) => setSearch({ q }), 300);
 
 	const [authors, { addAuthor: addAuthorToLibrary }] = createAuthors();
 
@@ -66,6 +70,12 @@ export default function Authors(_props: RouteProps<typeof route>) {
 		if (!q) return all;
 		return all.filter((author) => matchesFilter(author, q));
 	});
+
+	const [nameDesc, setNameDesc] = createSignal(false);
+	const sorted = createSorted(
+		filtered,
+		createMemo(() => by((a) => a.name.toLowerCase(), nameDesc() ? descending : undefined)),
+	);
 
 	const submitAdd = action(async function* (author: { foreign_id: string; name: string }) {
 		setAddingId(author.foreign_id);
@@ -219,8 +229,11 @@ export default function Authors(_props: RouteProps<typeof route>) {
 							<input
 								type="text"
 								placeholder="Filter authors by name, alias, or genre..."
-								value={filterQuery()}
-								onInput={(e) => setSearch({ q: e.currentTarget.value })}
+								value={filterInput()}
+								onInput={(e) => {
+									setFilterInput(e.currentTarget.value);
+									pushFilter(e.currentTarget.value);
+								}}
 								class="w-full max-w-md rounded-lg border border-rule bg-paper-200 px-4 py-2 text-ink-900 placeholder:text-ink-500 focus:border-ink-900 focus:outline-hidden"
 							/>
 						</div>
@@ -238,22 +251,32 @@ export default function Authors(_props: RouteProps<typeof route>) {
 								</div>
 							}
 						>
-							<Show when={filterQuery().trim().length > 0}>
-								<p class="mb-3 text-sm text-ink-700">
-									Showing {filtered().length} of {authors.authors.length} authors
-								</p>
-							</Show>
+							<div class="mb-3 flex items-center justify-between">
+								<Show when={filterQuery().trim().length > 0}>
+									<p class="text-sm text-ink-700">
+										Showing {filtered().length} of {authors.authors.length}{" "}
+										authors
+									</p>
+								</Show>
+								<button
+									onClick={() => setNameDesc(!nameDesc())}
+									class="font-meta text-xs tracking-widest text-ink-500 uppercase underline-offset-4 hover:text-ink-900 hover:underline"
+								>
+									Sort: Name {nameDesc() ? "Z–A" : "A–Z"}
+								</button>
+							</div>
 
 							<Show
 								when={view() === "grid"}
 								fallback={
 									<div class="space-y-2">
-										<For each={filtered()}>
+										<For each={sorted()}>
 											{(author) => (
 												<AuthorRow
 													href={paths.authors(authorId(author))}
 													imageUrl={author.image_url}
 													name={author.name}
+													highlight={filterQuery().trim() || undefined}
 													subtitle={rowSubtitle(author)}
 												/>
 											)}
@@ -262,12 +285,13 @@ export default function Authors(_props: RouteProps<typeof route>) {
 								}
 							>
 								<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-									<For each={filtered()}>
+									<For each={sorted()}>
 										{(author) => (
 											<AuthorCard
 												href={paths.authors(authorId(author))}
 												imageUrl={author.image_url}
 												name={author.name}
+												highlight={filterQuery().trim() || undefined}
 												subtitle={
 													author.genres.length > 0
 														? author.genres.slice(0, 2).join(", ")

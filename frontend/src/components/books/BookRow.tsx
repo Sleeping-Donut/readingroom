@@ -1,5 +1,6 @@
 import type { JSX } from "@solidjs/web";
 
+import { createMarker, makeSearchRegex } from "@solid-primitives/marker";
 import { Show } from "solid-js";
 
 import { BookCover } from "./BookCover";
@@ -13,6 +14,7 @@ export function BookRow(props: {
 	cardLink?: boolean;
 	coverEmojiClass?: string;
 	footer?: JSX.Element;
+	highlight?: string;
 	status?: string;
 }) {
 	const cover = (
@@ -23,7 +25,14 @@ export function BookRow(props: {
 			emojiClass={props.coverEmojiClass}
 		/>
 	);
-	const title = <p class="truncate font-display text-lg text-ink-900">{props.title}</p>;
+	const mark = createMarker((m) => (
+		<mark class="rounded-sm bg-accent-wash px-0.5 text-ink-900">{m()}</mark>
+	));
+	const title = (
+		<p class="truncate font-display text-lg text-ink-900">
+			{props.highlight ? mark(props.title, makeSearchRegex(props.highlight)) : props.title}
+		</p>
+	);
 	const status = (
 		<div class="mt-1.5">
 			<StatusBadge status={props.status} />

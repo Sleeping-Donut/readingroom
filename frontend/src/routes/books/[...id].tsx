@@ -1,3 +1,4 @@
+import { makeTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { revalidate, useNavigate, useParams } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
@@ -222,12 +223,9 @@ export default function BookDetail() {
 	const [monitored, setMonitored] = createOptimistic(() => book().monitored);
 
 	onSettled(() => {
-		const pollId = setInterval(() => revalidate(getQueue.key), 30000);
+		makeTimer(() => revalidate(getQueue.key), 30_000, setInterval);
 		const unsub = subscribeAll(() => revalidate(getQueue.key));
-		return () => {
-			clearInterval(pollId);
-			unsub();
-		};
+		return unsub;
 	});
 
 	const indexerSearch = action(async function* () {
