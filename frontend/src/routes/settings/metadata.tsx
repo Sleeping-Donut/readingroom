@@ -238,6 +238,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 		setNotice(null);
 		try {
 			const res = yield uploadWithProgress<{ success: boolean; started: boolean }>(
+				"/settings/metadata/upload",
 				f,
 				setUploadProgress,
 			);

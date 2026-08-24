@@ -101,7 +101,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 	// compute/apply form — `on` was removed (see migration guide).
 	createEffect(
 		() => sortedBooks().length,
-		() => setPage(1),
+		(_length) => setPage(1),
 	);
 
 	const submitAdd = action(async function* (book: {
