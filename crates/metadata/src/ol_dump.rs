@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tokio::io::AsyncWriteExt;
 
-pub const DEFAULT_DUMP_URL: &str = "https://openlibrary.org/data/ol_dump_all_latest.txt.gz";
+pub const DEFAULT_DUMP_URL: &str = "https://openlibrary.org/data/ol_dump_latest.txt.gz";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImportState {

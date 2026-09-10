@@ -273,9 +273,9 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 						<h4 class="mb-1 font-semibold text-ink-900">Metadata source</h4>
 						<p class="mb-4 text-sm text-ink-500">
 							Use the OpenLibrary website API, or a local offline cache built from the
-							full <code class="text-ink-700">ol_dump_all_latest.txt.gz</code> dump
-							(~12 GB compressed). Enabling the local cache downloads and imports the
-							dump in the background.
+							full <code class="text-ink-700">ol_dump_latest.txt.gz</code> dump (~12
+							GB compressed). Enabling the local cache downloads and imports the dump
+							in the background.
 						</p>
 
 						<div class="flex flex-col gap-6 sm:flex-row">
