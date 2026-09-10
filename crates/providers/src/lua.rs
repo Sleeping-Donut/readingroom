@@ -168,8 +168,30 @@ struct LuaRelease {
     size: i64,
     #[serde(default)]
     download_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_categories")]
     categories: Vec<String>,
+}
+
+/// Lua tables that aren't a clean array — notably an empty table — serialize as
+/// JSON objects. Accept either a sequence or a map so a plugin returning
+/// `categories = {}` doesn't fail the whole result.
+fn deserialize_categories<'de, D>(deserializer: D) -> std::result::Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum Categories {
+        List(Vec<String>),
+        Map(std::collections::BTreeMap<String, String>),
+    }
+    Ok(
+        match <Option<Categories> as serde::Deserialize>::deserialize(deserializer)? {
+            None => Vec::new(),
+            Some(Categories::List(list)) => list,
+            Some(Categories::Map(map)) => map.into_values().collect(),
+        },
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -371,6 +393,19 @@ return {
 
     /// Feed the bundled annas-archive.lua a canned HTML page via a stub host
     /// (no network) to exercise its parsing in isolation.
+    #[test]
+    fn release_accepts_empty_object_categories() {
+        // An empty Lua table serializes as `{}` (a map), not `[]`.
+        let row: LuaRelease = serde_json::from_value(serde_json::json!({
+            "title": "Dune",
+            "info_url": "https://example.invalid/books/1",
+            "download_url": "https://example.invalid/dyn/api/fast_download.json?md5=1",
+            "categories": {},
+        }))
+        .unwrap();
+        assert!(row.categories.is_empty());
+    }
+
     #[test]
     fn annas_plugin_parses_canned_html() {
         let source = include_str!("../lua_plugins/annas-archive.lua");
