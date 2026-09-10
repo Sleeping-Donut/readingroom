@@ -483,21 +483,55 @@ return {
 
     /// Feed the bundled libgen.lua a canned JSON payload via a stub host.
     #[test]
-    fn libgen_plugin_parses_canned_json() {
+    fn libgen_plugin_parses_canned_html() {
         let source = include_str!("../lua_plugins/libgen.lua");
         let lua = Lua::new();
         let host = lua.create_table().unwrap();
-        let payload = r#"
-            return function(url)
-              return { data = {
-                { id = 587, title = "Foundations of Reinforcement Learning with Applications in Finance",
-                  author = "Ashwin Rao, Tikhon Jelvis", extension = "epub", filesize = 29772674 },
-                { id = 28861096, title = "Foundation", author = "Isaac Asimov", extension = "EPUB", filesize = 123456 },
-              } }
-            end
-        "#;
-        host.set("http_get_json", lua.load(payload).eval::<mlua::Function>().unwrap())
-            .unwrap();
+        // One row with a direct get.php mirror, one ads-only row that must be
+        // resolved via the ads page (which the plugin fetches with a Referer).
+        let search_html = r#"
+<table>
+<tr>
+  <td><b><a href="series.php?id=1">Dune</a></b><br><a href="edition.php?id=317043">Dune - The official adaptation</a></td>
+  <td>Herbert, Frank</td>
+  <td>Ace</td>
+  <td>1965</td>
+  <td>English</td>
+  <td>412</td>
+  <td><a href="file.php?id=1">23 MB</a></td>
+  <td>epub</td>
+  <td><a title="libgen" href="/get.php?md5=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa">Libgen</a></td>
+</tr>
+<tr>
+  <td><a href="edition.php?id=999">Dune Messiah</a></td>
+  <td>Herbert, Frank</td>
+  <td>Ace</td>
+  <td>1969</td>
+  <td>English</td>
+  <td>300</td>
+  <td><a href="file.php?id=2">1 MB</a></td>
+  <td>epub</td>
+  <td><a title="1" href="/ads.php?md5=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb">1</a></td>
+</tr>
+</table>
+"#;
+        let ads_html =
+            r#"<a href="get.php?md5=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&key=TESTKEY123">Download</a>"#;
+        host.set(
+            "http_get",
+            lua.create_function(
+                move |_, (url, _headers): (String, Option<mlua::Table>)| {
+                    let body = if url.contains("ads.php") {
+                        ads_html
+                    } else {
+                        search_html
+                    };
+                    Ok((Some(body.to_string()), None::<String>))
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
         host.set("url_encode", lua.create_function(|_, s: String| Ok(s)).unwrap())
             .unwrap();
         host.set("log", lua.create_function(|_, _: (String, String)| Ok(())).unwrap())
@@ -507,24 +541,24 @@ return {
         let table: Table = lua.load(source).set_name("plugin").eval().unwrap();
         let search: mlua::Function = table.get("search").unwrap();
         let self_table = lua.create_table().unwrap();
-        self_table.set("url", "https://libgen.vc").unwrap();
+        self_table.set("url", "https://libgen.li").unwrap();
         let crit = lua.create_table().unwrap();
-        crit.set("query", "Foundation").unwrap();
+        crit.set("query", "Dune").unwrap();
         let result: Value = search.call((self_table, crit)).unwrap();
 
         let releases = decode_releases("test", result).unwrap();
         assert_eq!(releases.len(), 2);
-        assert_eq!(
-            releases[0].title,
-            "Ashwin Rao, Tikhon Jelvis - Foundations of Reinforcement Learning with Applications in Finance [epub]"
-        );
-        assert_eq!(releases[0].size, 29772674);
+        // Direct mirror: use get.php as-is.
         assert_eq!(
             releases[0].download_url,
-            "https://libgen.vc/index.php/edition/587"
+            "https://libgen.li/get.php?md5=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         );
-        assert_eq!(releases[1].title, "Isaac Asimov - Foundation [epub]");
-        assert_eq!(releases[1].size, 123456);
-        assert_eq!(releases[1].categories, vec!["epub".to_string()]);
+        assert_eq!(releases[0].size, 23 * 1024 * 1024);
+        assert_eq!(releases[0].categories, vec!["epub".to_string()]);
+        // Ads-only mirror: resolved to the keyed get.php link.
+        assert_eq!(
+            releases[1].download_url,
+            "https://libgen.li/get.php?md5=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&key=TESTKEY123"
+        );
     }
 }
