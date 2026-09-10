@@ -1,3 +1,4 @@
+import { createPagination, createSegment } from "@solid-primitives/pagination";
 import { debounce } from "@solid-primitives/scheduled";
 import { Title } from "@solidjs/meta";
 import { useSearchParams, type RouteProps } from "@solidjs/router";
@@ -40,8 +41,6 @@ const listSubtitle = (book: { author_name?: string; genres: string[]; publish_da
 export default function Books(_props: RouteProps<typeof route>) {
 	const [searchQuery, setSearchQuery] = createSignal("");
 	const [showSearch, setShowSearch] = createSignal(false);
-	// Busy flag for a search-result row; search results aren't store rows, so
-	// there's no pending affordance to hang this on.
 	const [addingId, setAddingId] = createOptimistic<string | null>(null);
 	const [actionError, setActionError] = createSignal<string | null>(null);
 	const [view, setView] = createViewPreference("books");
@@ -50,12 +49,12 @@ export default function Books(_props: RouteProps<typeof route>) {
 	const [books, { addBook }] = createBooks();
 
 	const filterQuery = () => search.q ?? "";
-	// Immediate display value; the URL (and thus the list) updates debounced.
 	const [filterInput, setFilterInput] = createSignal(filterQuery());
-	const pushFilter = debounce((q: string) => setSearch({ q }), 300);
+	const pushFilter = debounce((q: string) => {
+		setSearch({ q });
+		setPage(1);
+	}, 300);
 
-	// Empty result (not null) while the query is empty; the JSX gates "idle"
-	// on the query so an open panel doesn't read as "no matches".
 	const EMPTY_SEARCH = { books: [] as Book[], total: 0 };
 	const searchResults = createMemo(async () => {
 		const q = searchQuery().trim();
@@ -77,16 +76,26 @@ export default function Books(_props: RouteProps<typeof route>) {
 
 	type SortKey = "title" | "author" | "recent";
 	const [sortKey, setSortKey] = createSignal<SortKey>("title");
-	// Plain memo sort — @solid-primitives/sortable's createSorted overflows
-	// Solid 2's staged-write queue (RangeError in restoreQueues).
 	const sortedBooks = createMemo(() => {
-		const key = sortKey();
 		const list = [...filteredBooks()];
-		if (key === "author")
-			return list.sort((a, b) => (a.author_name ?? "").localeCompare(b.author_name ?? ""));
-		if (key === "recent") return list.sort((a, b) => b.added_at.localeCompare(a.added_at));
-		return list.sort((a, b) => a.title.localeCompare(b.title));
+		switch (sortKey()) {
+			case "author":
+				return list.sort((a, b) =>
+					(a.author_name ?? "").localeCompare(b.author_name ?? ""),
+				);
+			case "recent":
+				return list.sort((a, b) => (b.added_at ?? "").localeCompare(a.added_at ?? ""));
+			default:
+				return list.sort((a, b) => a.title.localeCompare(b.title));
+		}
 	});
+
+	const PAGE_SIZE = 24;
+	const maxPage = createMemo(() => Math.max(1, Math.ceil(sortedBooks().length / PAGE_SIZE)));
+	const [paginationProps, page, setPage] = createPagination(() => ({
+		pages: maxPage(),
+	}));
+	const pagedBooks = createSegment(sortedBooks, PAGE_SIZE, page);
 
 	const submitAdd = action(async function* (book: {
 		foreign_id: string;
@@ -271,7 +280,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 								when={view() === "grid"}
 								fallback={
 									<div class="space-y-2">
-										<For each={sortedBooks()}>
+										<For each={pagedBooks()}>
 											{(book) => (
 												<BookRow
 													href={paths.books(bookId(book))}
@@ -288,7 +297,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 								}
 							>
 								<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-									<For each={sortedBooks()}>
+									<For each={pagedBooks()}>
 										{(book) => (
 											<BookCard
 												href={paths.books(bookId(book))}
@@ -307,6 +316,19 @@ export default function Books(_props: RouteProps<typeof route>) {
 								</div>
 							</Show>
 						</Show>
+					</Show>
+
+					<Show when={maxPage() > 1}>
+						<nav class="mt-6 flex items-center justify-center gap-1">
+							<For each={paginationProps()}>
+								{(props) => (
+									<button
+										{...props}
+										class="rounded-sm border border-rule px-3 py-1.5 font-meta text-xs text-ink-700 disabled:opacity-40 aria-[current]:border-ink-900 aria-[current]:font-medium aria-[current]:text-ink-900"
+									/>
+								)}
+							</For>
+						</nav>
 					</Show>
 				</Loading>
 			</Errored>

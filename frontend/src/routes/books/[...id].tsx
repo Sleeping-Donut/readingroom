@@ -1,3 +1,4 @@
+import { createPagination, createSegment } from "@solid-primitives/pagination";
 import { createTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { revalidate, useNavigate, useParams } from "@solidjs/router";
@@ -217,6 +218,16 @@ export default function BookDetail() {
 	const [addingEditionId, setAddingEditionId] = createOptimistic<string | null>(null);
 	const [searchTitle, setSearchTitle] = createSignal<string | null>(null);
 
+	const SEARCH_PAGE_SIZE = 25;
+	const searchMaxPage = createMemo(() =>
+		Math.max(1, Math.ceil((indexerResults()?.total ?? 0) / SEARCH_PAGE_SIZE)),
+	);
+	const [searchPaginationProps, searchPage, setSearchPage] = createPagination(() => ({
+		pages: searchMaxPage(),
+	}));
+	const searchResultItems = createMemo(() => indexerResults()?.results ?? []);
+	const pagedSearchResults = createSegment(searchResultItems, SEARCH_PAGE_SIZE, searchPage);
+
 	// Optimistic view of the book's monitored flag: mirrors the server value
 	// from getBook(), but writes made inside an action show immediately and
 	// revert to the server value once the action settles (revalidated below).
@@ -232,6 +243,7 @@ export default function BookDetail() {
 		setSearching(true);
 		setActionError(null);
 		setSearchTitle(null);
+		setSearchPage(1);
 		try {
 			const id = book().id;
 			const res =
@@ -249,6 +261,7 @@ export default function BookDetail() {
 		setSearching(true);
 		setActionError(null);
 		setSearchTitle(edition.title);
+		setSearchPage(1);
 		try {
 			const res = await searchIndexersForTitle(edition.title);
 			yield;
@@ -728,20 +741,42 @@ export default function BookDetail() {
 											</tr>
 										</thead>
 										<tbody>
-											<For each={r().results}>
-												{(result, index) => (
-													<ReleaseRow
-														result={result}
-														downloading={downloadingId() === index()}
-														onDownload={() =>
-															void downloadRelease(result, index())
-														}
-													/>
-												)}
+											<For each={pagedSearchResults()}>
+												{(result) => {
+													const globalIndex = () =>
+														(searchPage() - 1) * SEARCH_PAGE_SIZE +
+														pagedSearchResults().indexOf(result);
+													return (
+														<ReleaseRow
+															result={result}
+															downloading={
+																downloadingId() === globalIndex()
+															}
+															onDownload={() =>
+																void downloadRelease(
+																	result,
+																	globalIndex(),
+																)
+															}
+														/>
+													);
+												}}
 											</For>
 										</tbody>
 									</table>
 								</div>
+								<Show when={searchMaxPage() > 1}>
+									<nav class="mt-4 flex items-center justify-center gap-1">
+										<For each={searchPaginationProps()}>
+											{(props) => (
+												<button
+													{...props}
+													class="rounded-sm border border-rule px-3 py-1.5 font-meta text-xs text-ink-700 disabled:opacity-40 aria-[current]:border-ink-900 aria-[current]:font-medium aria-[current]:text-ink-900"
+												/>
+											)}
+										</For>
+									</nav>
+								</Show>
 							</Show>
 						)}
 					</Show>
