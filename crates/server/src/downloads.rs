@@ -269,6 +269,9 @@ impl DownloadManager {
                 }
                 Err(e) => {
                     db::update_queue_status_to(&self.db, queue_id, QueueStatus::Failed).await?;
+                    if !db::book_has_files(&self.db, completed.book_id).await.unwrap_or(false) {
+                        let _ = db::set_book_status(&self.db, completed.book_id, "tracked").await;
+                    }
                     tracing::error!(
                         queue_id = %queue_id,
                         error = %e,

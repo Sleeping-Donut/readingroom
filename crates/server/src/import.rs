@@ -63,7 +63,10 @@ impl ImportManager {
         let files = self.scan_directory(dl_path)?;
         if files.is_empty() {
             tracing::warn!(path = %dl_path.display(), "No compatible files found in download");
-            return Ok(());
+            return Err(AppError::Other(format!(
+                "No compatible files found in {}",
+                dl_path.display()
+            )));
         }
 
         let lib_cfg = self.effective_library_config().await;

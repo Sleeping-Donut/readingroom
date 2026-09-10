@@ -231,7 +231,16 @@ impl DownloadClient for HttpDownloadClient {
         } else {
             (download_url, None)
         };
-        let ext = resolved_ext.unwrap_or_else(|| Self::ext_from_url(&url));
+        // Prefer the release's declared format (e.g. a LibGen category) over the
+        // URL extension: a download URL like `get.php?md5=…` carries no useful
+        // extension of its own, and a wrong one makes the import step skip it.
+        let url_ext = Self::ext_from_url(&url);
+        let category_ext = release
+            .categories
+            .iter()
+            .map(|c| c.to_lowercase())
+            .find(|c| !c.is_empty());
+        let ext = resolved_ext.or(category_ext).unwrap_or(url_ext);
         let title = Self::sanitize_title(&release.title);
         let id = DownloadId(title.clone());
 
