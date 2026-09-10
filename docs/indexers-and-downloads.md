@@ -74,8 +74,10 @@ end to end; keep it current when touching indexers/downloads.
 - **Ads-only rows:** many rows only expose `/ads.php?md5=<md5>`. That page
   **requires a `Referer`** (without it libgen returns 0 bytes) and contains the
   real link `get.php?md5=<md5>&key=<KEY>`. That keyed URL downloads fine
-  **without** a Referer. The plugin therefore fetches `ads.php` with a
-  `Referer` (bounded to `MAX_ADS_RESOLUTIONS`) and emits the keyed URL.
+  **without** a Referer. The plugin emits the `ads.php` URL as-is and the HTTP
+  downloader resolves it at **download time** (`Referer` + link extraction), so
+  search makes a single request and stays fast (~1s) instead of fetching up to
+  20 ads pages sequentially (~53s).
 - Plugin: `crates/providers/lua_plugins/libgen.lua`. Add it in
   Settings → Indexers (type "Library Genesis", base URL `https://libgen.li`).
 
