@@ -205,15 +205,28 @@ fn register_host(lua: &Lua, client: reqwest::blocking::Client) -> Result<()> {
 
     let c = client.clone();
     let http_get = lua
-        .create_function(move |_, url: String| -> mlua::Result<(Option<String>, Option<String>)> {
-            match c.get(&url).send() {
-                Ok(resp) => match resp.text() {
-                    Ok(body) => Ok((Some(body), None)),
-                    Err(e) => Ok((None, Some(format!("read error: {e}")))),
-                },
-                Err(e) => Ok((None, Some(format!("http error: {e}")))),
-            }
-        })
+        .create_function(
+            move |_,
+                  (url, headers): (String, Option<mlua::Table>)|
+                  -> mlua::Result<(Option<String>, Option<String>)> {
+                let mut req = c.get(&url);
+                if let Some(headers) = headers {
+                    for pair in headers.pairs::<String, String>() {
+                        match pair {
+                            Ok((k, v)) => req = req.header(k, v),
+                            Err(e) => return Ok((None, Some(format!("header error: {e}")))),
+                        }
+                    }
+                }
+                match req.send() {
+                    Ok(resp) => match resp.text() {
+                        Ok(body) => Ok((Some(body), None)),
+                        Err(e) => Ok((None, Some(format!("read error: {e}")))),
+                    },
+                    Err(e) => Ok((None, Some(format!("http error: {e}")))),
+                }
+            },
+        )
         .map_err(lua_err)?;
     host.set("http_get", http_get).map_err(lua_err)?;
 
