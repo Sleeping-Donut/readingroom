@@ -174,6 +174,14 @@ fn validate_plugin_settings(
     Ok(())
 }
 
+/// Rebuild the in-memory indexer set after a settings change so it takes effect
+/// without a server restart.
+async fn reload_indexers(state: &AppState) {
+    let indexers =
+        crate::search::build_indexers(&state.db, &state.config.indexers, &state.plugins).await;
+    state.search_engine.set_indexers(indexers);
+}
+
 async fn create_indexer(
     State(state): State<Arc<AppState>>,
     Json(body): Json<CreateIndexerBody>,
@@ -199,7 +207,10 @@ async fn create_indexer(
     .await;
 
     match result {
-        Ok(r) => Json(json!({ "id": r.last_insert_rowid(), "success": true })),
+        Ok(r) => {
+            reload_indexers(&state).await;
+            Json(json!({ "id": r.last_insert_rowid(), "success": true }))
+        }
         Err(e) => Json(json!({ "error": e.to_string(), "success": false })),
     }
 }
@@ -268,7 +279,10 @@ async fn update_indexer(
     .execute(&state.db)
     .await
     {
-        Ok(r) => Json(json!({ "rows_affected": r.rows_affected(), "success": true })),
+        Ok(r) => {
+            reload_indexers(&state).await;
+            Json(json!({ "rows_affected": r.rows_affected(), "success": true }))
+        }
         Err(e) => Json(json!({ "error": e.to_string(), "success": false })),
     }
 }
@@ -282,7 +296,10 @@ async fn delete_indexer(
         .execute(&state.db)
         .await
     {
-        Ok(r) => Json(json!({ "rows_affected": r.rows_affected(), "success": true })),
+        Ok(r) => {
+            reload_indexers(&state).await;
+            Json(json!({ "rows_affected": r.rows_affected(), "success": true }))
+        }
         Err(e) => Json(json!({ "error": e.to_string(), "success": false })),
     }
 }
