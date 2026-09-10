@@ -51,6 +51,11 @@ export default defineConfig({
 		solid({ start: true }),
 		fileRoutes({ types: "src/file-routes.d.ts" }),
 	]),
+	resolve: {
+		alias: {
+			"solid-js/web": "@solidjs/web",
+		},
+	},
 	build: {
 		target: "esnext",
 	},
