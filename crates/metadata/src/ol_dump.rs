@@ -392,12 +392,15 @@ pub async fn download_and_import(
     });
 
     let tmp = dump_tmp_path(db).await?;
+    // A 12 GB dump takes far longer than a whole-request timeout allows, so
+    // bound each connect/read instead of the total transfer.
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(300))
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .read_timeout(std::time::Duration::from_secs(120))
         .build()?;
 
     let result = async {
-        download_to_file(&client, url, &tmp, handle).await?;
+        download_with_retries(&client, url, &tmp, handle).await?;
         handle.set(|p| p.state = ImportState::Importing);
 
         sqlx::query("PRAGMA synchronous=OFF").execute(db).await?;
@@ -504,6 +507,34 @@ async fn record_failure(db: &sqlx::SqlitePool, error: &AppError) {
         .bind(now)
         .execute(db)
         .await;
+}
+
+/// Download the dump, retrying a few times — the transfer is long and a single
+/// dropped connection shouldn't discard the whole import.
+async fn download_with_retries(
+    client: &reqwest::Client,
+    url: &str,
+    path: &Path,
+    handle: &ImportHandle,
+) -> Result<()> {
+    const ATTEMPTS: u32 = 3;
+    let mut last_err: Option<AppError> = None;
+    for attempt in 1..=ATTEMPTS {
+        match download_to_file(client, url, path, handle).await {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                last_err = Some(e);
+                if attempt < ATTEMPTS {
+                    handle.set(|p| {
+                        p.state = ImportState::Downloading;
+                        p.bytes_downloaded = 0;
+                    });
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                }
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| AppError::Other("dump download failed".into())))
 }
 
 async fn download_to_file(
