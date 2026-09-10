@@ -1,31 +1,41 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use readingroom_core::{
+    config::IndexerConfig,
     error::Result,
     models::{Book, MonitoredBook},
     search::{BasicDecisionEngine, DecisionEngine, ScoredRelease},
     traits::{Indexer, SearchCriteria},
 };
+use readingroom_providers::PluginManager;
 
 use crate::db;
 
 /// Orchestrates searches across all configured indexers and scores results.
 pub struct SearchEngine {
-    indexers: Vec<Box<dyn Indexer>>,
+    /// Reloadable so settings-API / Prowlarr changes take effect without a
+    /// restart.
+    indexers: RwLock<Vec<Arc<dyn Indexer>>>,
     decision: Box<dyn DecisionEngine>,
     db: sqlx::SqlitePool,
 }
 
 impl SearchEngine {
-    pub fn new(
-        indexers: Vec<Box<dyn Indexer>>,
-        db: sqlx::SqlitePool,
-    ) -> Self {
+    pub fn new(indexers: Vec<Arc<dyn Indexer>>, db: sqlx::SqlitePool) -> Self {
         Self {
-            indexers,
+            indexers: RwLock::new(indexers),
             decision: Box::new(BasicDecisionEngine),
             db,
         }
+    }
+
+    /// Swap in a freshly built indexer set (call after any settings change).
+    pub fn set_indexers(&self, indexers: Vec<Arc<dyn Indexer>>) {
+        *self.indexers.write().unwrap() = indexers;
+    }
+
+    fn indexers_snapshot(&self) -> Vec<Arc<dyn Indexer>> {
+        self.indexers.read().unwrap().clone()
     }
 
     /// Search for a specific monitored book across all indexers.
@@ -41,7 +51,7 @@ impl SearchEngine {
 
         let mut all_scored = Vec::new();
 
-        for indexer in &self.indexers {
+        for indexer in self.indexers_snapshot() {
             if !indexer.supports_search() {
                 continue;
             }
@@ -89,4 +99,33 @@ impl SearchEngine {
         all_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         Ok(all_results)
     }
+}
+
+/// Build the active indexer set: DB-managed configs (settings API / Prowlarr)
+/// first, then config.toml, de-duplicated by name. Used at startup and on every
+/// indexer settings change.
+pub async fn build_indexers(
+    db: &sqlx::SqlitePool,
+    config_indexers: &[IndexerConfig],
+    plugins: &PluginManager,
+) -> Vec<Arc<dyn Indexer>> {
+    let mut configs = db::list_indexer_configs(db).await.unwrap_or_default();
+    for c in config_indexers {
+        if !configs.iter().any(|existing| existing.name == c.name) {
+            configs.push(c.clone());
+        }
+    }
+    configs
+        .iter()
+        .filter(|c| c.enabled)
+        .filter_map(|c| {
+            readingroom_providers::from_config(c, plugins)
+                .map(Arc::<dyn Indexer>::from)
+                .map_err(|e| {
+                    tracing::warn!(name = %c.name, error = %e, "Failed to initialize indexer");
+                    e
+                })
+                .ok()
+        })
+        .collect()
 }

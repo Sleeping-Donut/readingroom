@@ -231,6 +231,14 @@ async fn authorize(
     ))
 }
 
+/// Rebuild the in-memory indexer set after a settings change so it takes effect
+/// without a server restart.
+async fn reload_indexers(state: &AppState) {
+    let indexers =
+        crate::search::build_indexers(&state.db, &state.config.indexers, &state.plugins).await;
+    state.search_engine.set_indexers(indexers);
+}
+
 async fn list_indexers(
     headers: HeaderMap,
     State(state): State<Arc<AppState>>,
@@ -349,7 +357,10 @@ async fn create_indexer(
             .fetch_one(&state.db)
             .await
             {
-                Ok(row) => Json(row_to_resource(&row)).into_response(),
+                Ok(row) => {
+                    reload_indexers(&state).await;
+                    Json(row_to_resource(&row)).into_response()
+                }
                 Err(e) => (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(json!({ "error": e.to_string() })),
@@ -492,7 +503,10 @@ async fn update_indexer(
     .execute(&state.db)
     .await
     {
-        Ok(_) => Json(json!({})).into_response(),
+        Ok(_) => {
+            reload_indexers(&state).await;
+            Json(json!({})).into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": e.to_string() })),
@@ -515,7 +529,10 @@ async fn delete_indexer(
         .execute(&state.db)
         .await
     {
-        Ok(_) => Json(json!({})).into_response(),
+        Ok(_) => {
+            reload_indexers(&state).await;
+            Json(json!({})).into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": e.to_string() })),

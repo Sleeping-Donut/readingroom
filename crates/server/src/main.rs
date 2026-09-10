@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use tracing_subscriber::EnvFilter;
 
-use readingroom_core::traits::{DownloadClient, Indexer, MetadataSource};
+use readingroom_core::traits::{DownloadClient, MetadataSource};
 
 mod api;
 mod config;
@@ -251,25 +251,7 @@ async fn main() -> readingroom_core::error::Result<()> {
     tracing::info!(plugins = %plugins.len(), "Lua plugins loaded");
 
     // Initialize indexers: DB-managed (settings API / Prowlarr) first, then config.toml.
-    let mut indexer_configs: Vec<readingroom_core::config::IndexerConfig> =
-        crate::db::list_indexer_configs(&db).await.unwrap_or_default();
-    for c in &config.indexers {
-        if !indexer_configs.iter().any(|existing| existing.name == c.name) {
-            indexer_configs.push(c.clone());
-        }
-    }
-    let indexers: Vec<Box<dyn Indexer>> = indexer_configs
-        .iter()
-        .filter(|c| c.enabled)
-        .filter_map(|c| {
-            readingroom_providers::from_config(c, &plugins)
-                .map_err(|e| {
-                    tracing::warn!(name = %c.name, error = %e, "Failed to initialize indexer");
-                    e
-                })
-                .ok()
-        })
-        .collect();
+    let indexers = crate::search::build_indexers(&db, &config.indexers, &plugins).await;
     tracing::info!(count = %indexers.len(), "Indexers initialized");
 
     // Initialize download clients: DB-configured clients (Settings UI) take
