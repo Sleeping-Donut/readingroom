@@ -174,6 +174,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 		foreign_id: string;
 		author_id: number;
 		title: string;
+		author_name?: string;
 	}) {
 		setAddingId(book.foreign_id);
 		setActionError(null);
@@ -280,6 +281,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 																foreign_id: book.foreign_id,
 																author_id: book.author_id,
 																title: book.title,
+																author_name: book.author_name,
 															})
 														}
 														disabled={addingId() === book.foreign_id}

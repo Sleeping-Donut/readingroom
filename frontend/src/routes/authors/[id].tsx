@@ -385,7 +385,9 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 																	foreign_id: book.foreign_id,
 																	author_id: book.author_id,
 																	title: book.title,
-																	author_name: book.author_name,
+																	author_name:
+																		book.author_name ??
+																		author().name,
 																})
 															}
 														/>
@@ -415,6 +417,9 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 																foreign_id: book.foreign_id,
 																author_id: book.author_id,
 																title: book.title,
+																author_name:
+																	book.author_name ??
+																	author().name,
 															})
 														}
 														block
