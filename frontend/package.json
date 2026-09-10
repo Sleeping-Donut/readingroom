@@ -39,7 +39,7 @@
     "@solidjs/vite-plugin": "3.0.0-next.28",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^6.10.0",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.5.0",
     "filesystem-routing": "^0.2.1",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.3",
