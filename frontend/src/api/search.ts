@@ -20,5 +20,11 @@ export const searchIndexersForTitle = (query: string) =>
 		`/search/indexers?q=${encodeURIComponent(query)}`,
 	);
 
-export const downloadIndexerRelease = (release: Release, bookId: number | undefined) =>
-	api.post("/search/indexers/download", { release, book_id: bookId });
+export const downloadIndexerRelease = async (release: Release, bookId: number | undefined) => {
+	const res = await api.post<{ success: boolean; error?: string; queue_id?: number }>(
+		"/search/indexers/download",
+		{ release, book_id: bookId },
+	);
+	if (!res.success) throw new Error(res.error ?? "Download failed");
+	return res;
+};
