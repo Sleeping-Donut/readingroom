@@ -1,4 +1,5 @@
 import { createTimer } from "@solid-primitives/timer";
+import { createFileUploader, fileSender } from "@solid-primitives/upload";
 import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
@@ -14,7 +15,7 @@ import {
 
 import type { CacheMeta, ImportCounts, MetadataStatus } from "../../api/settings";
 
-import { uploadWithProgress } from "../../api/client";
+import { authHeaders } from "../../api/client";
 import * as settingsApi from "../../api/settings";
 
 export const route = defineFileRoute("/settings/metadata", {
@@ -228,7 +229,12 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 
 	const [file, setFile] = createSignal<File | null>(null);
 	const [uploading, setUploading] = createOptimistic(false);
-	const [uploadProgress, setUploadProgress] = createSignal(0);
+	const uploader = createFileUploader(
+		fileSender("/api/v1/settings/metadata/upload", {
+			fieldName: "file",
+			headers: authHeaders(),
+		}),
+	);
 
 	const runUpload = action(async function* () {
 		const f = file();
@@ -237,11 +243,10 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 		setError(null);
 		setNotice(null);
 		try {
-			const res = yield uploadWithProgress<{ success: boolean; started: boolean }>(
-				"/settings/metadata/upload",
-				f,
-				setUploadProgress,
-			);
+			yield uploader.upload([{ source: "local", name: f.name, size: f.size, file: f }]);
+			const res = uploader.files[0]?.response as
+				| { success: boolean; started: boolean }
+				| undefined;
 			setFile(null);
 			refresh();
 			if (res?.started) setNotice("Dump uploaded — importing in the background.");
@@ -390,7 +395,7 @@ export default function MetadataTab(_props: RouteProps<typeof route>) {
 								class="rounded-lg bg-good px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:opacity-90 disabled:bg-paper-200"
 							>
 								{uploading()
-									? `Uploading ${uploadProgress().toFixed(0)}%`
+									? `Uploading ${uploader.progress().percentage.toFixed(0)}%`
 									: "Upload & Import"}
 							</button>
 						</div>
