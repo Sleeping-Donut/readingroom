@@ -45,11 +45,23 @@ function fillFormat(format: string): string {
 		.replaceAll("{ext}", "epub");
 }
 
+/// The API can return null for unset fields; keep the form on strings so the
+/// preview's `.trim()` calls (and the inputs) never see null.
+function withDefaults(library: Partial<LibrarySettings> | null | undefined): LibrarySettings {
+	return {
+		root_folder: library?.root_folder ?? DEFAULTS.root_folder,
+		audiobook_folder: library?.audiobook_folder ?? DEFAULTS.audiobook_folder,
+		rename_files: library?.rename_files ?? DEFAULTS.rename_files,
+		author_folder_format: library?.author_folder_format ?? DEFAULTS.author_folder_format,
+		book_file_format: library?.book_file_format ?? DEFAULTS.book_file_format,
+	};
+}
+
 export default function LibraryTab(_props: RouteProps<typeof route>) {
 	const [form, setForm] = createStore<LibrarySettings>(
 		async () => {
 			const data = await settingsApi.getLibrarySettings();
-			return { ...DEFAULTS, ...data.library };
+			return withDefaults(data.library);
 		},
 		{ ...DEFAULTS },
 	);
