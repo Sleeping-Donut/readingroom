@@ -5,6 +5,8 @@ import { useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
 	action,
+	type Accessor,
+	createEffect,
 	createMemo,
 	createOptimistic,
 	createSignal,
@@ -21,7 +23,7 @@ import { getBooks, bookId, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
 import { Specimen } from "../../components/ui/Specimen";
-import { ViewToggle, createViewPreference } from "../../components/ViewToggle";
+import { ViewToggle, createViewPreference, type ViewMode } from "../../components/ViewToggle";
 import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
 
@@ -38,6 +40,85 @@ const listSubtitle = (book: { author_name?: string; genres: string[]; publish_da
 	return year ? `${base} · ${year}` : base;
 };
 
+// Paginated view of the tracked-book list. It lives in its own component so the
+// store read (`props.books()`) happens inside the caller's Loading boundary —
+// reading it during `Books`' setup suspends the whole route before it renders.
+function BookList(props: {
+	books: Accessor<Book[]>;
+	view: Accessor<ViewMode>;
+	filterQuery: Accessor<string>;
+}) {
+	const PAGE_SIZE = 24;
+	const maxPage = createMemo(() => Math.max(1, Math.ceil(props.books().length / PAGE_SIZE)));
+	const [paginationProps, page, setPage] = createPagination(() => ({ pages: maxPage() }));
+	const pagedBooks = createSegment(props.books, PAGE_SIZE, page);
+
+	// A new filter starts back at the first page.
+	createEffect(
+		() => props.filterQuery(),
+		() => {
+			setPage(1);
+		},
+	);
+
+	return (
+		<>
+			<Show
+				when={props.view() === "grid"}
+				fallback={
+					<div class="space-y-2">
+						<For each={pagedBooks()}>
+							{(book) => (
+								<BookRow
+									href={paths.books(bookId(book))}
+									cardLink
+									coverSrc={book.image_url}
+									title={book.title}
+									highlight={props.filterQuery().trim() || undefined}
+									subtitle={listSubtitle(book)}
+									status={book.status}
+								/>
+							)}
+						</For>
+					</div>
+				}
+			>
+				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+					<For each={pagedBooks()}>
+						{(book) => (
+							<BookCard
+								href={paths.books(bookId(book))}
+								cardLink
+								coverSrc={book.image_url}
+								title={book.title}
+								subtitle={
+									book.author_name ||
+									book.genres.slice(0, 2).join(", ") ||
+									"No author"
+								}
+								status={book.status}
+							/>
+						)}
+					</For>
+				</div>
+			</Show>
+
+			<Show when={maxPage() > 1}>
+				<nav class="mt-6 flex items-center justify-center gap-1">
+					<For each={paginationProps()}>
+						{(pageProps) => (
+							<button
+								{...pageProps}
+								class="rounded-sm border border-rule px-3 py-1.5 font-meta text-xs text-ink-700 disabled:opacity-40 aria-[current]:border-ink-900 aria-[current]:font-medium aria-[current]:text-ink-900"
+							/>
+						)}
+					</For>
+				</nav>
+			</Show>
+		</>
+	);
+}
+
 export default function Books(_props: RouteProps<typeof route>) {
 	const [searchQuery, setSearchQuery] = createSignal("");
 	const [showSearch, setShowSearch] = createSignal(false);
@@ -52,7 +133,6 @@ export default function Books(_props: RouteProps<typeof route>) {
 	const [filterInput, setFilterInput] = createSignal(filterQuery());
 	const pushFilter = debounce((q: string) => {
 		setSearch({ q });
-		setPage(1);
 	}, 300);
 
 	const EMPTY_SEARCH = { books: [] as Book[], total: 0 };
@@ -89,13 +169,6 @@ export default function Books(_props: RouteProps<typeof route>) {
 				return list.sort((a, b) => a.title.localeCompare(b.title));
 		}
 	});
-
-	const PAGE_SIZE = 24;
-	const maxPage = createMemo(() => Math.max(1, Math.ceil(sortedBooks().length / PAGE_SIZE)));
-	const [paginationProps, page, setPage] = createPagination(() => ({
-		pages: maxPage(),
-	}));
-	const pagedBooks = createSegment(sortedBooks, PAGE_SIZE, page);
 
 	const submitAdd = action(async function* (book: {
 		foreign_id: string;
@@ -276,59 +349,8 @@ export default function Books(_props: RouteProps<typeof route>) {
 								</Specimen>
 							}
 						>
-							<Show
-								when={view() === "grid"}
-								fallback={
-									<div class="space-y-2">
-										<For each={pagedBooks()}>
-											{(book) => (
-												<BookRow
-													href={paths.books(bookId(book))}
-													cardLink
-													coverSrc={book.image_url}
-													title={book.title}
-													highlight={filterQuery().trim() || undefined}
-													subtitle={listSubtitle(book)}
-													status={book.status}
-												/>
-											)}
-										</For>
-									</div>
-								}
-							>
-								<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-									<For each={pagedBooks()}>
-										{(book) => (
-											<BookCard
-												href={paths.books(bookId(book))}
-												cardLink
-												coverSrc={book.image_url}
-												title={book.title}
-												subtitle={
-													book.author_name ||
-													book.genres.slice(0, 2).join(", ") ||
-													"No author"
-												}
-												status={book.status}
-											/>
-										)}
-									</For>
-								</div>
-							</Show>
+							<BookList books={sortedBooks} view={view} filterQuery={filterQuery} />
 						</Show>
-					</Show>
-
-					<Show when={maxPage() > 1}>
-						<nav class="mt-6 flex items-center justify-center gap-1">
-							<For each={paginationProps()}>
-								{(props) => (
-									<button
-										{...props}
-										class="rounded-sm border border-rule px-3 py-1.5 font-meta text-xs text-ink-700 disabled:opacity-40 aria-[current]:border-ink-900 aria-[current]:font-medium aria-[current]:text-ink-900"
-									/>
-								)}
-							</For>
-						</nav>
 					</Show>
 				</Loading>
 			</Errored>
