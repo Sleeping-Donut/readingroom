@@ -1,6 +1,6 @@
 ---
 name: remote-deploy-probe
-description: Use when deploying ReadingRoom to the remote machine (zwei) from the 'foropen' tmux session, or when probing/verifying the running server from the local machine with curl or the helium devtools mcp
+description: Use when deploying ReadingRoom to the remote machine (zwei), or when probing/verifying the running server from the local machine. DON NOT DIRECTLY SSH INTO THE REMOTE MACHINE!
 ---
 
 # Deploy to and probe the remote machine (zwei)
