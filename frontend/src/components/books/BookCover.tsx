@@ -27,9 +27,7 @@ export function BookCover(props: {
 				<img
 					src={img()}
 					alt={props.alt}
-					class={["rounded-sm border border-rule object-cover", fit(), props.class].join(
-						" ",
-					)}
+					class={["rounded-sm border border-rule", fit(), props.class].join(" ")}
 				/>
 			)}
 		</Show>

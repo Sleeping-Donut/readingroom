@@ -304,7 +304,7 @@ export default function BookDetail() {
 				author_name: book().author_name,
 			});
 			yield;
-			navigate(paths.books(created.book.id));
+			navigate(paths.books(bookId(created.book)));
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
 		}
@@ -321,7 +321,7 @@ export default function BookDetail() {
 				author_name: book().author_name,
 			});
 			yield;
-			navigate(paths.books(created.book.id));
+			navigate(paths.books(bookId(created.book)));
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
 		}
@@ -659,7 +659,7 @@ export default function BookDetail() {
 											{list().editions.length} total
 										</span>
 									</div>
-									<div class="space-y-2">
+									<div class="max-h-[36rem] space-y-2 overflow-y-auto pr-1">
 										<For each={list().editions}>
 											{(edition) => (
 												<EditionRow
