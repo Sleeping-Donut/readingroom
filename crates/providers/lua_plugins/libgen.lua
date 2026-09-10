@@ -37,8 +37,6 @@ local function parse_size(text)
   return math.floor(value * mult)
 end
 
-local MAX_ADS_RESOLUTIONS = 20
-
 local function extract_md5(row)
   local md5 = row:match("get%.php%?md5=(%x+)") or row:match("ads%.php%?md5=(%x+)")
   if md5 and #md5 == 32 then return md5:lower() end
@@ -87,7 +85,6 @@ return {
 
     local results = {}
     local seen = {}
-    local ads_resolved = 0
 
     for row in body:gmatch("<tr[^>]*>(.-)</tr>") do
       local md5 = extract_md5(row)
@@ -124,20 +121,9 @@ return {
         local categories = nil
         if ext ~= "" then categories = { ext } end
 
-        local direct_md5 = extract_direct_md5(row)
         local download_url
-        if direct_md5 then
+        if extract_direct_md5(row) then
           download_url = base .. "/get.php?md5=" .. md5
-        elseif ads_resolved < MAX_ADS_RESOLUTIONS then
-          ads_resolved = ads_resolved + 1
-          local ads_url = base .. "/ads.php?md5=" .. md5
-          local ads_body = host.http_get(ads_url, { ["Referer"] = search_url })
-          local keyed = ads_body and ads_body:match("get%.php%?md5=[0-9a-f]+&key=[A-Za-z0-9]+")
-          if keyed then
-            download_url = base .. "/" .. keyed
-          else
-            download_url = ads_url
-          end
         else
           download_url = base .. "/ads.php?md5=" .. md5
         end

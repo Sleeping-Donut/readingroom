@@ -487,8 +487,9 @@ return {
         let source = include_str!("../lua_plugins/libgen.lua");
         let lua = Lua::new();
         let host = lua.create_table().unwrap();
-        // One row with a direct get.php mirror, one ads-only row that must be
-        // resolved via the ads page (which the plugin fetches with a Referer).
+        // One row with a direct get.php mirror and one ads-only row. The ads
+        // row is *not* fetched during search; it keeps the ads URL and is
+        // resolved at download time instead.
         let search_html = r#"
 <table>
 <tr>
@@ -515,18 +516,14 @@ return {
 </tr>
 </table>
 "#;
-        let ads_html =
-            r#"<a href="get.php?md5=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&key=TESTKEY123">Download</a>"#;
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let calls_ref = calls.clone();
         host.set(
             "http_get",
             lua.create_function(
-                move |_, (url, _headers): (String, Option<mlua::Table>)| {
-                    let body = if url.contains("ads.php") {
-                        ads_html
-                    } else {
-                        search_html
-                    };
-                    Ok((Some(body.to_string()), None::<String>))
+                move |_, (_url, _headers): (String, Option<mlua::Table>)| {
+                    calls_ref.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok((Some(search_html.to_string()), None::<String>))
                 },
             )
             .unwrap(),
@@ -548,6 +545,8 @@ return {
 
         let releases = decode_releases("test", result).unwrap();
         assert_eq!(releases.len(), 2);
+        // Search must not fetch any ads page: exactly one request (the search).
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
         // Direct mirror: use get.php as-is.
         assert_eq!(
             releases[0].download_url,
@@ -555,10 +554,10 @@ return {
         );
         assert_eq!(releases[0].size, 23 * 1024 * 1024);
         assert_eq!(releases[0].categories, vec!["epub".to_string()]);
-        // Ads-only mirror: resolved to the keyed get.php link.
+        // Ads-only mirror: keep the ads URL for download-time resolution.
         assert_eq!(
             releases[1].download_url,
-            "https://libgen.li/get.php?md5=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&key=TESTKEY123"
+            "https://libgen.li/ads.php?md5=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         );
     }
 }

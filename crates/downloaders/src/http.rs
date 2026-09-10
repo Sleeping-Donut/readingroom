@@ -84,7 +84,60 @@ impl HttpDownloadClient {
     /// before the download can start.
     fn needs_envelope_resolution(url: &str) -> bool {
         let path = url.split(['?', '#']).next().unwrap_or(url).to_ascii_lowercase();
-        path.contains("/api/") || path.ends_with(".json")
+        path.contains("/api/") || path.ends_with(".json") || path.ends_with("ads.php")
+    }
+
+    /// The `scheme://host/` origin of an absolute URL, if it has one.
+    fn origin(url: &str) -> Option<String> {
+        let (scheme, rest) = url.split_once("://")?;
+        let host = rest.split(['/', '?', '#']).next()?;
+        if host.is_empty() {
+            return None;
+        }
+        Some(format!("{scheme}://{host}/"))
+    }
+
+    /// Extract a `get.php?md5=<hex>&key=<KEY>` link from an ads page body.
+    fn extract_keyed_get_link(body: &str) -> Option<&str> {
+        let marker = "get.php?md5=";
+        let start = body.find(marker)?;
+        let rest = &body[start..];
+        let end = rest
+            .find(|c: char| c == '"' || c == '\'' || c == '<' || c == '>' || c.is_whitespace())
+            .unwrap_or(rest.len());
+        let link = &rest[..end];
+        if link.contains("&key=") { Some(link) } else { None }
+    }
+
+    /// Resolve a LibGen `ads.php` page to its keyed `get.php` download link.
+    /// LibGen requires a `Referer` header and returns an empty body without it.
+    /// Returns the original ads URL unchanged when it cannot be resolved.
+    async fn resolve_ads_page(&self, url: &str) -> Result<(String, Option<String>)> {
+        let origin = match Self::origin(url) {
+            Some(o) => o,
+            None => return Ok((url.to_string(), None)),
+        };
+        let resp = match self
+            .client
+            .get(url)
+            .header(reqwest::header::REFERER, &origin)
+            .send()
+            .await
+        {
+            Ok(resp) => resp,
+            Err(_) => return Ok((url.to_string(), None)),
+        };
+        if !resp.status().is_success() {
+            return Ok((url.to_string(), None));
+        }
+        let body = match resp.text().await {
+            Ok(body) => body,
+            Err(_) => return Ok((url.to_string(), None)),
+        };
+        match Self::extract_keyed_get_link(&body) {
+            Some(link) => Ok((format!("{origin}{link}"), None)),
+            None => Ok((url.to_string(), None)),
+        }
     }
 
     /// Resolve a JSON envelope (e.g. `{"download_url": "..."}`) to the real file
@@ -92,6 +145,11 @@ impl HttpDownloadClient {
     /// URL when one is available. Non-envelope responses are returned unchanged
     /// (the caller re-fetches them).
     async fn resolve_envelope(&self, url: &str) -> Result<(String, Option<String>)> {
+        let path = url.split(['?', '#']).next().unwrap_or(url).to_ascii_lowercase();
+        if path.ends_with("ads.php") {
+            return self.resolve_ads_page(url).await;
+        }
+
         let resp = self
             .client
             .get(url)
@@ -573,6 +631,99 @@ mod tests {
 
         // The extension comes from the resolved URL, not fast_download.json.
         let path = temp.join(&id.0).join("Envelope Book.epub");
+        assert_eq!(std::fs::read(&path).unwrap(), b"fake epub bytes");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    /// Serves a LibGen-style `ads.php` page (only when a `Referer` is sent)
+    /// linking to `/get.php?md5=…&key=…`, which then serves the file bytes.
+    fn spawn_ads_server() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut buf = [0u8; 8192];
+                let n = stream.read(&mut buf).unwrap();
+                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+                let lower = request.to_ascii_lowercase();
+                let body: String = if request.contains("ads.php") {
+                    if lower.contains("referer:") {
+                        r#"<html><a href="get.php?md5=cccccccccccccccccccccccccccccccc&key=ABC123">Download</a></html>"#
+                            .to_string()
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    "fake epub bytes".to_string()
+                };
+                let head = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    if request.contains("ads.php") { "text/html" } else { "application/epub+zip" },
+                    body.len()
+                );
+                let _ = stream.write_all(head.as_bytes());
+                let _ = stream.write_all(body.as_bytes());
+                let _ = stream.flush();
+            }
+        });
+        format!("http://{addr}/ads.php?md5=cccccccccccccccccccccccccccccccc")
+    }
+
+    #[tokio::test]
+    async fn resolves_ads_page_before_download() {
+        let url = spawn_ads_server();
+        let temp = std::env::temp_dir().join(format!("rr_http_ads_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp);
+
+        let config = DownloadClientConfig {
+            name: "http".into(),
+            implementation: "http".into(),
+            host: String::new(),
+            port: 0,
+            username: None,
+            password: None,
+            url_base: None,
+            category: None,
+            download_dir: Some(temp.clone()),
+            enabled: true,
+            rate_limit: None,
+            concurrent_downloads: None,
+            priority: 0,
+        };
+
+        let client = HttpDownloadClient::new(&config).unwrap();
+        let release = Release {
+            title: "Ads Book".into(),
+            info_url: String::new(),
+            download_url: url,
+            size: 15,
+            pub_date: Utc::now(),
+            indexer: "libgen".into(),
+            download_type: DownloadType::Direct,
+            seeders: None,
+            peers: None,
+            grabs: None,
+            categories: vec!["epub".into()],
+        };
+
+        let id = client.add_release(&release).await.unwrap();
+
+        let mut completed = false;
+        for _ in 0..200 {
+            if matches!(
+                client.get_status(&id).await.unwrap(),
+                DownloadStatus::Completed
+            ) {
+                completed = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert!(completed, "download did not complete in time");
+
+        let path = temp.join(&id.0).join("Ads Book.epub");
         assert_eq!(std::fs::read(&path).unwrap(), b"fake epub bytes");
 
         let _ = std::fs::remove_dir_all(&temp);
