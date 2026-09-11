@@ -31,7 +31,12 @@ import { paths } from "../../router";
 
 export const route = defineFileRoute("/books", {
 	search: v.object({ q: v.optional(v.string()) }),
-	preload: () => getBooks(),
+	// Warm the data without blocking navigation: returning the promise would
+	// make the router await it, so the list Loading boundary (and its skeleton)
+	// would never show.
+	preload: () => {
+		void getBooks();
+	},
 });
 
 const yearOf = (date?: string) => date?.match(/\d{4}/)?.[0];

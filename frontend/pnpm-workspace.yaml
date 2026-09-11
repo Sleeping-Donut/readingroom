@@ -1,8 +1,8 @@
 onlyBuiltDependencies:
   - esbuild
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@0.2.6
-  vite-plus: 0.2.6
+  vite: npm:@voidzero-dev/vite-plus-core@0.3.1
+  vite-plus: 0.3.1
 overrides:
   vite: "catalog:"
 peerDependencyRules:
@@ -11,8 +11,18 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
 minimumReleaseAgeExclude:
-  - "@solidjs/signals@2.0.0-rc.0"
-  - "@solidjs/vite-plugin@3.0.0-next.28"
-  - "@solidjs/web@2.0.0-rc.0"
+  - "@solidjs/signals@2.0.0-rc.0 || 2.0.0-rc.8"
+  - "@solidjs/vite-plugin@3.0.0-next.28 || 3.0.0-next.43"
+  - "@solidjs/web@2.0.0-rc.0 || 2.0.0-rc.8"
   - babel-preset-solid@2.0.0-rc.0
-  - solid-js@2.0.0-rc.0
+  - solid-js@2.0.0-rc.0 || 2.0.0-rc.8
+  - "@solidjs/router@2.0.0-next.24"
+  - "@solidjs/babel-plugin@2.0.0-rc.8"
+  - "@solidjs/compiler-darwin-arm64@2.0.0-rc.8"
+  - "@solidjs/compiler-darwin-x64@2.0.0-rc.8"
+  - "@solidjs/compiler-linux-arm64-gnu@2.0.0-rc.8"
+  - "@solidjs/compiler-linux-x64-gnu@2.0.0-rc.8"
+  - "@solidjs/compiler-wasm32-wasi@2.0.0-rc.8"
+  - "@solidjs/compiler-win32-x64-msvc@2.0.0-rc.8"
+  - "@solidjs/compiler@2.0.0-rc.8"
+  - "@solidjs/diagnostics@2.0.0-rc.8"

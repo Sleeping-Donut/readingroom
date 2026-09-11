@@ -29,7 +29,11 @@ import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors/:id", {
-	preload: ({ params }) => getAuthor(params.id),
+	// Fire-and-forget so navigation isn't blocked; the page's Loading
+	// boundaries own the fallbacks while the data resolves.
+	preload: ({ params }) => {
+		void getAuthor(params.id);
+	},
 });
 
 function BookAction(props: {
