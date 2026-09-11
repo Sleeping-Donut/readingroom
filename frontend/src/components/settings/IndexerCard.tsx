@@ -1,4 +1,4 @@
-import { Show, Switch, Match } from "solid-js";
+import { Show } from "solid-js";
 
 import type { IndexerRow } from "../../resources/indexers";
 
@@ -22,7 +22,18 @@ export function IndexerCard(props: {
 		>
 			<StatusDot status={props.idx.test?.status ?? "idle"} />
 			<div class="min-w-0 flex-1">
-				<p class="truncate font-medium">{props.idx.name}</p>
+				<div class="flex min-w-0 items-baseline gap-2">
+					<p class="truncate font-medium">{props.idx.name}</p>
+					<Show when={props.idx.test?.status === "success"}>
+						<span class="truncate text-xs text-good">✓ {props.idx.test?.message}</span>
+					</Show>
+					<Show when={props.idx.test?.status === "error"}>
+						<span class="truncate text-xs text-bad">✗ {props.idx.test?.message}</span>
+					</Show>
+					<Show when={props.idx.test?.status === "testing"}>
+						<span class="shrink-0 text-xs text-ink-500">Testing...</span>
+					</Show>
+				</div>
 				<div class="mt-1 flex flex-wrap gap-1.5">
 					<span class="rounded border border-accent/30 bg-accent-wash px-1.5 py-0.5 text-xs text-accent">
 						{props.implLabel}
@@ -48,16 +59,6 @@ export function IndexerCard(props: {
 						</span>
 					</Show>
 				</div>
-				<Show when={props.idx.test}>
-					<Switch>
-						<Match when={props.idx.test?.status === "success"}>
-							<p class="mt-1 text-xs text-good">✓ {props.idx.test?.message}</p>
-						</Match>
-						<Match when={props.idx.test?.status === "error"}>
-							<p class="mt-1 text-xs text-bad">✗ {props.idx.test?.message}</p>
-						</Match>
-					</Switch>
-				</Show>
 				<Show when={props.idx.error}>
 					<p class="mt-1 text-xs text-bad">Failed to remove — click Retry</p>
 				</Show>

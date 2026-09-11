@@ -23,6 +23,7 @@ import {
 } from "../../api/search";
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
+import { BookListSkeleton } from "../../components/books/BookSkeletons";
 import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
 import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
@@ -339,7 +340,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
+				<Loading fallback={<BookListSkeleton view={view()} />}>
 					<Show when={metadataBooks().books.length > 0}>
 						<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 							<h3 class="text-xl font-bold">

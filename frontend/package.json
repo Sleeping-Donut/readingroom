@@ -35,6 +35,7 @@
     "valibot": "^1.4.2"
   },
   "devDependencies": {
+    "@solidjs/diagnostics": "2.0.0-rc.2",
     "@solidjs/testing-library": "1.0.0-beta.2",
     "@solidjs/vite-plugin": "3.0.0-next.28",
     "@tailwindcss/vite": "^4.3.3",

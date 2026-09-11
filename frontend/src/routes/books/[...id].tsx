@@ -40,6 +40,7 @@ import { getLibrarySettings } from "../../api/settings";
 import { automaticSearchBook } from "../../api/wanted";
 import { subscribeAll } from "../../api/ws";
 import { BookCover } from "../../components/books/BookCover";
+import { BookDetailSkeleton, EditionListSkeleton } from "../../components/books/BookSkeletons";
 import { StatusBadge } from "../../components/books/StatusBadge";
 import { createBooks } from "../../resources/books";
 import { paths } from "../../router";
@@ -587,7 +588,7 @@ export default function BookDetail() {
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-ink-500">Loading...</p>}>
+				<Loading fallback={<BookDetailSkeleton withHeader={!storedBook()} />}>
 					<Title>{book().title} · ReadingRoom</Title>
 					<div class="mt-4 flex flex-col gap-6 sm:flex-row sm:gap-8">
 						<BookCover
@@ -848,7 +849,7 @@ export default function BookDetail() {
 					</Errored>
 
 					<Errored fallback={null}>
-						<Loading fallback={null}>
+						<Loading fallback={<EditionListSkeleton />}>
 							<Show when={editions()}>
 								{(list) => {
 									const filtered = () =>
@@ -909,7 +910,7 @@ export default function BookDetail() {
 
 			<Show when={media() === "audiobook"}>
 				<Errored fallback={null}>
-					<Loading fallback={null}>
+					<Loading fallback={<EditionListSkeleton />}>
 						<Show when={audiobookEditions()}>
 							{(res) => (
 								<Show when={(res().editions ?? []).length > 0}>

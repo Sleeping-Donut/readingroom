@@ -23,6 +23,7 @@ import { getBooks, bookId, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
 import { BookCover } from "../../components/books/BookCover";
 import { BookRow } from "../../components/books/BookRow";
+import { BookListSkeleton } from "../../components/books/BookSkeletons";
 import { Specimen } from "../../components/ui/Specimen";
 import { ViewToggle, createViewPreference, type ViewMode } from "../../components/ViewToggle";
 import { createBooks } from "../../resources/books";
@@ -324,7 +325,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 					</p>
 				)}
 			>
-				<Loading fallback={<p class="text-ink-500">Loading books...</p>}>
+				<Loading fallback={<BookListSkeleton view={view()} />}>
 					<div class="mb-4">
 						<input
 							type="text"
