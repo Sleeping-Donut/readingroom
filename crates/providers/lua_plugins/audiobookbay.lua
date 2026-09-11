@@ -89,6 +89,10 @@ return {
           if detail then
             local hash = detail:match("Info Hash:</td><td>([a-fA-F0-9]+)")
               or detail:match("([a-fA-F0-9]{40})")
+            host.log(
+              "info",
+              "audiobookbay detail " .. info_url .. " len=" .. tostring(#detail) .. " hash=" .. tostring(hash)
+            )
             if hash and #hash == 40 then
               download_url = "magnet:?xt=urn:btih:"
                 .. hash:lower()
