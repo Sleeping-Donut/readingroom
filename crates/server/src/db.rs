@@ -209,7 +209,7 @@ SELECT b.id,
        CASE
            WHEN EXISTS (
                SELECT 1 FROM book_files bf JOIN editions e ON e.id = bf.edition_id
-               WHERE e.book_id = b.id AND e.format = 'EBook'
+               WHERE e.book_id = b.id AND LOWER(e.format) = 'ebook'
            ) THEN 'have'
            WHEN EXISTS (
                SELECT 1 FROM queue q
@@ -221,7 +221,7 @@ SELECT b.id,
        CASE
            WHEN EXISTS (
                SELECT 1 FROM book_files bf JOIN editions e ON e.id = bf.edition_id
-               WHERE e.book_id = b.id AND e.format = 'AudioBook'
+               WHERE e.book_id = b.id AND LOWER(e.format) = 'audiobook'
            ) THEN 'have'
            WHEN EXISTS (
                SELECT 1 FROM queue q
