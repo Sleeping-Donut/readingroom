@@ -52,6 +52,8 @@ return {
     local q = criteria.query
     if not q or q == "" then q = criteria.title end
     if not q or q == "" then return {} end
+    -- AudioBookBay's search is case-sensitive and only matches lowercase.
+    q = q:lower()
 
     local base = (self.url or ""):gsub("/+$", "")
     if base == "" then base = "https://audiobookbay.lu" end
