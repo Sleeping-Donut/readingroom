@@ -1,3 +1,4 @@
+import { Dialog } from "@kobalte/core/dialog";
 import { createPagination, createSegment } from "@solid-primitives/pagination";
 import { createTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
@@ -140,7 +141,9 @@ function ReleaseRow(props: {
 	return (
 		<tr class="border-b border-rule hover:bg-paper-200">
 			<td class="py-3 pr-4">
-				<p class="max-w-xs truncate font-medium">{props.result.release.title}</p>
+				<p class="max-w-xs truncate font-medium" title={props.result.release.title}>
+					{props.result.release.title}
+				</p>
 			</td>
 			<td class="py-3 pr-4 text-ink-700">{props.result.release.indexer}</td>
 			<td class="py-3 pr-4 whitespace-nowrap text-ink-700">{sizeMb()}</td>
@@ -695,98 +698,116 @@ export default function BookDetail() {
 				<p class="mt-4 text-sm text-bad">{actionError()}</p>
 			</Show>
 
-			<Show when={searchOpen()}>
-				<section class="mt-8">
-					<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-						<div>
-							<h3 class="text-xl font-bold">Interactive Search</h3>
-							<p class="mt-0.5 text-xs text-ink-500">
-								{searchTitle() ?? book().title}
-								<Show when={indexerResults()}>
-									{(r) => ` · ${r().total} results`}
-								</Show>
-							</p>
+			<Dialog open={searchOpen()} onOpenChange={setSearchOpen}>
+				<Dialog.Portal>
+					<Dialog.Overlay class="fixed inset-0 z-40 bg-ink-900/40" />
+					<Dialog.Content class="fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[min(92vw,60rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-rule bg-paper-50 shadow-xl">
+						<div class="flex flex-wrap items-center justify-between gap-3 border-b border-rule p-4">
+							<div>
+								<Dialog.Title class="text-xl font-bold">
+									Interactive Search
+								</Dialog.Title>
+								<Dialog.Description class="mt-0.5 text-xs text-ink-500">
+									{searchTitle() ?? book().title}
+									<Show when={indexerResults()}>
+										{(r) => ` · ${r().total} results`}
+									</Show>
+								</Dialog.Description>
+							</div>
+							<div class="flex items-center gap-2">
+								<button
+									onClick={() => void indexerSearch()}
+									disabled={searching()}
+									class="rounded bg-ink-900 px-3 py-1.5 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
+								>
+									{searching() ? "Searching..." : "Search again"}
+								</button>
+								<Dialog.CloseButton class="rounded border border-rule px-3 py-1.5 text-sm text-ink-700 transition-colors hover:bg-paper-200">
+									Close
+								</Dialog.CloseButton>
+							</div>
 						</div>
-						<button
-							onClick={() => void indexerSearch()}
-							disabled={searching()}
-							class="rounded bg-ink-900 px-3 py-1.5 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
-						>
-							{searching() ? "Searching..." : "Search again"}
-						</button>
-					</div>
-					<Show
-						when={indexerResults()}
-						fallback={
-							<p class="text-sm text-ink-500">
-								{searching()
-									? "Searching indexers..."
-									: "Click Search Indexers to find releases."}
-							</p>
-						}
-					>
-						{(r) => (
+						<div class="min-h-0 flex-1 overflow-y-auto p-4">
 							<Show
-								when={r().results.length > 0}
-								fallback={<p class="text-sm text-ink-500">No releases found.</p>}
+								when={indexerResults()}
+								fallback={
+									<p class="text-sm text-ink-500">
+										{searching()
+											? "Searching indexers..."
+											: "Click Search Indexers to find releases."}
+									</p>
+								}
 							>
-								<div class="overflow-x-auto">
-									<table class="w-full text-sm">
-										<thead>
-											<tr class="border-b border-rule text-left font-meta text-xs tracking-widest text-ink-500 uppercase">
-												<th class="pr-4 pb-3">Title</th>
-												<th class="pr-4 pb-3">Indexer</th>
-												<th class="pr-4 pb-3">Size</th>
-												<th class="pr-4 pb-3">Seeders</th>
-												<th class="pr-4 pb-3">Score</th>
-												<th class="pr-4 pb-3">Type</th>
-												<th>
-													<span class="sr-only">Actions</span>
-												</th>
-											</tr>
-										</thead>
-										<tbody>
-											<For each={pagedSearchResults()}>
-												{(result) => {
-													const globalIndex = () =>
-														(searchPage() - 1) * SEARCH_PAGE_SIZE +
-														pagedSearchResults().indexOf(result);
-													return (
-														<ReleaseRow
-															result={result}
-															downloading={
-																downloadingId() === globalIndex()
-															}
-															onDownload={() =>
-																void downloadRelease(
+								{(r) => (
+									<Show
+										when={r().results.length > 0}
+										fallback={
+											<p class="text-sm text-ink-500">No releases found.</p>
+										}
+									>
+										<div class="overflow-x-auto">
+											<table class="w-full text-sm">
+												<thead>
+													<tr class="border-b border-rule text-left font-meta text-xs tracking-widest text-ink-500 uppercase">
+														<th class="pr-4 pb-3">Title</th>
+														<th class="pr-4 pb-3">Indexer</th>
+														<th class="pr-4 pb-3">Size</th>
+														<th class="pr-4 pb-3">Seeders</th>
+														<th class="pr-4 pb-3">Score</th>
+														<th class="pr-4 pb-3">Type</th>
+														<th>
+															<span class="sr-only">Actions</span>
+														</th>
+													</tr>
+												</thead>
+												<tbody>
+													<For each={pagedSearchResults()}>
+														{(result) => {
+															const globalIndex = () =>
+																(searchPage() - 1) *
+																	SEARCH_PAGE_SIZE +
+																pagedSearchResults().indexOf(
 																	result,
-																	globalIndex(),
-																)
-															}
+																);
+															return (
+																<ReleaseRow
+																	result={result}
+																	downloading={
+																		downloadingId() ===
+																		globalIndex()
+																	}
+																	onDownload={() =>
+																		void downloadRelease(
+																			result,
+																			globalIndex(),
+																		)
+																	}
+																/>
+															);
+														}}
+													</For>
+												</tbody>
+											</table>
+										</div>
+										<Show when={searchMaxPage() > 1}>
+											<nav class="mt-4 flex items-center justify-center gap-1">
+												<For each={searchPaginationProps()}>
+													{(props) => (
+														<button
+															{...props}
+															class="rounded-sm border border-rule px-3 py-1.5 font-meta text-xs text-ink-700 disabled:opacity-40 aria-[current]:border-ink-900 aria-[current]:font-medium aria-[current]:text-ink-900"
 														/>
-													);
-												}}
-											</For>
-										</tbody>
-									</table>
-								</div>
-								<Show when={searchMaxPage() > 1}>
-									<nav class="mt-4 flex items-center justify-center gap-1">
-										<For each={searchPaginationProps()}>
-											{(props) => (
-												<button
-													{...props}
-													class="rounded-sm border border-rule px-3 py-1.5 font-meta text-xs text-ink-700 disabled:opacity-40 aria-[current]:border-ink-900 aria-[current]:font-medium aria-[current]:text-ink-900"
-												/>
-											)}
-										</For>
-									</nav>
-								</Show>
+													)}
+												</For>
+											</nav>
+										</Show>
+									</Show>
+								)}
 							</Show>
-						)}
-					</Show>
-				</section>
-			</Show>
+						</div>
+					</Dialog.Content>
+				</Dialog.Portal>
+			</Dialog>
 		</div>
 	);
 }

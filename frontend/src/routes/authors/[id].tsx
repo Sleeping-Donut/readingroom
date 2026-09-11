@@ -73,7 +73,9 @@ function ReleaseRow(props: {
 	return (
 		<div class="flex items-center gap-4 rounded-lg border border-rule bg-paper-100 p-3">
 			<div class="min-w-0 flex-1">
-				<p class="truncate font-medium">{props.result.release.title}</p>
+				<p class="truncate font-medium" title={props.result.release.title}>
+					{props.result.release.title}
+				</p>
 				<p class="text-xs text-ink-700">
 					{props.result.release.indexer}
 					{props.result.release.seeders != null &&
