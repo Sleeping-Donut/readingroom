@@ -8,7 +8,9 @@ use readingroom_core::{
 use tokio::sync::Mutex;
 
 use crate::db;
-use crate::import::ImportManager;
+use crate::import::{
+    ImportCandidate, ImportItem, ImportManager, ImportMode, ImportOutcome, ImportSummary,
+};
 use crate::notifications::NotificationManager;
 use crate::ws::{self, WsBroadcaster};
 
@@ -235,7 +237,28 @@ impl DownloadManager {
             let queue_id = completed.id;
             let title = completed.title.clone();
             match importer.import_completed(client, &completed).await {
-                Ok(_) => {
+                Ok(ImportOutcome::Pending { candidates }) => {
+                    db::update_queue_status_to(&self.db, queue_id, QueueStatus::ImportPending)
+                        .await?;
+                    tracing::info!(
+                        queue_id = %queue_id,
+                        candidates = %candidates,
+                        "Download parked for manual import"
+                    );
+                    let bc_lock = self.broadcaster.lock().await;
+                    if let Some(ref bc) = *bc_lock {
+                        ws::emit(
+                            bc,
+                            "import_pending",
+                            serde_json::json!({
+                                "queue_id": queue_id,
+                                "title": title,
+                                "candidates": candidates,
+                            }),
+                        );
+                    }
+                }
+                Ok(ImportOutcome::Imported { .. }) => {
                     db::update_queue_status_to(&self.db, queue_id, QueueStatus::Imported).await?;
 
                     let guards = self.lock_both().await;
@@ -282,6 +305,69 @@ impl DownloadManager {
         }
 
         Ok(())
+    }
+
+    /// Look up a queue entry's download path and scan it for import candidates.
+    pub async fn scan_import_candidates(
+        &self,
+        queue_id: i64,
+    ) -> Result<Vec<ImportCandidate>> {
+        let entry = db::get_queue_entry(&self.db, queue_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Queue entry not found".into()))?;
+        let client = self
+            .clients
+            .iter()
+            .find(|c| c.name() == entry.download_client)
+            .ok_or_else(|| {
+                AppError::Config(format!("No client named {}", entry.download_client))
+            })?;
+        let path = client
+            .get_download_path(&DownloadId(entry.download_id.clone()))
+            .await?;
+        let importer = self
+            .import_manager
+            .as_ref()
+            .ok_or_else(|| AppError::Config("Import manager unavailable".into()))?;
+        importer.scan_candidates(&path, entry.book_id).await
+    }
+
+    /// Import a user-resolved set of files for a queue entry.
+    pub async fn import_selected(
+        &self,
+        queue_id: i64,
+        items: Vec<ImportItem>,
+        mode: ImportMode,
+    ) -> Result<ImportSummary> {
+        if db::get_queue_entry(&self.db, queue_id).await?.is_none() {
+            return Err(AppError::NotFound("Queue entry not found".into()));
+        }
+        let importer = self
+            .import_manager
+            .as_ref()
+            .ok_or_else(|| AppError::Config("Import manager unavailable".into()))?;
+
+        let summary = importer.import_selected(&items, mode).await?;
+        let status = if summary.imported > 0 {
+            QueueStatus::Imported
+        } else {
+            QueueStatus::ImportPending
+        };
+        db::update_queue_status_to(&self.db, queue_id, status).await?;
+
+        let bc_lock = self.broadcaster.lock().await;
+        if let Some(ref bc) = *bc_lock {
+            ws::emit(
+                bc,
+                "import_completed",
+                serde_json::json!({
+                    "queue_id": queue_id,
+                    "imported": summary.imported,
+                    "failed": summary.failed,
+                }),
+            );
+        }
+        Ok(summary)
     }
 
     pub async fn list_queue(&self) -> Result<Vec<db::QueueEntry>> {

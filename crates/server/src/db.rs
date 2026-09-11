@@ -474,6 +474,16 @@ pub async fn book_has_files(db: &SqlitePool, book_id: i64) -> Result<bool> {
     Ok(has.is_some())
 }
 
+/// Whether a file at this exact library path has already been imported.
+pub async fn book_file_exists(db: &SqlitePool, path: &str) -> Result<bool> {
+    let has: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM book_files WHERE path = ?1 LIMIT 1")
+            .bind(path)
+            .fetch_optional(db)
+            .await?;
+    Ok(has.is_some())
+}
+
 /// Read a raw value from the config table.
 pub async fn get_config_value(db: &SqlitePool, key: &str) -> Result<Option<String>> {
     let value: Option<String> = sqlx::query_scalar("SELECT value FROM config WHERE key = ?1")

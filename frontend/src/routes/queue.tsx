@@ -2,10 +2,11 @@ import { createTimer } from "@solid-primitives/timer";
 import { Title } from "@solidjs/meta";
 import { revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
-import { Errored, For, Loading, Show, onSettled } from "solid-js";
+import { Errored, For, Loading, Show, createSignal, onSettled } from "solid-js";
 
 import { getQueue } from "../api/queue";
 import { subscribeAll } from "../api/ws";
+import { ManualImportDialog } from "../components/queue/ManualImportDialog";
 import { Specimen } from "../components/ui/Specimen";
 import { createQueue } from "../resources/queue";
 
@@ -25,6 +26,8 @@ const statusColor = (status: string) => {
 			return "text-bad";
 		case "queued":
 			return "text-pending";
+		case "import_pending":
+			return "text-accent";
 		case "seeding":
 			return "text-ink-500";
 		default:
@@ -34,6 +37,7 @@ const statusColor = (status: string) => {
 
 export default function Queue() {
 	const [queue, { remove, retryRemove }] = createQueue();
+	const [importQueueId, setImportQueueId] = createSignal<number | null>(null);
 
 	// WS push is the primary update source; keep a slow poll as a fallback in
 	// case WS drops. Revalidating the query retriggers the store's source.
@@ -119,6 +123,14 @@ export default function Queue() {
 										>
 											{entry.status}
 										</span>
+										<Show when={entry.status === "import_pending"}>
+											<button
+												onClick={() => setImportQueueId(entry.id)}
+												class="rounded bg-accent px-2 py-1 text-xs font-medium text-paper-50 transition-colors hover:opacity-90"
+											>
+												Import
+											</button>
+										</Show>
 										<Show
 											when={entry.error}
 											fallback={
@@ -145,6 +157,15 @@ export default function Queue() {
 					</Show>
 				</Loading>
 			</Errored>
+
+			<ManualImportDialog
+				queueId={importQueueId() ?? 0}
+				open={importQueueId() != null}
+				onOpenChange={(open) => {
+					if (!open) setImportQueueId(null);
+				}}
+				onDone={() => revalidate(getQueue.key)}
+			/>
 		</div>
 	);
 }

@@ -349,6 +349,9 @@ pub enum QueueStatus {
     Downloading,
     Completed,
     Importing,
+    /// Imported automatically, but the download contained files that could not
+    /// be mapped to a book — the user must resolve it via manual import.
+    ImportPending,
     Imported,
     Failed,
     Removed,
@@ -361,6 +364,7 @@ impl QueueStatus {
             QueueStatus::Downloading => "downloading",
             QueueStatus::Completed => "completed",
             QueueStatus::Importing => "importing",
+            QueueStatus::ImportPending => "import_pending",
             QueueStatus::Imported => "imported",
             QueueStatus::Failed => "failed",
             QueueStatus::Removed => "removed",
@@ -373,6 +377,7 @@ impl QueueStatus {
             "downloading" => QueueStatus::Downloading,
             "completed" => QueueStatus::Completed,
             "importing" => QueueStatus::Importing,
+            "import_pending" => QueueStatus::ImportPending,
             "imported" => QueueStatus::Imported,
             "failed" => QueueStatus::Failed,
             "removed" => QueueStatus::Removed,

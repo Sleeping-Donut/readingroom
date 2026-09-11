@@ -196,6 +196,29 @@ export interface QueueResponse {
 	total: number;
 }
 
+export type ImportMode = "move" | "copy" | "hardlink";
+
+export interface ImportCandidate {
+	path: string;
+	name: string;
+	size: number;
+	format: string;
+	quality: string;
+	is_audiobook: boolean;
+	parsed_title: string;
+	parsed_author?: string;
+	book_id: number | null;
+	book_title?: string;
+	rejection?: string;
+}
+
+export interface ImportResult {
+	success: boolean;
+	imported: number;
+	failed: number;
+	errors: string[];
+}
+
 export interface IndexersResponse {
 	indexers: Indexer[];
 }
