@@ -333,10 +333,29 @@ impl ImportManager {
                 .to_lowercase();
             let (format_name, quality) = classify_file(&ext);
             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            let parsed_title = parse_release_name(stem).unwrap_or_else(|| stem.to_string());
-            let parsed_author = parse_release_author(stem);
+            let interpretations = name_interpretations(stem);
 
-            let (book_id, book_title) = match best_book_match(&parsed_title, &books) {
+            // Prefer whichever "Title" / "Author" split matches a tracked book;
+            // that resolves both naming orders (Author - Title and Title - Author).
+            let mut parsed_title = stem.to_string();
+            let mut parsed_author: Option<String> = None;
+            let mut matched: Option<&Book> = None;
+            for (title, author) in &interpretations {
+                if let Some(b) = best_book_match(title, &books) {
+                    parsed_title = title.clone();
+                    parsed_author = author.clone();
+                    matched = Some(b);
+                    break;
+                }
+            }
+            if matched.is_none() {
+                if let Some((title, author)) = interpretations.first() {
+                    parsed_title = title.clone();
+                    parsed_author = author.clone();
+                }
+            }
+
+            let (book_id, book_title) = match matched {
                 Some(b) => (Some(b.id), Some(b.title.clone())),
                 // A single-book download keeps the grabbed book as the default.
                 None if !multi => match default_book_id {
@@ -739,17 +758,24 @@ fn parse_release_name(stem: &str) -> Option<String> {
     Some(cleaned)
 }
 
-/// Parse the author from a `Author - Title` / `Title - Author` stem.
-fn parse_release_author(stem: &str) -> Option<String> {
+/// The plausible (title, author) splits of a release stem, most-likely first.
+/// "Author - Title" is the common ebook shape, so it is tried before
+/// "Title - Author".
+fn name_interpretations(stem: &str) -> Vec<(String, Option<String>)> {
     let cleaned = clean_release_text(stem);
-    let (left, right) = cleaned.split_once(" - ")?;
-    let (l, r) = (left.trim(), right.trim());
-    let author = if word_count(r) > word_count(l) { l } else { r };
-    if author.is_empty() {
-        None
-    } else {
-        Some(author.to_string())
+    if cleaned.is_empty() {
+        return Vec::new();
     }
+    if let Some((left, right)) = cleaned.split_once(" - ") {
+        let (l, r) = (left.trim(), right.trim());
+        if !l.is_empty() && !r.is_empty() {
+            return vec![
+                (r.to_string(), Some(l.to_string())),
+                (l.to_string(), Some(r.to_string())),
+            ];
+        }
+    }
+    vec![(cleaned, None)]
 }
 
 /// Strip bracketed groups (quality, year, release group) and known format tags.
