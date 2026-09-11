@@ -587,7 +587,7 @@ impl MetadataSource for OpenLibrarySource {
                     release_date: e.publish_date.as_deref().and_then(parse_date),
                     image_url: e
                         .covers
-                        .and_then(|c| c.into_iter().next())
+                        .and_then(|c| c.into_iter().find(|id| *id > 0))
                         .and_then(|id| cover_url(id, "M")),
                     monitored: false,
                 }
