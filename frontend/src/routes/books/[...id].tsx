@@ -254,13 +254,14 @@ function MediaSearchDialog(props: {
 		}
 	});
 
-	createEffect(() => {
-		if (!props.open) return;
-		const request = props.request;
-		const media = props.media;
-		setIndexerResults(null);
-		void runSearch(request, media);
-	});
+	createEffect(
+		() => ({ open: props.open, request: props.request, media: props.media }),
+		({ open, request, media }) => {
+			if (!open) return;
+			setIndexerResults(null);
+			void runSearch(request, media);
+		},
+	);
 
 	const downloadRelease = action(async function* (result: ScoredRelease, index: number) {
 		setDownloadingId(index);
