@@ -41,9 +41,17 @@ impl SearchEngine {
     /// Search for a specific monitored book across all indexers.
     /// Returns scored releases sorted by score descending.
     pub async fn search_book(&self, book: &MonitoredBook) -> Result<Vec<ScoredRelease>> {
+        // Include the author in the free-text query: indexers match on title and
+        // author, so a title-only query returns same-titled books by other
+        // authors.
+        let author = book.author_name.clone().filter(|a| !a.is_empty());
+        let query = match &author {
+            Some(a) => format!("{} {}", book.title, a),
+            None => book.title.clone(),
+        };
         let criteria = SearchCriteria {
-            query: Some(book.title.clone()),
-            author: None,
+            query: Some(query),
+            author,
             title: Some(book.title.clone()),
             isbn: None,
             limit: Some(50),

@@ -91,6 +91,26 @@ impl DecisionEngine for BasicDecisionEngine {
             reasons.push("Title match in release name".into());
         }
 
+        // Author match: release names usually include the author, so a matching
+        // surname is a strong signal that this is the right book.
+        if let Some(author) = book
+            .author_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|a| !a.is_empty())
+        {
+            let release_lower = release.title.to_lowercase();
+            let surname = author
+                .split_whitespace()
+                .last()
+                .unwrap_or(author)
+                .to_lowercase();
+            if !surname.is_empty() && release_lower.contains(&surname) {
+                score += 15.0;
+                reasons.push("Author match".into());
+            }
+        }
+
         // Seeder bonus
         if let Some(seeders) = release.seeders {
             let seeder_score = (seeders as f64).ln_1p() * 5.0;
@@ -269,6 +289,16 @@ mod tests {
         let result = engine.score_release(&release, &book).unwrap();
         assert!(result.reasons.iter().any(|r| r.contains("Very large")),
             "Should flag very large files");
+    }
+
+    #[test]
+    fn test_score_release_author_bonus() {
+        let engine = BasicDecisionEngine;
+        let release = make_release("Asimov, Isaac - The Caves of Steel EPUB", Some(10), 2_000_000);
+        let mut book = make_book("The Caves of Steel", "the caves of steel");
+        book.author_name = Some("Isaac Asimov".into());
+        let result = engine.score_release(&release, &book).unwrap();
+        assert!(result.reasons.iter().any(|r| r == "Author match"));
     }
 
     #[test]
