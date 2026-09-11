@@ -47,6 +47,10 @@ pub struct Book {
     pub ratings: Option<f64>,
     pub language: String,
     pub monitored: bool,
+    /// Audiobook monitoring is tracked independently of the ebook `monitored`
+    /// flag, so a book can be monitored for one media but not the other.
+    #[serde(default)]
+    pub monitored_audiobook: bool,
     #[serde(default = "default_status")]
     pub status: String,
     pub added_at: DateTime<Utc>,
@@ -75,6 +79,14 @@ pub struct UnmonitoredBook {
 }
 
 impl Book {
+    /// Whether this book is monitored for the given media.
+    pub fn is_monitored(&self, media: MediaType) -> bool {
+        match media {
+            MediaType::Ebook => self.monitored,
+            MediaType::Audiobook => self.monitored_audiobook,
+        }
+    }
+
     pub fn into_monitored(self) -> Option<MonitoredBook> {
         if self.monitored {
             Some(MonitoredBook { inner: self })
@@ -538,6 +550,7 @@ mod tests {
             ratings: Some(4.5),
             language: "en".into(),
             monitored: true,
+            monitored_audiobook: false,
             status: "tracked".into(),
             added_at: Utc::now(),
             last_search_at: None,

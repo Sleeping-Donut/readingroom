@@ -301,7 +301,11 @@ async fn search_missing_for_media(
     media_type: MediaType,
 ) -> Result<()> {
     let books = db::list_books(db).await?;
-    let monitored: Vec<MonitoredBook> = books.into_iter().filter_map(|b| b.into_monitored()).collect();
+    let monitored: Vec<MonitoredBook> = books
+        .into_iter()
+        .filter(|b| b.is_monitored(media_type))
+        .map(|b| MonitoredBook { inner: b })
+        .collect();
 
     tracing::info!(
         total = %monitored.len(),

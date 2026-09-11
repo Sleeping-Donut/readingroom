@@ -197,6 +197,7 @@ mod tests {
             ratings: None,
             language: "en".into(),
             monitored: true,
+            monitored_audiobook: false,
             status: "tracked".into(),
             added_at: Utc::now(),
             last_search_at: None,

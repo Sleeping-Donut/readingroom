@@ -118,6 +118,7 @@ async fn add_book(
                 ratings: None,
                 language: "en".into(),
                 monitored: true,
+                monitored_audiobook: false,
                 status: "tracked".into(),
                 added_at: chrono::Utc::now(),
                 last_search_at: None,
@@ -134,6 +135,7 @@ async fn add_book(
 #[derive(Deserialize)]
 pub struct UpdateBookBody {
     pub monitored: Option<bool>,
+    pub monitored_audiobook: Option<bool>,
 }
 
 async fn update_book(
@@ -155,13 +157,22 @@ async fn update_book(
         Err(_) => return Err(not_found()),
     };
 
+    let mut touched = false;
     if let Some(monitored) = body.monitored {
         match crate::db::update_book_monitored(&state.db, id, monitored).await {
-            Ok(true) => {}
+            Ok(true) => touched = true,
             Ok(false) => return Err(not_found()),
             Err(e) => return Err(internal(&e)),
         }
-    } else {
+    }
+    if let Some(monitored) = body.monitored_audiobook {
+        match crate::db::update_book_monitored_audiobook(&state.db, id, monitored).await {
+            Ok(true) => touched = true,
+            Ok(false) => return Err(not_found()),
+            Err(e) => return Err(internal(&e)),
+        }
+    }
+    if !touched {
         // No fields provided — just verify the book exists.
         match crate::db::get_book_by_id(&state.db, id).await {
             Ok(Some(_)) => {}
@@ -267,6 +278,7 @@ fn enrich_book(db_book: readingroom_core::models::Book, meta: readingroom_core::
         ratings: db_book.ratings.or(meta.ratings),
         language: db_book.language,
         monitored: db_book.monitored,
+        monitored_audiobook: db_book.monitored_audiobook,
         status: db_book.status,
         added_at: db_book.added_at,
         last_search_at: db_book.last_search_at,

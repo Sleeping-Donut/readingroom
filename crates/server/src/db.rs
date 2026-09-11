@@ -187,7 +187,7 @@ pub async fn list_books(db: &SqlitePool) -> Result<Vec<readingroom_core::models:
         "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
-                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored, b.monitored_audiobook,
                 b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id ORDER BY b.title",
     )
@@ -206,7 +206,7 @@ pub async fn find_book_by_foreign_id(
         "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
-                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored, b.monitored_audiobook,
                 b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id WHERE b.foreign_id = ?1",
     )
@@ -228,7 +228,7 @@ pub async fn find_book_by_ol_id(
         "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
-                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored, b.monitored_audiobook,
                 b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id
          WHERE b.foreign_id = ?1 OR b.foreign_id = 'works/' || ?1 OR b.foreign_id = 'books/' || ?1
@@ -255,7 +255,7 @@ pub async fn get_books_by_author(
         "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
-                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored, b.monitored_audiobook,
                 b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id
          WHERE b.author_id = ?1 ORDER BY b.title",
@@ -276,7 +276,7 @@ pub async fn get_book_by_id(
         "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
-                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored, b.monitored_audiobook,
                 b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id WHERE b.id = ?1",
     )
@@ -299,7 +299,7 @@ pub async fn find_book_by_isbn(
         "SELECT b.id, b.foreign_id, b.author_id, COALESCE(a.name, '') AS author_name,
                 b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
-                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored, b.monitored_audiobook,
                 b.status, b.last_search_at, b.added_at
          FROM books b LEFT JOIN authors a ON a.id = b.author_id
          WHERE REPLACE(REPLACE(COALESCE(b.isbn, ''), '-', ''), ' ', '') = ?1
@@ -532,6 +532,23 @@ pub async fn update_book_monitored(
 ) -> Result<bool> {
     let result = sqlx::query(
         "UPDATE books SET monitored = ?1, updated_at = datetime('now') WHERE id = ?2",
+    )
+    .bind(monitored)
+    .bind(id)
+    .execute(db)
+    .await?;
+
+    Ok(result.rows_affected() > 0)
+}
+
+/// Set a book's audiobook monitoring flag.
+pub async fn update_book_monitored_audiobook(
+    db: &SqlitePool,
+    id: i64,
+    monitored: bool,
+) -> Result<bool> {
+    let result = sqlx::query(
+        "UPDATE books SET monitored_audiobook = ?1, updated_at = datetime('now') WHERE id = ?2",
     )
     .bind(monitored)
     .bind(id)
@@ -809,7 +826,7 @@ pub async fn list_wanted_books(db: &SqlitePool) -> Result<Vec<readingroom_core::
     let rows = sqlx::query_as::<_, BookRow>(
         "SELECT b.id, b.foreign_id, b.author_id, b.title, b.clean_title, b.description,
                 b.isbn, b.isbn13, b.asin, b.pages, b.publisher, b.publish_date,
-                b.image_url, b.genres, b.ratings, b.language, b.monitored,
+                b.image_url, b.genres, b.ratings, b.language, b.monitored, b.monitored_audiobook,
                 b.status, b.last_search_at, b.added_at
          FROM books b
          WHERE b.monitored = 1
@@ -867,6 +884,7 @@ struct BookRow {
     ratings: Option<f64>,
     language: String,
     monitored: bool,
+    monitored_audiobook: bool,
     status: String,
     last_search_at: Option<String>, // ISO datetime string
     added_at: String,     // ISO datetime string
@@ -905,6 +923,7 @@ impl BookRow {
             ratings: self.ratings,
             language: self.language,
             monitored: self.monitored,
+            monitored_audiobook: self.monitored_audiobook,
             status: self.status,
             added_at: parse_dt(self.added_at),
             last_search_at: self
