@@ -125,7 +125,7 @@ function EditionRow(props: {
 			<BookCover
 				src={props.edition.image_url}
 				alt={props.edition.title}
-				class="h-16 w-11 shrink-0 rounded"
+				class="h-16 w-auto shrink-0 rounded object-contain"
 			/>
 			<div class="min-w-0 flex-1">
 				<p class="truncate font-medium">{props.edition.title}</p>
