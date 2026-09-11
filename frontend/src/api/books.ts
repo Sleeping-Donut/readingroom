@@ -37,6 +37,12 @@ export const addBook = (book: {
 export const getBookEditions = (id: string) =>
 	api.get<{ editions: Edition[]; total: number }>(`/books/${encodeURIComponent(id)}/editions`);
 
+/// Audiobook editions for a book, reconciled via Audible/Audnexus.
+export const getAudiobookEditions = (id: string) =>
+	api.get<{ editions: Edition[]; total?: number; error?: string }>(
+		`/books/${encodeURIComponent(id)}/audiobooks`,
+	);
+
 export const updateBookMonitored = (id: number, monitored: boolean, media: MediaType = "ebook") =>
 	api.put<{ success: boolean }>(
 		`/books/${id}`,

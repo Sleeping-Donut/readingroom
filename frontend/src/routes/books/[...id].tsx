@@ -23,6 +23,7 @@ import { authorId } from "../../api/authors";
 import {
 	addBook,
 	bookId,
+	getAudiobookEditions,
 	getBook,
 	getBookEditions,
 	getBooks,
@@ -410,6 +411,9 @@ export default function BookDetail() {
 	const queue = createMemo(() => getQueue());
 
 	const editions = createMemo(() => getBookEditions(params.id));
+	// Audiobook editions come from Audible (reconciled via this book's title +
+	// author), not the OpenLibrary editions list.
+	const audiobookEditions = createMemo(() => getAudiobookEditions(params.id));
 
 	const queueEntry = createMemo(() =>
 		book().id > 0 ? queue()?.queue.find((e) => e.book_id === book().id) : undefined,
@@ -880,6 +884,53 @@ export default function BookDetail() {
 					</Errored>
 				</Loading>
 			</Errored>
+
+			<Show when={media() === "audiobook"}>
+				<Errored fallback={null}>
+					<Loading fallback={null}>
+						<Show when={audiobookEditions()}>
+							{(res) => (
+								<Show when={(res().editions ?? []).length > 0}>
+									<section class="mt-8 max-w-3xl">
+										<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+											<div>
+												<h3 class="text-xl font-bold">
+													Audiobook Editions
+												</h3>
+												<p class="mt-0.5 text-xs text-ink-500">
+													{book().title} · from Audible
+												</p>
+											</div>
+											<span class="text-xs text-ink-500">
+												{res().editions.length} total
+											</span>
+										</div>
+										<div class="max-h-[36rem] space-y-2 overflow-y-auto pr-1">
+											<For each={res().editions}>
+												{(edition) => (
+													<EditionRow
+														edition={edition}
+														showAdd={book().id === 0}
+														adding={
+															addingEditionId() ===
+															(edition.foreign_edition_id ??
+																edition.title)
+														}
+														onAdd={() => void addEdition(edition)}
+														onInteractiveAdd={() =>
+															openEditionSearch(edition)
+														}
+													/>
+												)}
+											</For>
+										</div>
+									</section>
+								</Show>
+							)}
+						</Show>
+					</Loading>
+				</Errored>
+			</Show>
 
 			<Show when={actionError()}>
 				<p class="mt-4 text-sm text-bad">{actionError()}</p>

@@ -55,6 +55,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/", get(list_books).post(add_book))
         .route("/:id", get(get_book).put(update_book))
         .route("/:id/editions", get(get_book_editions))
+        .route("/:id/audiobooks", get(get_audiobook_editions))
         .route("/:id/convert", post(convert_book))
         .route("/search", get(search_books))
 }
@@ -302,6 +303,60 @@ async fn get_book_editions(
     match state.metadata.get_book_editions(&foreign_id).await {
         Ok(editions) => Json(json!({ "editions": editions, "total": editions.len() })),
         Err(e) => Json(json!({ "error": e.to_string() })),
+    }
+}
+
+/// Resolve a book by numeric id, OL id, or prefixed foreign id (tracked first,
+/// then metadata).
+async fn resolve_book(state: &AppState, id: &str) -> Option<readingroom_core::models::Book> {
+    if let Ok(id64) = id.parse::<i64>() {
+        if let Ok(Some(book)) = crate::db::get_book_by_id(&state.db, id64).await {
+            return Some(book);
+        }
+    }
+    if let Ok(Some(book)) = crate::db::find_book_by_ol_id(&state.db, id).await {
+        return Some(book);
+    }
+    if let Ok(Some(book)) = crate::db::find_book_by_foreign_id(&state.db, id).await {
+        return Some(book);
+    }
+    state.metadata.get_book(id).await.ok()
+}
+
+/// Audiobook editions for a book, reconciled through the tracked/OL book: look
+/// up the book's title + author, then query Audible (catalog + Audnexus).
+async fn get_audiobook_editions(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Json<Value> {
+    let Some(book) = resolve_book(&state, &id).await else {
+        return Json(json!({ "error": "Book not found", "editions": [] }));
+    };
+    let query = match book.author_name.as_deref().filter(|a| !a.is_empty()) {
+        Some(author) => format!("{} {}", book.title, author),
+        None => book.title.clone(),
+    };
+    let source = readingroom_metadata::audible_source();
+    match source.search_book(&query).await {
+        Ok(books) => {
+            let editions: Vec<Value> = books
+                .iter()
+                .map(|b| {
+                    json!({
+                        "foreign_edition_id": b.asin,
+                        "title": b.title,
+                        "format": "AudioBook",
+                        "publisher": b.publisher,
+                        "release_date": b.publish_date,
+                        "image_url": b.image_url,
+                        "pages": b.pages,
+                        "language": b.language,
+                    })
+                })
+                .collect();
+            Json(json!({ "editions": editions, "total": editions.len() }))
+        }
+        Err(e) => Json(json!({ "error": e.to_string(), "editions": [] })),
     }
 }
 

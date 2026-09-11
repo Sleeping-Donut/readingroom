@@ -6,6 +6,9 @@ use readingroom_core::{
 };
 
 const BASE: &str = "https://api.audnex.us";
+/// Undocumented but keyless Audible catalog API; used for title/author search
+/// because Audnexus only looks up by ASIN.
+const CATALOG: &str = "https://api.audible.com/1.0/catalog/products";
 
 pub struct AudibleSource {
     client: reqwest::Client,
@@ -61,6 +64,33 @@ struct BookResponse {
 #[derive(serde::Deserialize)]
 struct BookAuthor {
     asin: String,
+    name: String,
+}
+
+// -- Audible catalog (search) response types --
+
+#[derive(serde::Deserialize)]
+struct CatalogResponse {
+    #[serde(default)]
+    products: Vec<CatalogProduct>,
+}
+
+#[derive(serde::Deserialize)]
+struct CatalogProduct {
+    asin: String,
+    title: String,
+    #[serde(default)]
+    authors: Vec<CatalogName>,
+    runtime_length_min: Option<i32>,
+    publisher_name: Option<String>,
+    release_date: Option<String>,
+    language: Option<String>,
+    #[serde(default)]
+    product_images: std::collections::HashMap<String, String>,
+}
+
+#[derive(serde::Deserialize)]
+struct CatalogName {
     name: String,
 }
 
@@ -153,12 +183,43 @@ fn map_book(body: BookResponse) -> Book {
     }
 }
 
+fn map_catalog_product(p: CatalogProduct) -> Book {
+    let title = p.title;
+    Book {
+        id: 0,
+        foreign_id: p.asin.clone(),
+        author_id: 0,
+        author_name: p.authors.first().map(|a| a.name.clone()),
+        title: title.clone(),
+        clean_title: title.to_lowercase(),
+        description: None,
+        isbn: None,
+        isbn13: None,
+        asin: Some(p.asin),
+        pages: p.runtime_length_min,
+        publisher: p.publisher_name,
+        publish_date: p.release_date.as_deref().and_then(parse_date),
+        image_url: p
+            .product_images
+            .get("500")
+            .cloned()
+            .or_else(|| p.product_images.values().next().cloned()),
+        genres: vec![],
+        ratings: None,
+        language: p.language.unwrap_or_else(|| "en".into()),
+        monitored: false,
+        monitored_audiobook: false,
+        status: "tracked".into(),
+        added_at: chrono::Utc::now(),
+        last_search_at: None,
+    }
+}
+
 #[async_trait]
 impl MetadataSource for AudibleSource {
     fn name(&self) -> &'static str {
         "audible"
     }
-
     async fn search_author(&self, query: &str) -> Result<Vec<Author>> {
         let url = format!("{BASE}/authors?name={query}");
         let resp = self.client.get(&url).send().await?;
@@ -183,8 +244,28 @@ impl MetadataSource for AudibleSource {
         Ok(vec![])
     }
 
-    async fn search_book(&self, _query: &str) -> Result<Vec<Book>> {
-        Ok(vec![])
+    async fn search_book(&self, query: &str) -> Result<Vec<Book>> {
+        let url = reqwest::Url::parse_with_params(
+            CATALOG,
+            &[
+                ("keywords", query),
+                ("num_results", "10"),
+                (
+                    "response_groups",
+                    "media,product_desc,product_attrs,contributors,series",
+                ),
+            ],
+        )
+        .map_err(|e| AppError::Provider(format!("bad audible url: {e}")))?;
+        let resp = self.client.get(url).send().await?;
+        if !resp.status().is_success() {
+            return Err(AppError::Provider(format!(
+                "audible.com returned {}",
+                resp.status()
+            )));
+        }
+        let body: CatalogResponse = resp.json().await?;
+        Ok(body.products.into_iter().map(map_catalog_product).collect())
     }
 
     async fn get_book(&self, foreign_id: &str) -> Result<Book> {
