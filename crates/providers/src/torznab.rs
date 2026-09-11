@@ -5,7 +5,7 @@ use quick_xml::Reader;
 use readingroom_core::{
     config::IndexerConfig,
     error::{AppError, Result},
-    models::{DownloadType, Release},
+    models::{DownloadType, MediaType, Release},
     traits::{Indexer, SearchCriteria},
 };
 
@@ -14,6 +14,7 @@ pub struct TorznabIndexer {
     search_url: String,
     api_key: Option<String>,
     client: reqwest::Client,
+    media_types: Vec<MediaType>,
 }
 
 impl TorznabIndexer {
@@ -24,6 +25,7 @@ impl TorznabIndexer {
             name: config.name.clone(),
             search_url,
             api_key: config.api_key.clone(),
+            media_types: config.media_types.clone(),
             client: reqwest::Client::builder()
                 .user_agent("ReadingRoom/0.1")
                 .build()
@@ -164,6 +166,7 @@ impl TorznabIndexer {
                                     peers,
                                     grabs,
                                     categories: std::mem::take(&mut categories),
+                                    media_type: MediaType::Ebook,
                                 });
                             }
                             in_item = false;
@@ -225,6 +228,10 @@ impl Indexer for TorznabIndexer {
         true
     }
 
+    fn supported_media(&self) -> &[MediaType] {
+        &self.media_types
+    }
+
     async fn rss_sync(&self) -> Result<Vec<Release>> {
         self.fetch(vec![]).await
     }
@@ -257,6 +264,7 @@ mod tests {
             search_url: "https://example.com/api".into(),
             api_key: None,
             client: reqwest::Client::new(),
+            media_types: vec![MediaType::Ebook],
         }
     }
 
@@ -352,6 +360,7 @@ mod tests {
             title: Some("Test Title".into()),
             isbn: Some("1234567890".into()),
             limit: Some(50),
+            media_type: MediaType::Ebook,
         };
         // We can't call search() directly since it makes HTTP requests,
         // but we can verify the logic by checking how params are built

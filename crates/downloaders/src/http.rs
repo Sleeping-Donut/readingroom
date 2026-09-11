@@ -451,7 +451,7 @@ impl DownloadClient for HttpDownloadClient {
 mod tests {
     use super::*;
     use chrono::Utc;
-    use readingroom_core::models::Release;
+    use readingroom_core::models::{MediaType, Release};
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::time::Duration;
@@ -512,6 +512,7 @@ mod tests {
             peers: None,
             grabs: None,
             categories: vec![],
+            media_type: MediaType::Ebook,
         };
 
         let id = client.add_release(&release).await.unwrap();
@@ -612,6 +613,7 @@ mod tests {
             peers: None,
             grabs: None,
             categories: vec![],
+            media_type: MediaType::Ebook,
         };
 
         let id = client.add_release(&release).await.unwrap();
@@ -706,6 +708,7 @@ mod tests {
             peers: None,
             grabs: None,
             categories: vec!["epub".into()],
+            media_type: MediaType::Ebook,
         };
 
         let id = client.add_release(&release).await.unwrap();

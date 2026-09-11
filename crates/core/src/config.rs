@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::models::MediaType;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -88,6 +90,9 @@ pub struct IndexerConfig {
     pub search_enabled: bool,
     #[serde(default)]
     pub categories: Vec<String>,
+    /// Which media this indexer searches. Defaults to ebooks.
+    #[serde(default = "default_media_types")]
+    pub media_types: Vec<MediaType>,
     #[serde(default)]
     pub priority: i32,
     #[serde(default)]
@@ -208,6 +213,9 @@ fn default_true() -> bool {
 }
 fn default_profile() -> String {
     "Any".into()
+}
+fn default_media_types() -> Vec<MediaType> {
+    vec![MediaType::Ebook]
 }
 
 impl Default for ServerConfig {

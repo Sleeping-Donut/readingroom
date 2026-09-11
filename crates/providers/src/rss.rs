@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use readingroom_core::{
     config::IndexerConfig,
     error::{AppError, Result},
-    models::{DownloadType, Release},
+    models::{DownloadType, MediaType, Release},
     traits::{Indexer, SearchCriteria},
 };
 
@@ -14,6 +14,7 @@ pub struct RssIndexer {
     accept_magnet: bool,
     accept_torrent: bool,
     accept_direct: bool,
+    media_types: Vec<MediaType>,
 }
 
 impl RssIndexer {
@@ -28,6 +29,7 @@ impl RssIndexer {
             accept_magnet: true,
             accept_torrent: true,
             accept_direct: true,
+            media_types: config.media_types.clone(),
         })
     }
 
@@ -141,6 +143,7 @@ impl RssIndexer {
                     peers: None,
                     grabs: None,
                     categories,
+                    media_type: MediaType::Ebook,
                 });
             }
         }
@@ -161,6 +164,10 @@ impl Indexer for RssIndexer {
 
     fn supports_search(&self) -> bool {
         false
+    }
+
+    fn supported_media(&self) -> &[MediaType] {
+        &self.media_types
     }
 
     async fn rss_sync(&self) -> Result<Vec<Release>> {

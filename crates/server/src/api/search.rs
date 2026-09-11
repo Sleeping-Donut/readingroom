@@ -7,7 +7,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
-use readingroom_core::models::{MonitoredBook, Release};
+use readingroom_core::models::{MediaType, MonitoredBook, Release};
 use readingroom_core::traits::MetadataSource;
 
 use crate::AppState;
@@ -16,6 +16,21 @@ use crate::AppState;
 pub struct SearchAllParams {
     pub q: String,
     pub limit: Option<i64>,
+    /// "ebook" (default) or "audiobook".
+    pub media: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct MediaParam {
+    pub media: Option<String>,
+}
+
+/// Parse a `?media=` value; anything unknown defaults to ebooks.
+fn parse_media(value: Option<&str>) -> MediaType {
+    match value.map(|v| v.to_lowercase()).as_deref() {
+        Some("audiobook") | Some("audiobooks") | Some("audio") => MediaType::Audiobook,
+        _ => MediaType::Ebook,
+    }
 }
 
 async fn search_all(
@@ -44,6 +59,7 @@ async fn search_indexers(
         .search_book(&params.q)
         .await
         .unwrap_or_default();
+    let media = parse_media(params.media.as_deref());
 
     let mut all_results = Vec::new();
 
@@ -53,7 +69,11 @@ async fn search_indexers(
         // Metadata search results aren't in the DB — treat as monitored
         // so the user can search indexers for them.
         let monitored = MonitoredBook { inner: book.clone() };
-        let results = state.search_engine.search_book(&monitored).await.unwrap_or_default();
+        let results = state
+            .search_engine
+            .search_book(&monitored, media)
+            .await
+            .unwrap_or_default();
         all_results.extend(results);
     }
 
@@ -71,9 +91,15 @@ async fn search_indexers(
 async fn search_author_indexers(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    Query(mp): Query<MediaParam>,
 ) -> Json<Value> {
+    let media = parse_media(mp.media.as_deref());
     let results = match crate::api::authors::resolve_author_id(&state, &id).await {
-        Ok(author_id) => state.search_engine.search_author(author_id).await.unwrap_or_default(),
+        Ok(author_id) => state
+            .search_engine
+            .search_author(author_id, media)
+            .await
+            .unwrap_or_default(),
         Err(_) => vec![],
     };
     Json(json!({
@@ -86,7 +112,9 @@ async fn search_author_indexers(
 async fn search_book_indexers(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
+    Query(mp): Query<MediaParam>,
 ) -> Json<Value> {
+    let media = parse_media(mp.media.as_deref());
     let book = match crate::db::get_book_by_id(&state.db, id).await {
         Ok(Some(b)) => b,
         Ok(None) => return Json(json!({ "error": "Book not found", "results": [], "total": 0 })),
@@ -98,7 +126,11 @@ async fn search_book_indexers(
         None => return Json(json!({ "error": "Book is not monitored", "results": [], "total": 0 })),
     };
 
-    let results = state.search_engine.search_book(&monitored).await.unwrap_or_default();
+    let results = state
+        .search_engine
+        .search_book(&monitored, media)
+        .await
+        .unwrap_or_default();
     Json(json!({
         "results": results,
         "total": results.len(),

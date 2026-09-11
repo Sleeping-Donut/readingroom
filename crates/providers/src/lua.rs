@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use mlua::{Lua, LuaSerdeExt, Table, Value};
 use readingroom_core::{
     error::{AppError, Result},
-    models::{DownloadType, Release},
+    models::{DownloadType, MediaType, Release},
     traits::{Indexer, SearchCriteria},
 };
 
@@ -146,6 +146,7 @@ fn decode_releases(indexer: &str, result: Value) -> Result<Vec<Release>> {
             peers: None,
             grabs: None,
             categories: r.categories,
+            media_type: MediaType::Ebook,
         })
         .collect())
 }
@@ -316,6 +317,10 @@ impl Indexer for LuaIndexer {
         self.plugin.supports_search
     }
 
+    fn supported_media(&self) -> &[MediaType] {
+        &self.plugin.media_types
+    }
+
     async fn rss_sync(&self) -> Result<Vec<Release>> {
         if !self.plugin.supports_rss {
             return Ok(vec![]);
@@ -393,6 +398,7 @@ return {
                 title: None,
                 isbn: None,
                 limit: None,
+                media_type: MediaType::Ebook,
             })
             .unwrap();
         assert_eq!(releases.len(), 1);

@@ -146,12 +146,38 @@ impl std::ops::Deref for UnmonitoredAuthor {
 // Edition
 // ---------------------------------------------------------------------------
 
+/// The acquisition axis: which kind of file we're searching for/downloading.
+/// `EditionFormat::Physical` has no acquisition, so it isn't a `MediaType`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum MediaType {
+    Ebook,
+    Audiobook,
+}
+
+impl Default for MediaType {
+    fn default() -> Self {
+        MediaType::Ebook
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum EditionFormat {
     EBook,
     AudioBook,
     Physical,
+}
+
+impl EditionFormat {
+    pub fn media_type(&self) -> Option<MediaType> {
+        match self {
+            EditionFormat::EBook => Some(MediaType::Ebook),
+            EditionFormat::AudioBook => Some(MediaType::Audiobook),
+            EditionFormat::Physical => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -165,6 +191,15 @@ pub enum Quality {
     M4B,
     FLAC,
     Unknown,
+}
+
+impl Quality {
+    pub fn media_type(&self) -> MediaType {
+        match self {
+            Quality::MP3 | Quality::M4B | Quality::FLAC => MediaType::Audiobook,
+            _ => MediaType::Ebook,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -258,6 +293,8 @@ pub struct Release {
     pub peers: Option<i32>,
     pub grabs: Option<i32>,
     pub categories: Vec<String>,
+    #[serde(default)]
+    pub media_type: MediaType,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -538,6 +575,7 @@ mod tests {
             peers: Some(50),
             grabs: Some(200),
             categories: vec!["Books".into(), "Ebook".into()],
+            media_type: MediaType::Ebook,
         };
 
         let json = serde_json::to_string(&release).unwrap();

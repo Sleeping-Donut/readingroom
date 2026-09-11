@@ -6,6 +6,7 @@ use readingroom_core::error::{AppError, Result};
 
 use crate::lua::LuaIndexer;
 use readingroom_core::config::IndexerConfig;
+use readingroom_core::models::MediaType;
 use readingroom_core::traits::Indexer;
 
 /// A single configurable field a Lua plugin exposes to the WebUI.
@@ -39,6 +40,9 @@ pub struct ImplementationInfo {
     pub hint: String,
     pub supports_search: bool,
     pub supports_rss: bool,
+    /// Which media this implementation can search.
+    #[serde(default = "default_media_types")]
+    pub media_types: Vec<MediaType>,
     /// Param schema. Empty for hardcoded implementations (the UI renders those
     /// from a static form); plugins always carry their params here.
     #[serde(default)]
@@ -46,6 +50,10 @@ pub struct ImplementationInfo {
     /// True when this implementation is a loaded Lua plugin.
     #[serde(default)]
     pub plugin: bool,
+}
+
+fn default_media_types() -> Vec<MediaType> {
+    vec![MediaType::Ebook]
 }
 
 /// A loaded Lua plugin: its parsed manifest plus the raw source, kept as plain
@@ -57,6 +65,7 @@ pub struct PluginDef {
     pub version: Option<String>,
     pub supports_search: bool,
     pub supports_rss: bool,
+    pub media_types: Vec<MediaType>,
     pub params: Vec<ParamDef>,
     pub source: String,
 }
@@ -77,6 +86,7 @@ impl PluginDef {
         let version: Option<String> = table.get("version").ok();
         let supports_search: bool = table.get("supports_search").unwrap_or(false);
         let supports_rss: bool = table.get("supports_rss").unwrap_or(false);
+        let media_types = parse_media_types(&table)?;
         let params = parse_params(&table)?;
 
         Ok(PluginDef {
@@ -85,10 +95,33 @@ impl PluginDef {
             version,
             supports_search,
             supports_rss,
+            media_types,
             params,
             source: source.to_string(),
         })
     }
+}
+
+/// Parse the optional Lua `media` list (`{ "ebook", "audiobook" }`). Defaults to
+/// ebooks when absent or unrecognised.
+fn parse_media_types(table: &mlua::Table) -> Result<Vec<MediaType>> {
+    let value: mlua::Value = table.get("media").unwrap_or(mlua::Value::Nil);
+    if value.is_nil() {
+        return Ok(default_media_types());
+    }
+    let list: Vec<String> = table.get("media").map_err(lua_err)?;
+    let mut media: Vec<MediaType> = list
+        .iter()
+        .filter_map(|m| match m.to_lowercase().as_str() {
+            "audiobook" | "audiobooks" | "audio" => Some(MediaType::Audiobook),
+            "ebook" | "ebooks" => Some(MediaType::Ebook),
+            _ => None,
+        })
+        .collect();
+    if media.is_empty() {
+        media = default_media_types();
+    }
+    Ok(media)
 }
 
 fn parse_params(table: &mlua::Table) -> Result<Vec<ParamDef>> {
@@ -179,6 +212,7 @@ impl PluginManager {
                 ),
                 supports_search: p.supports_search,
                 supports_rss: p.supports_rss,
+                media_types: p.media_types.clone(),
                 params: p.params.clone(),
                 plugin: true,
             })

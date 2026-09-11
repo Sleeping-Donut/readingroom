@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use readingroom_core::{
     config::IndexerConfig,
     error::Result,
-    models::{Book, MonitoredBook},
+    models::{Book, MediaType, MonitoredBook},
     search::{BasicDecisionEngine, DecisionEngine, ScoredRelease},
     traits::{Indexer, SearchCriteria},
 };
@@ -38,9 +38,13 @@ impl SearchEngine {
         self.indexers.read().unwrap().clone()
     }
 
-    /// Search for a specific monitored book across all indexers.
-    /// Returns scored releases sorted by score descending.
-    pub async fn search_book(&self, book: &MonitoredBook) -> Result<Vec<ScoredRelease>> {
+    /// Search for a specific monitored book across all indexers that support the
+    /// requested media. Returns scored releases sorted by score descending.
+    pub async fn search_book(
+        &self,
+        book: &MonitoredBook,
+        media_type: MediaType,
+    ) -> Result<Vec<ScoredRelease>> {
         // Include the author in the free-text query: indexers match on title and
         // author, so a title-only query returns same-titled books by other
         // authors.
@@ -55,12 +59,13 @@ impl SearchEngine {
             title: Some(book.title.clone()),
             isbn: None,
             limit: Some(50),
+            media_type,
         };
 
         let mut all_scored = Vec::new();
 
         for indexer in self.indexers_snapshot() {
-            if !indexer.supports_search() {
+            if !indexer.supports_search() || !indexer.supported_media().contains(&media_type) {
                 continue;
             }
 
@@ -72,7 +77,8 @@ impl SearchEngine {
                 }
             };
 
-            for release in releases {
+            for mut release in releases {
+                release.media_type = media_type;
                 match self.decision.score_release(&release, book) {
                     Ok(scored) => {
                         if scored.score > 0.0 {
@@ -93,14 +99,21 @@ impl SearchEngine {
         Ok(all_scored)
     }
 
-    /// Search for all monitored books by an author.
-    pub async fn search_author(&self, author_id: i64) -> Result<Vec<ScoredRelease>> {
+    /// Search all monitored books by an author for one media.
+    pub async fn search_author(
+        &self,
+        author_id: i64,
+        media_type: MediaType,
+    ) -> Result<Vec<ScoredRelease>> {
         let books = db::get_books_by_author(&self.db, author_id).await?;
         let mut all_results = Vec::new();
 
         for book in books {
             let Some(monitored) = book.into_monitored() else { continue; };
-            let results = self.search_book(&monitored).await.unwrap_or_default();
+            let results = self
+                .search_book(&monitored, media_type)
+                .await
+                .unwrap_or_default();
             all_results.extend(results);
         }
 

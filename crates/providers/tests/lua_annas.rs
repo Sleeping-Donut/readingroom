@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 
 use readingroom_core::config::IndexerConfig;
-use readingroom_core::models::Release;
+use readingroom_core::models::{MediaType, Release};
 use readingroom_core::traits::{Indexer, SearchCriteria};
 use readingroom_providers::annas::AnnaIndexer;
 use readingroom_providers::plugin::PluginManager;
@@ -77,6 +77,7 @@ fn criteria() -> SearchCriteria {
         title: None,
         isbn: None,
         limit: None,
+        media_type: MediaType::Ebook,
     }
 }
 
@@ -97,6 +98,7 @@ fn lua_annas_matches_hardcoded_indexer() {
         rss_enabled: false,
         search_enabled: true,
         categories: vec![],
+        media_types: vec![MediaType::Ebook],
         priority: 0,
         tags: vec![],
     };
@@ -131,6 +133,7 @@ fn lua_annas_matches_hardcoded_indexer() {
         rss_enabled: false,
         search_enabled: true,
         categories: vec![],
+        media_types: vec![MediaType::Ebook],
         priority: 0,
         tags: vec![],
     };

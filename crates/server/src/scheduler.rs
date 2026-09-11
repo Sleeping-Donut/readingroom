@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use tokio_cron_scheduler::{Job, JobScheduler};
 
 use readingroom_core::error::Result;
-use readingroom_core::models::MonitoredBook;
+use readingroom_core::models::{MediaType, MonitoredBook};
 
 use crate::db;
 use crate::downloads::DownloadManager;
@@ -189,7 +189,7 @@ impl Scheduler {
             let db = db2.clone();
             Box::pin(async move {
                 let Some(running) = search_idle.try_start() else { return };
-                if let Err(e) = search_missing_books(&db, &se, &dm).await {
+                if let Err(e) = search_missing_books(&db, &se, &dm, None).await {
                     tracing::error!(error = %e, "Scheduled search_missing failed");
                     let _ = running.fail(e.to_string());
                 } else {
@@ -277,16 +277,35 @@ impl Scheduler {
 }
 
 /// Search for all monitored books that have no book_files, and download the best match.
+/// Search missing books for one media, or both when `media` is `None`.
 pub(crate) async fn search_missing_books(
     db: &sqlx::SqlitePool,
     search_engine: &SearchEngine,
     download_manager: &DownloadManager,
+    media: Option<MediaType>,
+) -> Result<()> {
+    let media_list: Vec<MediaType> = match media {
+        Some(m) => vec![m],
+        None => vec![MediaType::Ebook, MediaType::Audiobook],
+    };
+    for media_type in media_list {
+        search_missing_for_media(db, search_engine, download_manager, media_type).await?;
+    }
+    Ok(())
+}
+
+async fn search_missing_for_media(
+    db: &sqlx::SqlitePool,
+    search_engine: &SearchEngine,
+    download_manager: &DownloadManager,
+    media_type: MediaType,
 ) -> Result<()> {
     let books = db::list_books(db).await?;
     let monitored: Vec<MonitoredBook> = books.into_iter().filter_map(|b| b.into_monitored()).collect();
 
     tracing::info!(
         total = %monitored.len(),
+        media = ?media_type,
         "Searching for missing books"
     );
 
@@ -326,7 +345,7 @@ pub(crate) async fn search_missing_books(
         tracing::debug!(book = %book.title, "Searching for missing book");
 
         // Search indexers
-        let results = match search_engine.search_book(book).await {
+        let results = match search_engine.search_book(book, media_type).await {
             Ok(r) => r,
             Err(e) => {
                 tracing::warn!(

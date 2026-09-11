@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::models::{Book, BookFile, Quality, Release};
+use crate::models::{Book, BookFile, MediaType, Quality, Release};
 use strsim::jaro_winkler;
 
 /// Result from a search across indexers, scored by the decision engine
@@ -173,6 +173,7 @@ mod tests {
             peers: None,
             grabs: None,
             categories: vec![],
+            media_type: MediaType::Ebook,
         }
     }
 

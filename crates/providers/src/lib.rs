@@ -6,6 +6,7 @@ pub mod rss;
 pub mod torznab;
 
 use readingroom_core::error::Result;
+use readingroom_core::models::MediaType;
 use readingroom_core::traits::Indexer;
 use readingroom_core::config::IndexerConfig;
 
@@ -51,6 +52,7 @@ pub fn core_implementations() -> Vec<ImplementationInfo> {
             hint: "Torrent indexer using the Torznab protocol.".into(),
             supports_search: true,
             supports_rss: true,
+            media_types: vec![MediaType::Ebook, MediaType::Audiobook],
             params: vec![
                 param("url", "URL", "string", true),
                 param("api_key", "API Key", "password", false),
@@ -63,6 +65,7 @@ pub fn core_implementations() -> Vec<ImplementationInfo> {
             hint: "Usenet indexer using the Newznab protocol.".into(),
             supports_search: true,
             supports_rss: true,
+            media_types: vec![MediaType::Ebook, MediaType::Audiobook],
             params: vec![
                 param("url", "URL", "string", true),
                 param("api_key", "API Key", "password", false),
@@ -75,6 +78,7 @@ pub fn core_implementations() -> Vec<ImplementationInfo> {
             hint: "RSS feed indexer — API key is not required.".into(),
             supports_search: false,
             supports_rss: true,
+            media_types: vec![MediaType::Ebook, MediaType::Audiobook],
             params: vec![param("url", "Feed URL", "string", true)],
             plugin: false,
         },

@@ -516,6 +516,7 @@ pub async fn list_indexer_configs(
             rss_enabled: enable_rss,
             search_enabled: enable_search,
             categories: vec![],
+            media_types: vec![readingroom_core::models::MediaType::Ebook],
             priority: priority as i32,
             tags: vec![],
         });

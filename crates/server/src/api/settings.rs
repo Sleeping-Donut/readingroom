@@ -510,6 +510,7 @@ async fn test_indexer(
         rss_enabled: row.enable_rss,
         search_enabled: row.enable_search,
         categories: vec![],
+        media_types: vec![readingroom_core::models::MediaType::Ebook],
         priority: row.priority as i32,
         tags: vec![],
     };

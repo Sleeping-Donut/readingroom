@@ -33,6 +33,7 @@ pub struct SearchCriteria {
     pub title: Option<String>,
     pub isbn: Option<String>,
     pub limit: Option<usize>,
+    pub media_type: MediaType,
 }
 
 #[async_trait]
@@ -40,6 +41,12 @@ pub trait Indexer: Send + Sync {
     fn name(&self) -> &str;
     fn supports_rss(&self) -> bool;
     fn supports_search(&self) -> bool;
+
+    /// Which media this indexer can search. Defaults to ebooks so existing
+    /// indexers keep working unchanged.
+    fn supported_media(&self) -> &[MediaType] {
+        &[MediaType::Ebook]
+    }
 
     async fn rss_sync(&self) -> Result<Vec<Release>>;
     async fn search(&self, criteria: &SearchCriteria) -> Result<Vec<Release>>;

@@ -5,7 +5,7 @@ use chrono::Utc;
 use readingroom_core::{
     config::IndexerConfig,
     error::{AppError, Result},
-    models::{DownloadType, Release},
+    models::{DownloadType, MediaType, Release},
     traits::{Indexer, SearchCriteria},
 };
 use regex::Regex;
@@ -127,6 +127,7 @@ impl AnnaIndexer {
                 peers: None,
                 grabs: None,
                 categories: extension.into_iter().collect(),
+                media_type: MediaType::Ebook,
             });
         }
         releases
@@ -292,6 +293,7 @@ mod tests {
             title: None,
             isbn: None,
             limit: None,
+            media_type: MediaType::Ebook,
         })
         .await
         .unwrap();

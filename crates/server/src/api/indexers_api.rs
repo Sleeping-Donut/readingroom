@@ -322,6 +322,7 @@ async fn create_indexer(
             rss_enabled: enable_rss,
             search_enabled: enable_search,
             categories: vec![],
+            media_types: vec![readingroom_core::models::MediaType::Ebook],
             priority: priority as i32,
             tags: vec![],
         };
@@ -415,6 +416,7 @@ async fn test_indexer(
         search_enabled: body.enable_automatic_search.unwrap_or(true)
             || body.enable_interactive_search.unwrap_or(true),
         categories: vec![],
+        media_types: vec![readingroom_core::models::MediaType::Ebook],
         priority: body.priority.unwrap_or(0) as i32,
         tags: vec![],
     };
