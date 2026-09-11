@@ -121,7 +121,12 @@ function EditionRow(props: {
 			.join(" · ");
 
 	return (
-		<div class="space-y-3 rounded-sm border border-rule bg-paper-100 p-3">
+		<div class="flex gap-3 rounded-sm border border-rule bg-paper-100 p-3">
+			<BookCover
+				src={props.edition.image_url}
+				alt={props.edition.title}
+				class="h-16 w-11 shrink-0 rounded"
+			/>
 			<div class="min-w-0 flex-1">
 				<p class="truncate font-medium">{props.edition.title}</p>
 				<p class="text-xs text-ink-700">{meta()}</p>

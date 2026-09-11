@@ -240,14 +240,7 @@ struct EditionEntry {
     publishers: Option<Vec<String>>,
     publish_date: Option<String>,
     number_of_pages: Option<i32>,
-    cover: Option<EditionCover>,
-}
-
-#[derive(serde::Deserialize)]
-struct EditionCover {
-    large: Option<String>,
-    medium: Option<String>,
-    small: Option<String>,
+    covers: Option<Vec<i64>>,
 }
 
 /// A single edition record returned by `GET /isbn/{isbn}.json`. Carries the
@@ -592,7 +585,10 @@ impl MetadataSource for OpenLibrarySource {
                     publisher: e.publishers.and_then(|p| p.into_iter().next()),
                     pages: e.number_of_pages,
                     release_date: e.publish_date.as_deref().and_then(parse_date),
-                    image_url: e.cover.and_then(|c| c.large),
+                    image_url: e
+                        .covers
+                        .and_then(|c| c.into_iter().next())
+                        .and_then(|id| cover_url(id, "M")),
                     monitored: false,
                 }
             })
