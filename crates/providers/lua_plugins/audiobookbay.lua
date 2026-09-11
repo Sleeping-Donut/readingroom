@@ -113,6 +113,10 @@ return {
       end
     end
 
+    host.log(
+      "info",
+      "audiobookbay search q=" .. q .. " body=" .. tostring(#body) .. " results=" .. tostring(#results)
+    )
     return results
   end,
 }
