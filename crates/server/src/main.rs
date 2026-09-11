@@ -377,13 +377,15 @@ async fn main() -> readingroom_core::error::Result<()> {
     // Try to serve frontend static files
     let frontend_paths = [
         std::env::var("FRONTEND_DIST").unwrap_or_default(),
+        "frontend/dist/client".to_string(),
         "frontend/dist".to_string(),
+        "../frontend/dist/client".to_string(),
         "../frontend/dist".to_string(),
         config.server.data_dir.join("frontend").to_string_lossy().to_string(),
     ];
     let mut frontend_dir = None;
     for p in &frontend_paths {
-        if !p.is_empty() && std::path::Path::new(p).exists() {
+        if !p.is_empty() && std::path::Path::new(p).join("index.html").exists() {
             frontend_dir = Some(p.clone());
             break;
         }
