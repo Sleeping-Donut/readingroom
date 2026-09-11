@@ -1,7 +1,7 @@
 import { createPagination, createSegment } from "@solid-primitives/pagination";
 import { debounce } from "@solid-primitives/scheduled";
 import { Title } from "@solidjs/meta";
-import { useSearchParams, type RouteProps } from "@solidjs/router";
+import { useSearchParams, type RouteProps, revalidate } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
 	action,
@@ -19,7 +19,7 @@ import * as v from "valibot";
 
 import type { Book } from "../../types";
 
-import { getBooks, bookId, searchBooks } from "../../api/books";
+import { addBook, getBooks, bookId, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
 import { BookCover } from "../../components/books/BookCover";
 import { BookRow } from "../../components/books/BookRow";
@@ -132,6 +132,67 @@ function BookList(props: {
 	);
 }
 
+type SortKey = "title" | "author" | "recent";
+
+// Owns the tracked-books store so its async read happens inside the caller's
+// Loading boundary. Creating/reading the store in `Books` would suspend the
+// route before the boundary exists, blocking the navigation (and hiding the
+// skeleton).
+function TrackedBooks(props: {
+	view: Accessor<ViewMode>;
+	filterQuery: Accessor<string>;
+	sortKey: Accessor<SortKey>;
+}) {
+	const [books] = createBooks();
+
+	const filteredBooks = createMemo(() => {
+		const q = props.filterQuery().trim().toLowerCase();
+		const all = books.books;
+		if (!q) return all;
+		return all.filter(
+			(b) =>
+				b.title.toLowerCase().includes(q) ||
+				(b.author_name ?? "").toLowerCase().includes(q) ||
+				b.genres.some((g) => g.toLowerCase().includes(q)),
+		);
+	});
+
+	const sortedBooks = createMemo(() => {
+		const list = [...filteredBooks()];
+		switch (props.sortKey()) {
+			case "author":
+				return list.sort((a, b) =>
+					(a.author_name ?? "").localeCompare(b.author_name ?? ""),
+				);
+			case "recent":
+				return list.sort((a, b) => (b.added_at ?? "").localeCompare(a.added_at ?? ""));
+			default:
+				return list.sort((a, b) => a.title.localeCompare(b.title));
+		}
+	});
+
+	return (
+		<Show
+			when={books.books.length > 0}
+			fallback={
+				<Specimen
+					label="The shelves await"
+					detail={'Click "Add Book" to search and start tracking.'}
+				>
+					No books tracked yet.
+				</Specimen>
+			}
+		>
+			<Show
+				when={filteredBooks().length > 0}
+				fallback={<Specimen label="Nothing found">No books match your filter.</Specimen>}
+			>
+				<BookList books={sortedBooks} view={props.view} filterQuery={props.filterQuery} />
+			</Show>
+		</Show>
+	);
+}
+
 export default function Books(_props: RouteProps<typeof route>) {
 	const [searchQuery, setSearchQuery] = createSignal("");
 	const [showSearch, setShowSearch] = createSignal(false);
@@ -139,8 +200,6 @@ export default function Books(_props: RouteProps<typeof route>) {
 	const [actionError, setActionError] = createSignal<string | null>(null);
 	const [view, setView] = createViewPreference("books");
 	const [search, setSearch] = useSearchParams(paths.books);
-
-	const [books, { addBook }] = createBooks();
 
 	const filterQuery = () => search.q ?? "";
 	const [filterInput, setFilterInput] = createSignal(filterQuery());
@@ -155,33 +214,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 		return searchBooks(q);
 	});
 
-	const filteredBooks = createMemo(() => {
-		const q = filterQuery().trim().toLowerCase();
-		const all = books.books;
-		if (!q) return all;
-		return all.filter(
-			(b) =>
-				b.title.toLowerCase().includes(q) ||
-				(b.author_name ?? "").toLowerCase().includes(q) ||
-				b.genres.some((g) => g.toLowerCase().includes(q)),
-		);
-	});
-
-	type SortKey = "title" | "author" | "recent";
 	const [sortKey, setSortKey] = createSignal<SortKey>("title");
-	const sortedBooks = createMemo(() => {
-		const list = [...filteredBooks()];
-		switch (sortKey()) {
-			case "author":
-				return list.sort((a, b) =>
-					(a.author_name ?? "").localeCompare(b.author_name ?? ""),
-				);
-			case "recent":
-				return list.sort((a, b) => (b.added_at ?? "").localeCompare(a.added_at ?? ""));
-			default:
-				return list.sort((a, b) => a.title.localeCompare(b.title));
-		}
-	});
 
 	const submitAdd = action(async function* (book: {
 		foreign_id: string;
@@ -193,6 +226,7 @@ export default function Books(_props: RouteProps<typeof route>) {
 		setActionError(null);
 		try {
 			yield addBook(book);
+			revalidate(getBooks.key);
 			setSearchQuery("");
 			setShowSearch(false);
 		} catch (err) {
@@ -330,41 +364,20 @@ export default function Books(_props: RouteProps<typeof route>) {
 					</p>
 				)}
 			>
+				<div class="mb-4">
+					<input
+						type="text"
+						placeholder="Filter tracked books by title or author..."
+						value={filterInput()}
+						onInput={(e) => {
+							setFilterInput(e.currentTarget.value);
+							pushFilter(e.currentTarget.value);
+						}}
+						class="w-full rounded-sm border border-rule bg-paper-200 px-4 py-2 text-ink-900 placeholder:text-ink-500 focus:border-ink-900 focus:outline-hidden sm:w-72"
+					/>
+				</div>
 				<Loading fallback={<BookListSkeleton view={view()} />}>
-					<div class="mb-4">
-						<input
-							type="text"
-							placeholder="Filter tracked books by title or author..."
-							value={filterInput()}
-							onInput={(e) => {
-								setFilterInput(e.currentTarget.value);
-								pushFilter(e.currentTarget.value);
-							}}
-							class="w-full rounded-sm border border-rule bg-paper-200 px-4 py-2 text-ink-900 placeholder:text-ink-500 focus:border-ink-900 focus:outline-hidden sm:w-72"
-						/>
-					</div>
-					<Show
-						when={books.books.length > 0}
-						fallback={
-							<Specimen
-								label="The shelves await"
-								detail={'Click "Add Book" to search and start tracking.'}
-							>
-								No books tracked yet.
-							</Specimen>
-						}
-					>
-						<Show
-							when={filteredBooks().length > 0}
-							fallback={
-								<Specimen label="Nothing found">
-									No books match your filter.
-								</Specimen>
-							}
-						>
-							<BookList books={sortedBooks} view={view} filterQuery={filterQuery} />
-						</Show>
-					</Show>
+					<TrackedBooks view={view} filterQuery={filterQuery} sortKey={sortKey} />
 				</Loading>
 			</Errored>
 		</div>

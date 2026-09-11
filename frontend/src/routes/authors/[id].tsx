@@ -2,6 +2,7 @@ import { Title } from "@solidjs/meta";
 import { revalidate, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import {
+	type Accessor,
 	action,
 	createMemo,
 	createOptimistic,
@@ -15,7 +16,7 @@ import {
 import type { Author, Book, Release } from "../../types";
 
 import { getAuthor, getAuthorBooks } from "../../api/authors";
-import { searchBooks, bookId } from "../../api/books";
+import { addBook as addBookApi, searchBooks, bookId } from "../../api/books";
 import {
 	downloadIndexerRelease,
 	searchIndexersForAuthor,
@@ -24,8 +25,7 @@ import {
 import { BookCard } from "../../components/books/BookCard";
 import { BookRow } from "../../components/books/BookRow";
 import { BookListSkeleton } from "../../components/books/BookSkeletons";
-import { createViewPreference, ViewToggle } from "../../components/ViewToggle";
-import { createBooks } from "../../resources/books";
+import { createViewPreference, ViewToggle, type ViewMode } from "../../components/ViewToggle";
 import { paths } from "../../router";
 
 export const route = defineFileRoute("/authors/:id", {
@@ -167,19 +167,32 @@ function AuthorBio(props: { author: Author; searching: boolean; onSearch: () => 
 	);
 }
 
-export default function AuthorDetail(props: RouteProps<typeof route>) {
-	const author = createMemo(() => getAuthor(props.params.id));
-
-	// Empty result (not null) until the author's name resolves, so consumers
-	// read one non-nullable shape.
+// Owns the metadata/tracked-book reads so they happen inside the caller's
+// Loading boundary. Reading them in `AuthorDetail` suspends the route before
+// the boundary exists, blocking the navigation and hiding the skeleton.
+function AuthorBookList(props: {
+	authorId: string;
+	authorName: Accessor<string | undefined>;
+	filter: Accessor<string>;
+	view: Accessor<ViewMode>;
+	addingId: Accessor<string | null>;
+	onFilter: (value: string) => void;
+	onView: (view: ViewMode) => void;
+	addBook: (book: {
+		foreign_id: string;
+		author_id: number;
+		title: string;
+		author_name?: string;
+	}) => void;
+}) {
 	const EMPTY_SEARCH = { books: [] as Book[], total: 0 };
 	const metadataBooks = createMemo(async () => {
-		const name = author().name;
+		const name = props.authorName();
 		if (!name) return EMPTY_SEARCH;
 		return searchBooks(name);
 	});
 
-	const trackedBooks = createMemo(() => getAuthorBooks(props.params.id));
+	const trackedBooks = createMemo(() => getAuthorBooks(props.authorId));
 
 	const dedupedBooks = createMemo(() => {
 		const seen = new Set<string>();
@@ -194,7 +207,7 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 	});
 
 	const filteredBooks = createMemo(() => {
-		const q = filter().trim().toLowerCase();
+		const q = props.filter().trim().toLowerCase();
 		if (!q) return dedupedBooks();
 		return dedupedBooks().filter((b) => b.title.toLowerCase().includes(q));
 	});
@@ -212,6 +225,95 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 		return paths.books(bookId(tracked ?? book));
 	};
 
+	return (
+		<Show when={metadataBooks().books.length > 0}>
+			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<h3 class="text-xl font-bold">Books by {props.authorName()} (from metadata)</h3>
+				<div class="flex flex-wrap items-center gap-3">
+					<input
+						type="text"
+						value={props.filter()}
+						onInput={(e) => props.onFilter(e.currentTarget.value)}
+						placeholder="Filter by title..."
+						class="rounded border border-rule bg-paper-100 px-3 py-1.5 text-sm text-ink-900 placeholder:text-ink-500 focus:border-ink-900 focus:outline-hidden"
+					/>
+					<ViewToggle view={props.view()} onChange={props.onView} />
+				</div>
+			</div>
+			<Show
+				when={filteredBooks().length > 0}
+				fallback={<p class="text-sm text-ink-500">No books match your filter.</p>}
+			>
+				<Show
+					when={props.view() === "grid"}
+					fallback={
+						<div class="space-y-2">
+							<For each={filteredBooks()}>
+								{(book) => (
+									<BookRow
+										href={bookHref(book)}
+										coverSrc={book.image_url}
+										title={book.title}
+										subtitle={book.publish_date ?? ""}
+										coverEmojiClass="text-xl"
+										footer={
+											<BookAction
+												tracked={trackedByForeignId()[book.foreign_id]}
+												adding={props.addingId() === book.foreign_id}
+												onAdd={() =>
+													props.addBook({
+														foreign_id: book.foreign_id,
+														author_id: book.author_id,
+														title: book.title,
+														author_name:
+															book.author_name ?? props.authorName(),
+													})
+												}
+											/>
+										}
+									/>
+								)}
+							</For>
+						</div>
+					}
+				>
+					<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+						<For each={filteredBooks()}>
+							{(book) => (
+								<BookCard
+									href={bookHref(book)}
+									coverSrc={book.image_url}
+									title={book.title}
+									subtitle={book.publish_date ?? ""}
+									footer={
+										<BookAction
+											tracked={trackedByForeignId()[book.foreign_id]}
+											adding={props.addingId() === book.foreign_id}
+											onAdd={() =>
+												props.addBook({
+													foreign_id: book.foreign_id,
+													author_id: book.author_id,
+													title: book.title,
+													author_name:
+														book.author_name ?? props.authorName(),
+												})
+											}
+											block
+										/>
+									}
+								/>
+							)}
+						</For>
+					</div>
+				</Show>
+			</Show>
+		</Show>
+	);
+}
+
+export default function AuthorDetail(props: RouteProps<typeof route>) {
+	const author = createMemo(() => getAuthor(props.params.id));
+
 	const [indexerResults, setIndexerResults] = createSignal<{
 		results: ScoredRelease[];
 		total: number;
@@ -225,8 +327,6 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 	const [filter, setFilter] = createSignal("");
 	const [view, setView] = createViewPreference("author-books");
 
-	const [, { addBook: addBookToLibrary }] = createBooks();
-
 	const addBook = action(async function* (book: {
 		foreign_id: string;
 		author_id: number;
@@ -236,8 +336,8 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 		setAddingId(book.foreign_id);
 		setActionError(null);
 		try {
-			yield addBookToLibrary(book);
-			yield revalidate(getAuthorBooks.keyFor(props.params.id));
+			yield addBookApi(book);
+			revalidate(getAuthorBooks.keyFor(props.params.id));
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
 		}
@@ -345,100 +445,16 @@ export default function AuthorDetail(props: RouteProps<typeof route>) {
 				)}
 			>
 				<Loading fallback={<BookListSkeleton view={view()} />}>
-					<Show when={metadataBooks().books.length > 0}>
-						<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-							<h3 class="text-xl font-bold">
-								Books by {author()?.name} (from metadata)
-							</h3>
-							<div class="flex flex-wrap items-center gap-3">
-								<input
-									type="text"
-									value={filter()}
-									onInput={(e) => setFilter(e.currentTarget.value)}
-									placeholder="Filter by title..."
-									class="rounded border border-rule bg-paper-100 px-3 py-1.5 text-sm text-ink-900 placeholder:text-ink-500 focus:border-ink-900 focus:outline-hidden"
-								/>
-								<ViewToggle view={view()} onChange={(v) => setView(v)} />
-							</div>
-						</div>
-						<Show
-							when={filteredBooks().length > 0}
-							fallback={
-								<p class="text-sm text-ink-500">No books match your filter.</p>
-							}
-						>
-							<Show
-								when={view() === "grid"}
-								fallback={
-									<div class="space-y-2">
-										<For each={filteredBooks()}>
-											{(book) => (
-												<BookRow
-													href={bookHref(book)}
-													coverSrc={book.image_url}
-													title={book.title}
-													subtitle={book.publish_date ?? ""}
-													coverEmojiClass="text-xl"
-													footer={
-														<BookAction
-															tracked={
-																trackedByForeignId()[
-																	book.foreign_id
-																]
-															}
-															adding={addingId() === book.foreign_id}
-															onAdd={() =>
-																void addBook({
-																	foreign_id: book.foreign_id,
-																	author_id: book.author_id,
-																	title: book.title,
-																	author_name:
-																		book.author_name ??
-																		author().name,
-																})
-															}
-														/>
-													}
-												/>
-											)}
-										</For>
-									</div>
-								}
-							>
-								<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-									<For each={filteredBooks()}>
-										{(book) => (
-											<BookCard
-												href={bookHref(book)}
-												coverSrc={book.image_url}
-												title={book.title}
-												subtitle={book.publish_date ?? ""}
-												footer={
-													<BookAction
-														tracked={
-															trackedByForeignId()[book.foreign_id]
-														}
-														adding={addingId() === book.foreign_id}
-														onAdd={() =>
-															void addBook({
-																foreign_id: book.foreign_id,
-																author_id: book.author_id,
-																title: book.title,
-																author_name:
-																	book.author_name ??
-																	author().name,
-															})
-														}
-														block
-													/>
-												}
-											/>
-										)}
-									</For>
-								</div>
-							</Show>
-						</Show>
-					</Show>
+					<AuthorBookList
+						authorId={props.params.id}
+						authorName={() => author().name}
+						filter={filter}
+						view={view}
+						addingId={addingId}
+						onFilter={setFilter}
+						onView={setView}
+						addBook={(book) => void addBook(book)}
+					/>
 				</Loading>
 			</Errored>
 		</div>
