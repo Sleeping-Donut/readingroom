@@ -87,19 +87,15 @@ return {
           fetched = fetched + 1
           local detail = host.http_get(info_url, { ["Referer"] = referer })
           if detail then
-            local hash = detail:match("Info Hash:</td><td>([a-fA-F0-9]+)")
-              or detail:match("([a-fA-F0-9]{40})")
-            host.log(
-              "info",
-              "audiobookbay detail " .. info_url .. " len=" .. tostring(#detail) .. " hash=" .. tostring(hash)
-            )
+            detail = detail:gsub("[\r\n]+", " ")
+            local hash = detail:match("Info Hash:.-<td>([a-fA-F0-9]+)")
             if hash and #hash == 40 then
               download_url = "magnet:?xt=urn:btih:"
                 .. hash:lower()
                 .. "&dn="
                 .. host.url_encode(title)
             end
-            local sz = detail:match("File Size:</td><td>([^<]+)")
+            local sz = detail:match("File Size:.-<td>([^<]+)")
             if sz then size = parse_size(clean(sz)) end
           end
         end
@@ -117,10 +113,6 @@ return {
       end
     end
 
-    host.log(
-      "info",
-      "audiobookbay search q=" .. q .. " body=" .. tostring(#body) .. " results=" .. tostring(#results)
-    )
     return results
   end,
 }
