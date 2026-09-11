@@ -57,6 +57,10 @@ return {
     if base == "" then base = "https://audiobookbay.lu" end
     local referer = base .. "/"
 
+    -- Warm up the session: AudioBookBay sets a cookie on the home page that the
+    -- search requires (the host client keeps a cookie store).
+    host.http_get(referer, { ["Referer"] = referer })
+
     local body, err = host.http_get(base .. "/?s=" .. host.url_encode(q), { ["Referer"] = referer })
     if not body then return {}, err end
     body = body:gsub("[\r\n]+", " ")

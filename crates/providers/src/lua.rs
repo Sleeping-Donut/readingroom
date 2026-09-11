@@ -27,6 +27,9 @@ impl LuaIndexer {
         let client = reqwest::blocking::Client::builder()
             .user_agent(USER_AGENT)
             .timeout(std::time::Duration::from_secs(30))
+            // Some indexers (e.g. AudioBookBay) require a session cookie set by
+            // their home page before search works.
+            .cookie_store(true)
             .build()
             .map_err(|e| AppError::Config(format!("HTTP client: {e}")))?;
         Ok(Self {
