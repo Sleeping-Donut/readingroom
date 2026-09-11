@@ -1,6 +1,6 @@
 import { query } from "@solidjs/router";
 
-import type { Book, Edition } from "../types";
+import type { Book, Edition, MediaType } from "../types";
 
 import { api } from "./client";
 
@@ -37,5 +37,8 @@ export const addBook = (book: {
 export const getBookEditions = (id: string) =>
 	api.get<{ editions: Edition[]; total: number }>(`/books/${encodeURIComponent(id)}/editions`);
 
-export const updateBookMonitored = (id: number, monitored: boolean) =>
-	api.put<{ success: boolean }>(`/books/${id}`, { monitored });
+export const updateBookMonitored = (id: number, monitored: boolean, media: MediaType = "ebook") =>
+	api.put<{ success: boolean }>(
+		`/books/${id}`,
+		media === "audiobook" ? { monitored_audiobook: monitored } : { monitored },
+	);

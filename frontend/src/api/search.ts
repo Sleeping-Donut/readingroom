@@ -1,4 +1,4 @@
-import type { Release } from "../types";
+import type { MediaType, Release } from "../types";
 
 import { api } from "./client";
 
@@ -9,15 +9,19 @@ export interface ScoredRelease {
 	reasons: string[];
 }
 
-export const searchIndexersForAuthor = (authorId: string) =>
-	api.post<{ results: ScoredRelease[]; total: number }>(`/search/indexers/authors/${authorId}`);
+export const searchIndexersForAuthor = (authorId: string, media: MediaType = "ebook") =>
+	api.post<{ results: ScoredRelease[]; total: number }>(
+		`/search/indexers/authors/${authorId}?media=${media}`,
+	);
 
-export const searchIndexersForBook = (bookId: number) =>
-	api.post<{ results: ScoredRelease[]; total: number }>(`/search/indexers/books/${bookId}`);
+export const searchIndexersForBook = (bookId: number, media: MediaType = "ebook") =>
+	api.post<{ results: ScoredRelease[]; total: number }>(
+		`/search/indexers/books/${bookId}?media=${media}`,
+	);
 
-export const searchIndexersForTitle = (query: string) =>
+export const searchIndexersForTitle = (query: string, media: MediaType = "ebook") =>
 	api.get<{ results: ScoredRelease[]; total: number }>(
-		`/search/indexers?q=${encodeURIComponent(query)}`,
+		`/search/indexers?q=${encodeURIComponent(query)}&media=${media}`,
 	);
 
 export const downloadIndexerRelease = async (release: Release, bookId: number | undefined) => {

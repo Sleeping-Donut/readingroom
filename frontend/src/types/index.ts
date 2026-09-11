@@ -1,3 +1,5 @@
+export type MediaType = "ebook" | "audiobook";
+
 export interface Author {
 	id: number;
 	foreign_id: string;
@@ -34,6 +36,7 @@ export interface Book {
 	ratings?: number;
 	language: string;
 	monitored: boolean;
+	monitored_audiobook?: boolean;
 	added_at: string;
 	last_search_at?: string;
 	author_name?: string;
@@ -89,6 +92,7 @@ export interface Release {
 	indexer: string;
 	download_type: string;
 	seeders?: number;
+	media_type?: MediaType;
 }
 
 export interface SystemStatus {
