@@ -41,6 +41,7 @@ export interface Book {
 	last_search_at?: string;
 	author_name?: string;
 	status?: string;
+	media_status?: { ebook: string; audiobook: string };
 }
 
 export interface Edition {

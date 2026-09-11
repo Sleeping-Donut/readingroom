@@ -197,6 +197,75 @@ pub async fn list_books(db: &SqlitePool) -> Result<Vec<readingroom_core::models:
     Ok(rows.into_iter().map(|r| r.into_domain()).collect())
 }
 
+/// Per-media lifecycle status for a book ('tracked' | 'getting' | 'have').
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MediaStatus {
+    pub ebook: String,
+    pub audiobook: String,
+}
+
+const MEDIA_STATUS_SELECT: &str = "
+SELECT b.id,
+       CASE
+           WHEN EXISTS (
+               SELECT 1 FROM book_files bf JOIN editions e ON e.id = bf.edition_id
+               WHERE e.book_id = b.id AND e.format = 'EBook'
+           ) THEN 'have'
+           WHEN EXISTS (
+               SELECT 1 FROM queue q
+               WHERE q.book_id = b.id AND q.media_type = 'ebook'
+                 AND q.status NOT IN ('completed','imported','failed','removed')
+           ) THEN 'getting'
+           ELSE 'tracked'
+       END,
+       CASE
+           WHEN EXISTS (
+               SELECT 1 FROM book_files bf JOIN editions e ON e.id = bf.edition_id
+               WHERE e.book_id = b.id AND e.format = 'AudioBook'
+           ) THEN 'have'
+           WHEN EXISTS (
+               SELECT 1 FROM queue q
+               WHERE q.book_id = b.id AND q.media_type = 'audiobook'
+                 AND q.status NOT IN ('completed','imported','failed','removed')
+           ) THEN 'getting'
+           ELSE 'tracked'
+       END
+FROM books b
+";
+
+fn media_status_from_row(row: (i64, String, String)) -> (i64, MediaStatus) {
+    (
+        row.0,
+        MediaStatus {
+            ebook: row.1,
+            audiobook: row.2,
+        },
+    )
+}
+
+/// Per-media lifecycle status for every tracked book, keyed by book id.
+pub async fn list_book_media_statuses(
+    db: &SqlitePool,
+) -> Result<std::collections::HashMap<i64, MediaStatus>> {
+    let rows = sqlx::query_as::<_, (i64, String, String)>(MEDIA_STATUS_SELECT)
+        .fetch_all(db)
+        .await?;
+    Ok(rows.into_iter().map(media_status_from_row).collect())
+}
+
+/// Per-media lifecycle status for a single book.
+pub async fn get_book_media_status(db: &SqlitePool, book_id: i64) -> Result<MediaStatus> {
+    let sql = format!("{MEDIA_STATUS_SELECT} WHERE b.id = ?1");
+    let row = sqlx::query_as::<_, (i64, String, String)>(&sql)
+        .bind(book_id)
+        .fetch_optional(db)
+        .await?;
+    Ok(row.map(|r| media_status_from_row(r).1).unwrap_or_else(|| MediaStatus {
+        ebook: "tracked".into(),
+        audiobook: "tracked".into(),
+    }))
+}
+
 /// Find a book by foreign_id
 pub async fn find_book_by_foreign_id(
     db: &SqlitePool,

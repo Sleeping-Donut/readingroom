@@ -62,7 +62,23 @@ pub fn router() -> Router<Arc<AppState>> {
 
 async fn list_books(State(state): State<Arc<AppState>>) -> Json<Value> {
     match crate::db::list_books(&state.db).await {
-        Ok(books) => Json(json!({ "books": books, "total": books.len() })),
+        Ok(books) => {
+            let statuses = crate::db::list_book_media_statuses(&state.db)
+                .await
+                .unwrap_or_default();
+            let items: Vec<Value> = books
+                .into_iter()
+                .map(|book| {
+                    let id = book.id;
+                    let mut value = json!(book);
+                    if let Some(status) = statuses.get(&id) {
+                        value["media_status"] = json!(status);
+                    }
+                    value
+                })
+                .collect();
+            Json(json!({ "books": items, "total": items.len() }))
+        }
         Err(e) => Json(json!({ "error": e.to_string(), "books": [], "total": 0 })),
     }
 }
@@ -247,11 +263,17 @@ async fn tracked_book_json(
     state: &AppState,
     book: readingroom_core::models::Book,
 ) -> Value {
+    let book_id = book.id;
     let enriched = enriched_book(state, book).await;
     let mut value = json!(enriched);
     if enriched.author_id > 0 {
         if let Ok(Some(author)) = crate::db::get_author_by_id(&state.db, enriched.author_id).await {
             value["author_foreign_id"] = json!(author.foreign_id);
+        }
+    }
+    if book_id > 0 {
+        if let Ok(status) = crate::db::get_book_media_status(&state.db, book_id).await {
+            value["media_status"] = json!(status);
         }
     }
     value

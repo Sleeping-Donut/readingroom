@@ -4,6 +4,7 @@ import { createMarker, makeSearchRegex } from "@solid-primitives/marker";
 import { Show } from "solid-js";
 
 import { BookCover } from "./BookCover";
+import { MediaStatusBadge } from "./MediaStatusBadge";
 import { StatusBadge } from "./StatusBadge";
 
 export function BookRow(props: {
@@ -16,6 +17,9 @@ export function BookRow(props: {
 	footer?: JSX.Element;
 	highlight?: string;
 	status?: string;
+	media?: { ebook?: string; audiobook?: string };
+	monitored?: boolean;
+	monitoredAudiobook?: boolean;
 }) {
 	const cover = (
 		<BookCover
@@ -33,11 +37,18 @@ export function BookRow(props: {
 			{props.highlight ? mark(props.title, makeSearchRegex(props.highlight)) : props.title}
 		</p>
 	);
-	const status = (
-		<div class="mt-1.5">
-			<StatusBadge status={props.status} />
-		</div>
-	);
+	const status = () =>
+		props.media ? (
+			<MediaStatusBadge
+				media={props.media}
+				monitored={props.monitored}
+				monitoredAudiobook={props.monitoredAudiobook}
+			/>
+		) : (
+			<div class="mt-1.5">
+				<StatusBadge status={props.status} />
+			</div>
+		);
 
 	if (props.cardLink) {
 		return (
@@ -49,7 +60,7 @@ export function BookRow(props: {
 				<div class="min-w-0 flex-1">
 					{title}
 					<p class="truncate text-xs text-ink-700">{props.subtitle}</p>
-					{status}
+					{status()}
 				</div>
 				{props.footer}
 			</a>
@@ -69,7 +80,7 @@ export function BookRow(props: {
 					</a>
 				</Show>
 				<p class="mt-0.5 truncate text-xs text-ink-500">{props.subtitle}</p>
-				{status}
+				{status()}
 			</div>
 			{props.footer}
 		</div>

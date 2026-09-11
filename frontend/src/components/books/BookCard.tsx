@@ -3,6 +3,7 @@ import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 
 import { BookCover } from "./BookCover";
+import { MediaStatusBadge } from "./MediaStatusBadge";
 import { StatusBadge } from "./StatusBadge";
 
 export function BookCard(props: {
@@ -13,6 +14,9 @@ export function BookCard(props: {
 	cardLink?: boolean;
 	footer?: JSX.Element;
 	status?: string;
+	media?: { ebook?: string; audiobook?: string };
+	monitored?: boolean;
+	monitoredAudiobook?: boolean;
 }) {
 	const cover = (
 		<BookCover
@@ -23,11 +27,18 @@ export function BookCard(props: {
 		/>
 	);
 	const title = <p class="truncate font-display text-lg text-ink-900">{props.title}</p>;
-	const status = (
-		<div class="mt-2">
-			<StatusBadge status={props.status} />
-		</div>
-	);
+	const status = () =>
+		props.media ? (
+			<MediaStatusBadge
+				media={props.media}
+				monitored={props.monitored}
+				monitoredAudiobook={props.monitoredAudiobook}
+			/>
+		) : (
+			<div class="mt-2">
+				<StatusBadge status={props.status} />
+			</div>
+		);
 
 	if (props.cardLink) {
 		return (
@@ -38,7 +49,7 @@ export function BookCard(props: {
 				{cover}
 				{title}
 				<p class="mt-0.5 truncate text-xs text-ink-500">{props.subtitle}</p>
-				{status}
+				{status()}
 				{props.footer}
 			</a>
 		);
@@ -56,7 +67,7 @@ export function BookCard(props: {
 				</a>
 			</Show>
 			<p class="mt-0.5 truncate text-xs text-ink-500">{props.subtitle}</p>
-			{status}
+			{status()}
 			{props.footer}
 		</div>
 	);

@@ -21,6 +21,7 @@ import type { Book } from "../../types";
 
 import { getBooks, bookId, searchBooks } from "../../api/books";
 import { BookCard } from "../../components/books/BookCard";
+import { BookCover } from "../../components/books/BookCover";
 import { BookRow } from "../../components/books/BookRow";
 import { Specimen } from "../../components/ui/Specimen";
 import { ViewToggle, createViewPreference, type ViewMode } from "../../components/ViewToggle";
@@ -77,6 +78,9 @@ function BookList(props: {
 									highlight={props.filterQuery().trim() || undefined}
 									subtitle={listSubtitle(book)}
 									status={book.status}
+									media={book.media_status}
+									monitored={book.monitored}
+									monitoredAudiobook={book.monitored_audiobook}
 								/>
 							)}
 						</For>
@@ -97,6 +101,9 @@ function BookList(props: {
 									"No author"
 								}
 								status={book.status}
+								media={book.media_status}
+								monitored={book.monitored}
+								monitoredAudiobook={book.monitored_audiobook}
 							/>
 						)}
 					</For>
@@ -250,29 +257,27 @@ export default function Books(_props: RouteProps<typeof route>) {
 										<p class="mt-4 text-sm text-ink-500">No books found.</p>
 									}
 								>
-									<div class="mt-4 space-y-2">
+									<div class="mt-4 space-y-1.5">
 										<For each={searchResults().books}>
 											{(book) => (
 												<div class="flex items-center gap-4 rounded-sm border border-rule bg-paper-50 p-3 transition-colors hover:bg-paper-200">
-													<Show when={book.image_url}>
-														{(img) => (
-															<img
-																src={img()}
-																alt={book.title}
-																class="h-14 w-10 rounded object-cover"
-															/>
-														)}
-													</Show>
+													<BookCover
+														src={book.image_url}
+														alt={book.title}
+														class="h-20 w-14 shrink-0 rounded"
+													/>
 													<div class="min-w-0 flex-1">
-														<p class="truncate font-medium">
+														<p
+															class="truncate font-display text-lg text-ink-900"
+															title={book.title}
+														>
 															{book.title}
 														</p>
-														<p class="truncate text-xs text-ink-500">
-															{book.publish_date &&
-																`${book.publish_date}`}
-															{book.genres.length > 0 &&
-																` · ${book.genres.slice(0, 3).join(", ")}`}
-															{book.language && ` · ${book.language}`}
+														<p class="truncate text-sm text-ink-700">
+															{book.author_name || "Unknown author"}
+														</p>
+														<p class="text-xs text-ink-500">
+															{yearOf(book.publish_date) ?? "—"}
 														</p>
 													</div>
 													<button

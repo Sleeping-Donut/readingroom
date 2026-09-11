@@ -176,9 +176,26 @@ function ReleaseRow(props: {
 	return (
 		<tr class="border-b border-rule hover:bg-paper-200">
 			<td class="py-3 pr-4">
-				<p class="max-w-xs truncate font-medium" title={props.result.release.title}>
-					{props.result.release.title}
-				</p>
+				<Show
+					when={props.result.release.info_url || props.result.release.download_url}
+					fallback={
+						<p class="max-w-xs truncate font-medium" title={props.result.release.title}>
+							{props.result.release.title}
+						</p>
+					}
+				>
+					{(url) => (
+						<a
+							href={url()}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="block max-w-xs truncate font-medium text-accent hover:underline"
+							title={props.result.release.title}
+						>
+							{props.result.release.title}
+						</a>
+					)}
+				</Show>
 			</td>
 			<td class="py-3 pr-4 text-ink-700">{props.result.release.indexer}</td>
 			<td class="py-3 pr-4 whitespace-nowrap text-ink-700">{sizeMb()}</td>
