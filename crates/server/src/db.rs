@@ -474,14 +474,39 @@ pub async fn book_has_files(db: &SqlitePool, book_id: i64) -> Result<bool> {
     Ok(has.is_some())
 }
 
-/// Whether a file at this exact library path has already been imported.
-pub async fn book_file_exists(db: &SqlitePool, path: &str) -> Result<bool> {
-    let has: Option<i64> =
-        sqlx::query_scalar("SELECT 1 FROM book_files WHERE path = ?1 LIMIT 1")
-            .bind(path)
-            .fetch_optional(db)
-            .await?;
+/// Whether the book already has an imported file of this exact size (a strong
+/// signal the same source was already imported under a different name).
+pub async fn book_file_with_size_exists(
+    db: &SqlitePool,
+    book_id: i64,
+    size: i64,
+) -> Result<bool> {
+    let has: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM book_files bf JOIN editions e ON e.id = bf.edition_id
+         WHERE e.book_id = ?1 AND bf.size = ?2 LIMIT 1",
+    )
+    .bind(book_id)
+    .bind(size)
+    .fetch_optional(db)
+    .await?;
     Ok(has.is_some())
+}
+
+/// Largest imported file size for a book in a given file format (extension).
+pub async fn book_format_max_size(
+    db: &SqlitePool,
+    book_id: i64,
+    format: &str,
+) -> Result<Option<i64>> {
+    let max: Option<i64> = sqlx::query_scalar::<_, Option<i64>>(
+        "SELECT MAX(bf.size) FROM book_files bf JOIN editions e ON e.id = bf.edition_id
+         WHERE e.book_id = ?1 AND LOWER(bf.format) = LOWER(?2)",
+    )
+    .bind(book_id)
+    .bind(format)
+    .fetch_one(db)
+    .await?;
+    Ok(max)
 }
 
 /// Read a raw value from the config table.

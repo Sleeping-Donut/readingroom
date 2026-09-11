@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use readingroom_core::{
@@ -220,6 +221,7 @@ impl ImportManager {
 
         let dest = self.destination_path(
             book_id,
+            edition_id,
             &book_title,
             author_name,
             is_audiobook,
@@ -228,6 +230,8 @@ impl ImportManager {
             file_path,
             cfg,
         )?;
+        // Never overwrite an existing library file: suffix a counter instead.
+        let dest = unique_path(dest);
 
         self.transfer(file_path, &dest, mode).await?;
         tracing::info!(
@@ -333,7 +337,14 @@ impl ImportManager {
                 .to_lowercase();
             let (format_name, quality) = classify_file(&ext);
             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            let interpretations = name_interpretations(stem);
+            let mut interpretations = name_interpretations(stem);
+            // EPUBs carry authoritative title/author tags; add them as an extra
+            // interpretation when the filename is unhelpful.
+            if ext == "epub" {
+                if let Some((Some(title), author)) = read_epub_tags(path) {
+                    interpretations.push((title, author));
+                }
+            }
 
             // Prefer whichever "Title" / "Author" split matches a tracked book;
             // that resolves both naming orders (Author - Title and Title - Author).
@@ -368,15 +379,26 @@ impl ImportManager {
             let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
             let rejection = if quality == Quality::Unknown {
                 Some(format!("Unsupported format: .{ext}"))
-            } else if book_id.is_none() {
-                Some("No matching book".into())
-            } else if db::book_file_exists(&self.db, &path.to_string_lossy())
-                .await
-                .unwrap_or(false)
-            {
-                Some("Already imported".into())
+            } else if let Some(id) = book_id {
+                if db::book_file_with_size_exists(&self.db, id, size as i64)
+                    .await
+                    .unwrap_or(false)
+                {
+                    Some("Already imported (same size)".into())
+                } else if let Some(max) = db::book_format_max_size(&self.db, id, &format_name)
+                    .await
+                    .unwrap_or(None)
+                {
+                    if size as i64 <= max {
+                        Some(format!("Not an upgrade over the existing {format_name}"))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             } else {
-                None
+                Some("No matching book".into())
             };
 
             let is_audiobook = is_audiobook_format(&format_name);
@@ -587,9 +609,11 @@ impl ImportManager {
     }
 
     /// Determine the destination path for an imported file using rename patterns.
+    #[allow(clippy::too_many_arguments)]
     fn destination_path(
         &self,
         book_id: i64,
+        edition_id: i64,
         book_title: &str,
         author_name: &str,
         is_audiobook: bool,
@@ -620,7 +644,7 @@ impl ImportManager {
             let fmt = cfg
                 .book_file_format
                 .as_deref()
-                .unwrap_or("{book_id}.{ext}");
+                .unwrap_or("{book_id}-{edition_id}.{ext}");
 
             let author_folder = cfg
                 .author_folder_format
@@ -632,6 +656,7 @@ impl ImportManager {
 
             let filename = fmt
                 .replace("{book_id}", &book_id.to_string())
+                .replace("{edition_id}", &edition_id.to_string())
                 .replace("{book_title}", &safe_title)
                 .replace("{title}", &safe_title)
                 .replace("{author_name}", &safe_author)
@@ -641,6 +666,7 @@ impl ImportManager {
 
             let author_dir = author_folder
                 .replace("{book_id}", &book_id.to_string())
+                .replace("{edition_id}", &edition_id.to_string())
                 .replace("{book_title}", &safe_title)
                 .replace("{title}", &safe_title)
                 .replace("{author_name}", &safe_author);
@@ -648,7 +674,7 @@ impl ImportManager {
             let dest = root.join(subdir).join(&author_dir).join(&filename);
             Ok(dest)
         } else {
-            let filename = format!("book-{book_id}.{ext}");
+            let filename = format!("book-{book_id}-{edition_id}.{ext}");
             let dest = root.join(subdir).join(&filename);
             Ok(dest)
         }
@@ -740,6 +766,37 @@ fn sanitize_name(name: &str) -> String {
         .to_string()
 }
 
+/// Return a path that does not already exist, appending `-2`, `-3`, … before
+/// the extension. Prevents a second import for the same book/format from
+/// silently overwriting the first.
+fn unique_path(dest: PathBuf) -> PathBuf {
+    if !dest.exists() {
+        return dest;
+    }
+    let parent = dest.parent().map(Path::to_path_buf).unwrap_or_default();
+    let stem = dest
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("file")
+        .to_string();
+    let ext = dest
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_string();
+    for n in 2..1000 {
+        let candidate = if ext.is_empty() {
+            parent.join(format!("{stem}-{n}"))
+        } else {
+            parent.join(format!("{stem}-{n}.{ext}"))
+        };
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    dest
+}
+
 /// Parse a release/file stem into a probable book title. Handles the common
 /// `Author - Title` / `Title - Author` shapes and strips release tags.
 fn parse_release_name(stem: &str) -> Option<String> {
@@ -776,6 +833,57 @@ fn name_interpretations(stem: &str) -> Vec<(String, Option<String>)> {
         }
     }
     vec![(cleaned, None)]
+}
+
+/// Read `dc:title` / `dc:creator` from an EPUB's OPF package document. Used as
+/// a fallback when the filename is too noisy to match a tracked book.
+fn read_epub_tags(path: &Path) -> Option<(Option<String>, Option<String>)> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+
+    let mut container = String::new();
+    archive
+        .by_name("META-INF/container.xml")
+        .ok()?
+        .read_to_string(&mut container)
+        .ok()?;
+    let opf_path = extract_attr(&container, "full-path")?;
+
+    let mut opf = String::new();
+    archive
+        .by_name(&opf_path)
+        .ok()?
+        .read_to_string(&mut opf)
+        .ok()?;
+
+    Some((
+        extract_element(&opf, "dc:title"),
+        extract_element(&opf, "dc:creator"),
+    ))
+}
+
+/// Pull the text content of the first `<tag ...>…</tag>` in an XML string.
+fn extract_element(xml: &str, tag: &str) -> Option<String> {
+    let open = format!("<{tag}");
+    let start = xml.find(&open)?;
+    let after = &xml[start..];
+    let content_start = start + after.find('>')? + 1;
+    let close = format!("</{tag}>");
+    let end = xml[content_start..].find(&close)? + content_start;
+    let text = xml[content_start..end].trim();
+    if text.is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
+}
+
+/// Pull the value of the first `attr="…"` in an XML string.
+fn extract_attr(xml: &str, attr: &str) -> Option<String> {
+    let pat = format!("{attr}=\"");
+    let start = xml.find(&pat)? + pat.len();
+    let end = xml[start..].find('"')? + start;
+    Some(xml[start..end].to_string())
 }
 
 /// Strip bracketed groups (quality, year, release group) and known format tags.
@@ -903,5 +1011,35 @@ mod tests {
             PathBuf::from("/x/02 - Chapter Two.mp3"),
         ];
         assert!(!ImportManager::looks_multi_book(&parts));
+    }
+
+    #[test]
+    fn unique_path_avoids_overwrite() {
+        let dir = std::env::temp_dir().join(format!("rr_unique_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let base = dir.join("book-1-1.epub");
+        assert_eq!(unique_path(base.clone()), base);
+
+        std::fs::write(&base, b"x").unwrap();
+        let second = dir.join("book-1-1-2.epub");
+        assert_eq!(unique_path(base.clone()), second);
+
+        std::fs::write(&second, b"x").unwrap();
+        assert_eq!(unique_path(base.clone()), dir.join("book-1-1-3.epub"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn extracts_opf_fields() {
+        let creator = r#"<dc:creator opf:role="aut">Ursula K. Le Guin</dc:creator>"#;
+        assert_eq!(
+            extract_element(creator, "dc:creator"),
+            Some("Ursula K. Le Guin".into())
+        );
+        let container = r#"<rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>"#;
+        assert_eq!(
+            extract_attr(container, "full-path"),
+            Some("OEBPS/content.opf".into())
+        );
     }
 }
