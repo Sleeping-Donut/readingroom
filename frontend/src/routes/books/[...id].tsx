@@ -405,7 +405,7 @@ export default function BookDetail() {
 						<BookCover
 							src={book().image_url}
 							alt={book().title}
-							class="w-40 shrink-0 rounded-sm sm:w-48"
+							class="w-40 shrink-0 self-start rounded-sm sm:w-48"
 							emojiClass="text-5xl"
 						/>
 						<div class="min-w-0 flex-1">

@@ -48,8 +48,8 @@ async fn search_indexers(
     let mut all_results = Vec::new();
 
     // A title query can match up to 100 works/editions; searching every indexer
-    // for each is far too slow. Only use the top matches.
-    for book in books.iter().take(3) {
+    // for each is far too slow. Only search the best match.
+    for book in books.iter().take(1) {
         // Metadata search results aren't in the DB — treat as monitored
         // so the user can search indexers for them.
         let monitored = MonitoredBook { inner: book.clone() };
