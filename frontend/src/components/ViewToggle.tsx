@@ -8,6 +8,7 @@ const PREFIX = "readingroom.view.";
 export function createViewPreference(key: string): [Accessor<ViewMode>, Setter<ViewMode>] {
 	const [view, setView] = makePersisted(createSignal<ViewMode>("grid"), {
 		name: PREFIX + key,
+		hydrated: true,
 	});
 	return [view, setView];
 }

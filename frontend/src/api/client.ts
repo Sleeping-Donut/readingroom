@@ -64,8 +64,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 		...init,
 	});
 	if (res.status === 401) {
-		localStorage.removeItem("readingroom_token");
-		localStorage.removeItem("readingroom_user");
+		try {
+			localStorage.removeItem("readingroom_token");
+			localStorage.removeItem("readingroom_user");
+		} catch {
+			/* storage unavailable (SSR / privacy mode) */
+		}
 		onUnauthorized?.();
 	}
 	if (!res.ok) {

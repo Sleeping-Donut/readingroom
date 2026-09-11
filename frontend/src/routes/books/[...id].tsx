@@ -304,6 +304,8 @@ export default function BookDetail() {
 				author_name: book().author_name,
 			});
 			yield;
+			revalidate(getBook.key);
+			revalidate(getBooks.key);
 			navigate(paths.books(bookId(created.book)));
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
@@ -321,6 +323,7 @@ export default function BookDetail() {
 				author_name: book().author_name,
 			});
 			yield;
+			revalidate(getBooks.key);
 			navigate(paths.books(bookId(created.book)));
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : "Request failed");
@@ -402,7 +405,7 @@ export default function BookDetail() {
 						<BookCover
 							src={book().image_url}
 							alt={book().title}
-							class="aspect-[2/3] w-40 shrink-0 rounded-sm object-contain sm:w-48"
+							class="w-40 shrink-0 rounded-sm sm:w-48"
 							emojiClass="text-5xl"
 						/>
 						<div class="min-w-0 flex-1">
@@ -468,27 +471,29 @@ export default function BookDetail() {
 											</span>
 										</button>
 									</Show>
-									<button
-										onClick={openSearch}
-										disabled={searching()}
-										class="flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											class="h-4 w-4"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-											stroke-width="2"
+									<Show when={book().id > 0}>
+										<button
+											onClick={openSearch}
+											disabled={searching()}
+											class="flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-paper-50 transition-colors hover:bg-ink-700 disabled:opacity-50"
 										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
-											/>
-										</svg>
-										{searching() ? "Searching..." : "Interactive Search"}
-									</button>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												class="h-4 w-4"
+												fill="none"
+												viewBox="0 0 24 24"
+												stroke="currentColor"
+												stroke-width="2"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
+												/>
+											</svg>
+											{searching() ? "Searching..." : "Interactive Search"}
+										</button>
+									</Show>
 									<Show when={book().id === 0}>
 										<button
 											onClick={() => void addToLibrary()}

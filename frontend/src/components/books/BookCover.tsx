@@ -15,7 +15,7 @@ export function BookCover(props: {
 			fallback={
 				<div
 					class={[
-						"flex items-center justify-center border border-rule bg-paper-200",
+						"flex aspect-[2/3] items-center justify-center border border-rule bg-paper-200",
 						props.class,
 					]}
 				>
