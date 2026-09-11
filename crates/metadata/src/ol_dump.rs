@@ -1316,7 +1316,7 @@ impl MetadataSource for OlCacheSource {
                 publish_date: first_publish_date.as_deref().and_then(parse_date).map(|d| {
                     NaiveDate::from_ymd_opt(d.year(), 1, 1).unwrap_or(d)
                 }),
-                image_url: None,
+                image_url: parsed.covers.first().copied().and_then(|id| cover_url(id, "L")),
                 genres: parsed.subjects,
                 ratings: None,
                 language: "en".into(),
